@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Toner-Kampagne · Kanban</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+:root{
+  --bg:#fff;--bg2:#f7f7f5;--bg3:#f0efec;
+  --text:#1a1a18;--text2:#6b6b67;--text3:#9a9a96;
+  --border:rgba(0,0,0,0.1);--border2:rgba(0,0,0,0.18);
+  --purple:#534AB7;--purple-bg:#EEEDFE;--purple-dark:#3C3489;
+  --teal:#1D9E75;--teal-bg:#E1F5EE;--teal-dark:#085041;
+  --amber:#BA7517;--amber-bg:#FAEEDA;--amber-dark:#633806;
+  --gray:#5F5E5A;--gray-bg:#F1EFE8;--gray-dark:#2C2C2A;
+  --green:#3B6D11;--green-bg:#EAF3DE;--green-dark:#173404;
+  --red:#A32D2D;--red-bg:#FCEBEB;--red-dark:#501313;
+  --r-sm:6px;--r-md:8px;--r-lg:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font-size:14px;line-height:1.5;display:flex;flex-direction:column;overflow:hidden;}
+
+/* TOPBAR */
+.topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:14px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;flex-wrap:wrap;gap:10px;}
+.tb-left{display:flex;align-items:center;gap:10px;}
+.tb-dot{width:9px;height:9px;border-radius:50%;background:var(--purple);}
+.tb-title{font-size:16px;font-weight:700;}
+.tb-sub{font-size:12px;color:var(--text2);}
+.tb-stats{display:flex;gap:18px;margin-left:14px;}
+.tb-stat{text-align:center;}
+.tb-stat-val{font-size:16px;font-weight:700;}
+.tb-stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;}
+.tb-right{display:flex;align-items:center;gap:8px;}
+input[type=text],input[type=date],input[type=tel],input[type=email],select,textarea{
+  font-size:13px;padding:8px 11px;border-radius:var(--r-md);border:1px solid var(--border2);
+  background:var(--bg2);color:var(--text);font-family:inherit;outline:none;transition:border-color .12s;}
+input:focus,select:focus,textarea:focus{border-color:var(--purple);}
+textarea{resize:vertical;min-height:70px;line-height:1.5;width:100%;}
+label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:4px;}
+.search-box{position:relative;}
+.search-box i{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;}
+.search-box input{padding-left:30px;width:190px;}
+.btn{padding:8px 14px;font-size:13px;font-weight:500;border-radius:var(--r-md);cursor:pointer;border:1px solid var(--border2);background:var(--bg);color:var(--text);display:flex;align-items:center;gap:6px;transition:all .12s;font-family:inherit;white-space:nowrap;}
+.btn:hover{background:var(--bg2);}
+.btn-primary{background:var(--purple);color:#fff;border-color:var(--purple);}
+.btn-primary:hover{background:var(--purple-dark);}
+.btn-danger{background:var(--red-bg);color:var(--red);border-color:transparent;}
+.btn-sm{padding:5px 10px;font-size:12px;}
+
+/* FILTER BAR */
+.filterbar{background:var(--bg);border-bottom:1px solid var(--border);padding:9px 22px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;}
+.chip{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);color:var(--text2);background:var(--bg);transition:all .12s;}
+.chip:hover{border-color:var(--purple);color:var(--text);}
+.chip.active{background:var(--purple);color:#fff;border-color:var(--purple);}
+.filterbar-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-right:2px;}
+
+/* BOARD */
+.board-wrap{flex:1;overflow-x:auto;overflow-y:hidden;padding:16px 22px;}
+.board{display:flex;gap:12px;height:100%;min-width:max-content;}
+.col{width:220px;flex-shrink:0;display:flex;flex-direction:column;background:var(--bg2);border-radius:var(--r-lg);height:100%;}
+.col.drop-hover{outline:2px dashed var(--purple);outline-offset:-2px;}
+.col-hdr{padding:11px 12px 9px;display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.col-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.col-name{font-size:12px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.col-count{font-size:11px;font-weight:600;color:var(--text3);background:var(--bg);border-radius:20px;padding:1px 7px;}
+.col-body{flex:1;overflow-y:auto;padding:2px 8px 8px;}
+.col-body::-webkit-scrollbar{width:4px;}
+.col-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+.col-empty{font-size:11px;color:var(--text3);text-align:center;padding:14px 4px;}
+
+/* CARD */
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 11px;margin-bottom:8px;cursor:grab;transition:box-shadow .12s,border-color .12s;}
+.card:hover{border-color:var(--border2);box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.card.dragging{opacity:.4;}
+.card-company{font-size:13px;font-weight:600;margin-bottom:2px;}
+.card-contact{font-size:12px;color:var(--text2);margin-bottom:8px;}
+.card-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;}
+.card-agent{display:flex;align-items:center;gap:5px;}
+.card-av{width:18px;height:18px;border-radius:50%;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.card-agent-name{font-size:11px;color:var(--text2);}
+.due-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;display:flex;align-items:center;gap:3px;white-space:nowrap;}
+.due-ok{background:var(--gray-bg);color:var(--gray-dark);}
+.due-soon{background:var(--amber-bg);color:var(--amber-dark);}
+.due-overdue{background:var(--red-bg);color:var(--red-dark);}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(20,20,18,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;}
+.modal-overlay.hidden{display:none;}
+.modal{background:var(--bg);border-radius:var(--r-lg);width:100%;max-width:480px;max-height:88vh;overflow-y:auto;padding:22px 24px;}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.modal-title{font-size:15px;font-weight:700;}
+.modal-close{cursor:pointer;color:var(--text3);font-size:18px;background:none;border:none;}
+.field-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.field{margin-bottom:10px;}
+.modal-actions{display:flex;justify-content:space-between;gap:8px;margin-top:16px;}
+.status-select-wrap{display:flex;align-items:center;gap:8px;}
+.status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+
+@media (max-width:640px){
+  .tb-stats{display:none;}
+  .col{width:200px;}
+}
+
+.staging-topbar{background:#BA7517;color:#fff;font-size:12px;font-weight:600;text-align:center;padding:6px 10px;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;}
+.staging-topbar a{color:#fff;text-decoration:underline;font-weight:700;}
+.staging-bottombar{background:#BA7517;color:#fff;font-size:12px;font-weight:600;text-align:center;padding:6px 10px;flex-shrink:0;}
+.staging-bottombar a{color:#fff;text-decoration:underline;font-weight:700;}
+</style>
+</head>
+<body>
+<div class="staging-topbar"><i class="ti ti-alert-triangle"></i> STAGING – Diese Version ist nicht live &nbsp;·&nbsp; <a href="https://wiegand-sales.github.io/toner-kampagne-kanban/" target="_blank">&rarr; Live ansehen</a></div>
+
+
+<div class="topbar">
+  <div class="tb-left">
+    <div class="tb-dot"></div>
+    <div>
+      <div class="tb-title">Toner-Kampagne</div>
+      <div class="tb-sub">Kostenloser Toner → Follow-up → Angebot</div>
+    </div>
+    <div class="tb-stats" id="statsBar"></div>
+  </div>
+  <div class="tb-right">
+    <div class="search-box"><i class="ti ti-search"></i><input type="text" id="searchInput" placeholder="Firma oder Kontakt suchen" oninput="renderBoard()"></div>
+    <button class="btn" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</button>
+    <button class="btn btn-primary" onclick="openLeadModal()"><i class="ti ti-plus"></i> Neuer Lead</button>
+  </div>
+</div>
+
+<div class="filterbar">
+  <span class="filterbar-label">Agent</span>
+  <div id="agentChips"></div>
+</div>
+
+<div class="board-wrap">
+  <div class="board" id="board"></div>
+</div>
+
+<!-- LEAD MODAL -->
+<div class="modal-overlay hidden" id="leadModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title" id="leadModalTitle">Neuer Lead</div>
+      <button class="modal-close" onclick="closeModal('leadModal')"><i class="ti ti-x"></i></button>
+    </div>
+    <input type="hidden" id="leadId">
+    <div class="field">
+      <label>Firmenname</label>
+      <input type="text" id="fCompany" style="width:100%">
+    </div>
+    <div class="field-2">
+      <div><label>Ansprechpartner</label><input type="text" id="fContact" style="width:100%"></div>
+      <div><label>Agent</label>
+        <select id="fAgent" style="width:100%"></select>
+      </div>
+    </div>
+    <div class="field-2">
+      <div><label>Telefonnummer</label><input type="tel" id="fPhone" style="width:100%"></div>
+      <div><label>E-Mail</label><input type="email" id="fEmail" style="width:100%"></div>
+    </div>
+    <div class="field-2">
+      <div><label>Status</label>
+        <div class="status-select-wrap">
+          <select id="fStatus" style="width:100%"></select>
+        </div>
+      </div>
+      <div><label>Follow-up-Datum</label><input type="date" id="fFollowup" style="width:100%"></div>
+    </div>
+    <div class="field">
+      <label>Notizen</label>
+      <textarea id="fNotes"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="deleteLeadBtn" onclick="deleteLead()" style="display:none"><i class="ti ti-trash"></i> Löschen</button>
+      <div style="flex:1"></div>
+      <button class="btn" onclick="closeModal('leadModal')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveLead()"><i class="ti ti-check"></i> Speichern</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──
+const AGENTS=[
+  {id:'a1',name:'Sabine Krause',color:'purple'},
+  {id:'a2',name:'Jonas Weber',color:'teal'},
+  {id:'a3',name:'Lea Hoffmann',color:'amber'},
+];
+const COLUMNS=[
+  {id:'new',name:'Neue Leads',color:'gray'},
+  {id:'qualified',name:'Qualifiziert',color:'gray'},
+  {id:'contact',name:'Erstkontakt läuft',color:'teal'},
+  {id:'toner_confirmed',name:'Toner zugesagt',color:'teal'},
+  {id:'toner_shipped',name:'Toner unterwegs',color:'teal'},
+  {id:'followup',name:'Follow-up fällig',color:'amber'},
+  {id:'offer_build',name:'Angebot bauen',color:'amber'},
+  {id:'offer_sent',name:'Angebot raus',color:'amber'},
+  {id:'won',name:'Gewonnen',color:'green'},
+  {id:'lost',name:'Verloren',color:'red'},
+];
+const COLOR_HEX={purple:'var(--purple)',teal:'var(--teal)',amber:'var(--amber)',gray:'var(--gray)',green:'var(--green)',red:'var(--red)'};
+const COLOR_BG={purple:'var(--purple-bg)',teal:'var(--teal-bg)',amber:'var(--amber-bg)',gray:'var(--gray-bg)',green:'var(--green-bg)',red:'var(--red-bg)'};
+const COLOR_TEXT={purple:'var(--purple-dark)',teal:'var(--teal-dark)',amber:'var(--amber-dark)',gray:'var(--gray-dark)',green:'var(--green-dark)',red:'var(--red-dark)'};
+const TODAY='2026-07-02';
+
+// ── STATE (in-memory, kein Backend) ──
+let leads=[
+  {id:1,company:'Musterfirma GmbH',contact:'Max Mustermann',agent:'a1',phone:'+49 89 1234567',email:'max@musterfirma.de',status:'qualified',followup:'',notes:'Interessiert, ruft morgen zurück'},
+  {id:2,company:'Beispiel AG',contact:'Erika Beispiel',agent:'a2',phone:'+49 89 7654321',email:'erika@beispiel.de',status:'toner_shipped',followup:'2026-07-09',notes:''},
+  {id:3,company:'Test & Co KG',contact:'Peter Test',agent:'a3',phone:'+49 89 1112233',email:'peter@testco.de',status:'followup',followup:'2026-06-28',notes:'Follow-up-Anruf steht an'},
+  {id:4,company:'Nordbau Systeme',contact:'Anke Nord',agent:'a1',phone:'+49 40 998877',email:'anke@nordbau.de',status:'new',followup:'',notes:''},
+  {id:5,company:'Rheinland Druck GmbH',contact:'Tobias Rhein',agent:'a2',phone:'+49 221 445566',email:'t.rhein@rheinland-druck.de',status:'contact',followup:'',notes:'Zweiter Versuch am Mittwoch'},
+  {id:6,company:'Südwest Büroservice',contact:'Nina Süd',agent:'a3',phone:'+49 711 223344',email:'nina@suedwest-buero.de',status:'offer_build',followup:'',notes:'Sehr zufrieden mit Toner, will Preisliste'},
+  {id:7,company:'Alpin Office Solutions',contact:'Felix Alpin',agent:'a1',phone:'+49 89 5566778',email:'felix@alpin-office.de',status:'offer_sent',followup:'2026-07-05',notes:''},
+  {id:8,company:'Berlin Print Partner',contact:'Julia Berg',agent:'a2',phone:'+49 30 9988776',email:'julia@berlinprint.de',status:'won',followup:'',notes:'Rahmenvertrag unterschrieben'},
+  {id:9,company:'Kontor Nord',contact:'Simon Kontor',agent:'a3',phone:'+49 40 3322110',email:'simon@kontor-nord.de',status:'lost',followup:'',notes:'Bereits langfristiger Vertrag mit Wettbewerber'},
+  {id:10,company:'Meier Bürobedarf',contact:'Claudia Meier',agent:'a1',phone:'+49 221 887766',email:'c.meier@meier-buero.de',status:'toner_confirmed',followup:'',notes:''},
+  {id:11,company:'Franke Elektro GmbH',contact:'Robert Franke',agent:'a2',phone:'+49 69 556677',email:'r.franke@franke-elektro.de',status:'followup',followup:'2026-06-30',notes:'Toner kam gut an, wartet auf Rückruf'},
+  {id:12,company:'Vogel Consulting',contact:'Petra Vogel',agent:'a3',phone:'+49 211 998811',email:'petra@vogel-consulting.de',status:'new',followup:'',notes:''},
+];
+let nextId=13;
+let activeAgentFilter='all';
+let dragCardId=null;
+
+// ── HELPERS ──
+function ini(n){return n.split(' ').map(x=>x[0]).join('').toUpperCase().slice(0,2);}
+function agentById(id){return AGENTS.find(a=>a.id===id);}
+function colById(id){return COLUMNS.find(c=>c.id===id);}
+function fmtDate(d){if(!d)return'';const p=d.split('-');return`${p[2]}.${p[1]}.${p[0]}`;}
+function daysUntil(d){if(!d)return null;const diff=(new Date(d)-new Date(TODAY))/86400000;return Math.round(diff);}
+
+function getFilteredLeads(){
+  const q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
+  return leads.filter(l=>{
+    if(activeAgentFilter!=='all'&&l.agent!==activeAgentFilter)return false;
+    if(q&&!(l.company.toLowerCase().includes(q)||l.contact.toLowerCase().includes(q)))return false;
+    return true;
+  });
+}
+
+// ── RENDER: STATS ──
+function renderStats(){
+  const fl=getFilteredLeads();
+  const total=fl.length;
+  const won=fl.filter(l=>l.status==='won').length;
+  const overdue=fl.filter(l=>l.followup&&daysUntil(l.followup)<0).length;
+  const rate=total?Math.round(won/total*100):0;
+  document.getElementById('statsBar').innerHTML=`
+    <div class="tb-stat"><div class="tb-stat-val">${total}</div><div class="tb-stat-label">Leads</div></div>
+    <div class="tb-stat"><div class="tb-stat-val" style="color:${overdue>0?'var(--red)':'var(--text)'}">${overdue}</div><div class="tb-stat-label">Follow-up überfällig</div></div>
+    <div class="tb-stat"><div class="tb-stat-val" style="color:var(--green)">${rate}%</div><div class="tb-stat-label">Gewonnen</div></div>`;
+}
+
+// ── RENDER: AGENT FILTER ──
+function renderAgentChips(){
+  const el=document.getElementById('agentChips');
+  let html=`<span class="chip ${activeAgentFilter==='all'?'active':''}" onclick="setAgentFilter('all')">Alle</span>`;
+  AGENTS.forEach(a=>{
+    html+=`<span class="chip ${activeAgentFilter===a.id?'active':''}" onclick="setAgentFilter('${a.id}')">${a.name}</span>`;
+  });
+  el.innerHTML=html;
+}
+function setAgentFilter(id){activeAgentFilter=id;renderAgentChips();renderBoard();}
+
+// ── RENDER: BOARD ──
+function renderBoard(){
+  renderStats();
+  const fl=getFilteredLeads();
+  const board=document.getElementById('board');
+  board.innerHTML=COLUMNS.map(col=>{
+    const items=fl.filter(l=>l.status===col.id);
+    const cardsHtml=items.length?items.map(cardHtml).join(''):`<div class="col-empty">Keine Leads</div>`;
+    return `<div class="col" data-col="${col.id}" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${col.id}')">
+      <div class="col-hdr">
+        <div class="col-dot" style="background:${COLOR_HEX[col.color]}"></div>
+        <div class="col-name">${col.name}</div>
+        <div class="col-count">${items.length}</div>
+      </div>
+      <div class="col-body">${cardsHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+function cardHtml(l){
+  const a=agentById(l.agent);
+  let dueHtml='';
+  if(l.followup){
+    const d=daysUntil(l.followup);
+    const cls=d<0?'due-overdue':(d<=2?'due-soon':'due-ok');
+    const label=d<0?`${Math.abs(d)}T überfällig`:(d===0?'heute':fmtDate(l.followup));
+    dueHtml=`<span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${label}</span>`;
+  }
+  return `<div class="card" draggable="true" data-id="${l.id}" ondragstart="onDragStart(event,${l.id})" ondragend="onDragEnd(event)" onclick="openLeadModal(${l.id})">
+    <div class="card-company">${l.company}</div>
+    <div class="card-contact">${l.contact}</div>
+    <div class="card-foot">
+      <div class="card-agent">
+        <div class="card-av" style="background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</div>
+        <div class="card-agent-name">${a.name.split(' ')[0]}</div>
+      </div>
+      ${dueHtml}
+    </div>
+  </div>`;
+}
+
+// ── DRAG & DROP ──
+function onDragStart(e,id){dragCardId=id;e.target.classList.add('dragging');e.dataTransfer.effectAllowed='move';}
+function onDragEnd(e){e.target.classList.remove('dragging');}
+function onDragOver(e){e.preventDefault();e.currentTarget.classList.add('drop-hover');}
+function onDragLeave(e){e.currentTarget.classList.remove('drop-hover');}
+function onDrop(e,colId){
+  e.preventDefault();e.currentTarget.classList.remove('drop-hover');
+  const l=leads.find(x=>x.id===dragCardId);
+  if(l){l.status=colId;renderBoard();}
+  dragCardId=null;
+}
+
+// ── LEAD MODAL ──
+function openLeadModal(id){
+  const isEdit=!!id;
+  document.getElementById('leadModalTitle').textContent=isEdit?'Lead bearbeiten':'Neuer Lead';
+  document.getElementById('deleteLeadBtn').style.display=isEdit?'flex':'none';
+  document.getElementById('fAgent').innerHTML=AGENTS.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  document.getElementById('fStatus').innerHTML=COLUMNS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  if(isEdit){
+    const l=leads.find(x=>x.id===id);
+    document.getElementById('leadId').value=l.id;
+    document.getElementById('fCompany').value=l.company;
+    document.getElementById('fContact').value=l.contact;
+    document.getElementById('fAgent').value=l.agent;
+    document.getElementById('fPhone').value=l.phone;
+    document.getElementById('fEmail').value=l.email;
+    document.getElementById('fStatus').value=l.status;
+    document.getElementById('fFollowup').value=l.followup;
+    document.getElementById('fNotes').value=l.notes;
+  }else{
+    document.getElementById('leadId').value='';
+    ['fCompany','fContact','fPhone','fEmail','fFollowup','fNotes'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('fStatus').value='new';
+  }
+  openModal('leadModal');
+}
+function saveLead(){
+  const id=document.getElementById('leadId').value;
+  const company=document.getElementById('fCompany').value.trim();
+  if(!company){document.getElementById('fCompany').focus();return;}
+  const data={
+    company,
+    contact:document.getElementById('fContact').value.trim(),
+    agent:document.getElementById('fAgent').value,
+    phone:document.getElementById('fPhone').value.trim(),
+    email:document.getElementById('fEmail').value.trim(),
+    status:document.getElementById('fStatus').value,
+    followup:document.getElementById('fFollowup').value,
+    notes:document.getElementById('fNotes').value.trim(),
+  };
+  if(id){
+    const l=leads.find(x=>x.id===parseInt(id));
+    Object.assign(l,data);
+  }else{
+    leads.push({id:nextId++,...data});
+  }
+  closeModal('leadModal');renderBoard();
+}
+function deleteLead(){
+  const id=parseInt(document.getElementById('leadId').value);
+  leads=leads.filter(x=>x.id!==id);
+  closeModal('leadModal');renderBoard();
+}
+
+// ── CSV EXPORT ──
+function exportCSV(){
+  const headers=['Firmenname','Ansprechpartner','Telefonnummer','E-Mail','Agent','Status','Follow-up-Datum','Notizen'];
+  const rows=leads.map(l=>[l.company,l.contact,l.phone,l.email,agentById(l.agent).name,colById(l.status).name,l.followup,l.notes]);
+  const csv=[headers,...rows].map(r=>r.map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='toner_kampagne_leads.csv';a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── MODAL HELPERS ──
+function openModal(id){document.getElementById(id).classList.remove('hidden');}
+function closeModal(id){document.getElementById(id).classList.add('hidden');}
+document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)m.classList.add('hidden');});});
+
+renderAgentChips();
+renderBoard();
+</script>
+<div class="staging-bottombar">DEV / STAGING — Keine Produktivumgebung — <a href="https://wiegand-sales.github.io/toner-kampagne-kanban/" target="_blank">&rarr; Live</a></div>
+</body>
+</html>
