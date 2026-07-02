@@ -625,6 +625,19 @@ function onColDragEnd(e){
 }
 
 // ── LEAD MODAL ──
+// Schreibt sofortige Aktionen (Kommentare, Aufgaben, Checkliste, Labels, Mitglieder, Dateien)
+// direkt in den echten Lead-Datensatz + localStorage, unabhängig vom "Speichern"-Button.
+// Gilt nur für bereits existierende Leads - ein neuer, noch nicht gespeicherter Lead
+// bekommt erst beim ersten "Speichern" eine ID.
+function autoPersistIfEditing(){
+  if(!editingLeadId)return;
+  const original=leads.find(x=>x.id===editingLeadId);
+  if(original){
+    Object.assign(original, JSON.parse(JSON.stringify(draftLead)));
+    saveState();
+  }
+}
+
 function openLeadModal(id){
   editingLeadId=id;
   draftLead=id?JSON.parse(JSON.stringify(leads.find(x=>x.id===id))):blankLead();
@@ -1001,13 +1014,14 @@ function handleFileUpload(e){
     reader.onload=()=>{
       draftLead.files.push({id:Date.now()+Math.random(),name:file.name,size:file.size,dataUrl:reader.result});
       pending--;
-      if(pending===0)renderLeadModal();
+      if(pending===0){autoPersistIfEditing();renderLeadModal();}
     };
     reader.readAsDataURL(file);
   });
 }
 function removeFile(id){
   draftLead.files=draftLead.files.filter(f=>f.id!==id);
+  autoPersistIfEditing();
   renderLeadModal();
 }
 
@@ -1018,21 +1032,25 @@ function addTask(){
   const text=textEl.value.trim();
   if(!text)return;
   draftLead.tasks.push({id:Date.now(),text,dueDate:dueEl.value,done:false,createdBy:currentUser,createdAt:nowISO()});
+  autoPersistIfEditing();
   renderLeadModal();
 }
 function toggleTask(id){
   const t=draftLead.tasks.find(x=>x.id===id);
   if(t)t.done=!t.done;
+  autoPersistIfEditing();
   renderLeadModal();
 }
 function deleteTask(id){
   draftLead.tasks=draftLead.tasks.filter(x=>x.id!==id);
+  autoPersistIfEditing();
   renderLeadModal();
 }
 
 // Checkliste
 function deleteChecklist(){
   draftLead.checklist=[];
+  autoPersistIfEditing();
   renderLeadModal();
 }
 
@@ -1041,6 +1059,7 @@ function toggleLabelPopover(){labelPopoverOpen=!labelPopoverOpen;memberPopoverOp
 function toggleDraftLabel(id){
   const i=draftLead.labelIds.indexOf(id);
   if(i>-1)draftLead.labelIds.splice(i,1);else draftLead.labelIds.push(id);
+  autoPersistIfEditing();
   renderLeadModal();
 }
 function selectLabelColor(el){
@@ -1082,6 +1101,7 @@ function createLabel(){
   LABELS.push(newLabel);
   draftLead.labelIds.push(newLabel.id);
   saveState();
+  autoPersistIfEditing();
   renderLeadModal();
 }
 
@@ -1090,6 +1110,7 @@ function toggleMemberPopover(){memberPopoverOpen=!memberPopoverOpen;labelPopover
 function toggleDraftMember(id){
   const i=draftLead.members.indexOf(id);
   if(i>-1)draftLead.members.splice(i,1);else draftLead.members.push(id);
+  autoPersistIfEditing();
   renderLeadModal();
 }
 
@@ -1099,15 +1120,18 @@ function addChecklistItem(){
   const text=inp.value.trim();
   if(!text)return;
   draftLead.checklist.push({id:Date.now(),text,done:false});
+  autoPersistIfEditing();
   renderLeadModal();
 }
 function toggleCheckItem(id){
   const item=draftLead.checklist.find(c=>c.id===id);
   if(item)item.done=!item.done;
+  autoPersistIfEditing();
   renderLeadModal();
 }
 function deleteCheckItem(id){
   draftLead.checklist=draftLead.checklist.filter(c=>c.id!==id);
+  autoPersistIfEditing();
   renderLeadModal();
 }
 
@@ -1117,6 +1141,7 @@ function addComment(){
   const text=inp.value.trim();
   if(!text)return;
   draftLead.activity.unshift({id:Date.now(),type:'comment',author:currentUser,text,date:nowISO()});
+  autoPersistIfEditing();
   renderLeadModal();
 }
 
