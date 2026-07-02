@@ -24,6 +24,44 @@
 html,body{height:100%;}
 body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font-size:14px;line-height:1.5;display:flex;flex-direction:column;overflow:hidden;}
 
+.app-shell{flex:1;display:flex;overflow:hidden;min-height:0;}
+
+/* SIDEBAR */
+.sidebar{width:212px;flex-shrink:0;background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 12px;}
+.sidebar-project{display:flex;align-items:center;gap:9px;padding:6px 8px 16px;border-bottom:1px solid var(--border);margin-bottom:14px;}
+.sidebar-project-name{font-size:14px;font-weight:700;}
+.sidebar-project-sub{font-size:11px;color:var(--text3);}
+.sidebar-nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r-md);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;margin-bottom:2px;}
+.sidebar-nav-item i{font-size:17px;flex-shrink:0;}
+.sidebar-nav-item:hover{background:var(--bg2);color:var(--text);}
+.sidebar-nav-item.active{background:var(--purple-bg);color:var(--purple-dark);}
+.sidebar-footer{margin-top:auto;padding:10px 8px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);}
+
+.main-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+.view{display:none;flex-direction:column;flex:1;overflow:hidden;}
+.view.active{display:flex;}
+.view-scroll{flex:1;overflow-y:auto;padding:22px;}
+.page-hdr{padding:18px 22px;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0;}
+.page-hdr-title{font-size:18px;font-weight:700;}
+.page-hdr-sub{font-size:12px;color:var(--text2);margin-top:2px;}
+.dash-kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;}
+.dash-kpi{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.dash-kpi-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;}
+.dash-kpi-val{font-size:22px;font-weight:700;}
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.dash-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.dash-bar-label{width:130px;flex-shrink:0;font-size:12px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dash-bar-track{flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;}
+.dash-bar-fill{height:100%;border-radius:4px;}
+.dash-bar-count{width:20px;text-align:right;font-size:12px;font-weight:600;flex-shrink:0;}
+.dash-agent-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
+.dash-agent-row:last-child{border-bottom:none;}
+.dash-lead-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;}
+.dash-lead-row:last-child{border-bottom:none;}
+.dash-lead-row:hover{background:var(--bg2);margin:0 -8px;padding:8px 8px;border-radius:6px;}
+.settings-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
+.settings-row:last-child{border-bottom:none;}
+
 .staging-topbar{background:#BA7517;color:#fff;font-size:12px;font-weight:600;text-align:center;padding:6px 10px;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;}
 .staging-topbar a{color:#fff;text-decoration:underline;font-weight:700;}
 .staging-bottombar{background:#BA7517;color:#fff;font-size:12px;font-weight:600;text-align:center;padding:6px 10px;flex-shrink:0;}
@@ -208,31 +246,67 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 <body>
 <div class="staging-topbar"><i class="ti ti-alert-triangle"></i> STAGING – Diese Version ist nicht live &nbsp;·&nbsp; <a href="https://wiegand-sales.github.io/toner-kampagne-kanban/" target="_blank">&rarr; Live ansehen</a></div>
 
-<div class="topbar">
-  <div class="tb-left">
-    <div class="tb-dot"></div>
-    <div>
-      <div class="tb-title">Toner-Kampagne</div>
-      <div class="tb-sub">Kostenloser Toner → Follow-up → Angebot</div>
+<div class="app-shell">
+  <div class="sidebar">
+    <div class="sidebar-project">
+      <div class="tb-dot"></div>
+      <div>
+        <div class="sidebar-project-name">Free Toner</div>
+        <div class="sidebar-project-sub">Kanban-Board</div>
+      </div>
     </div>
-    <div class="tb-stats" id="statsBar"></div>
+    <div class="sidebar-nav-item" id="navDashboard" onclick="switchView('dashboard')"><i class="ti ti-layout-dashboard"></i> Dashboard</div>
+    <div class="sidebar-nav-item" id="navBoard" onclick="switchView('board')"><i class="ti ti-layout-kanban"></i> Board</div>
+    <div class="sidebar-nav-item" id="navSettings" onclick="switchView('settings')"><i class="ti ti-settings"></i> Einstellungen</div>
+    <div class="sidebar-footer">Weitere Projekte folgen hier bald.</div>
   </div>
-  <div class="tb-right">
-    <label style="margin:0;white-space:nowrap">Ich bin:</label>
-    <select id="currentUserSelect" class="me-select" onchange="currentUser=this.value"></select>
-    <div class="search-box"><i class="ti ti-search"></i><input type="text" id="searchInput" placeholder="Firma, Kontakt, Kd-Nr." oninput="renderBoard()"></div>
-    <button class="btn" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</button>
-    <button class="btn btn-primary" onclick="openLeadModal(null)"><i class="ti ti-plus"></i> Neuer Lead</button>
+
+  <div class="main-area">
+
+    <div class="view" id="viewDashboard">
+      <div class="page-hdr">
+        <div class="page-hdr-title">Dashboard</div>
+        <div class="page-hdr-sub">Überblick über die Toner-Kampagne</div>
+      </div>
+      <div class="view-scroll" id="dashboardContent"></div>
+    </div>
+
+    <div class="view" id="viewBoard">
+      <div class="topbar">
+        <div class="tb-left">
+          <div class="tb-dot"></div>
+          <div>
+            <div class="tb-title">Toner-Kampagne</div>
+            <div class="tb-sub">Kostenloser Toner → Follow-up → Angebot</div>
+          </div>
+          <div class="tb-stats" id="statsBar"></div>
+        </div>
+        <div class="tb-right">
+          <label style="margin:0;white-space:nowrap">Ich bin:</label>
+          <select id="currentUserSelect" class="me-select" onchange="currentUser=this.value"></select>
+          <div class="search-box"><i class="ti ti-search"></i><input type="text" id="searchInput" placeholder="Firma, Kontakt, Kd-Nr." oninput="renderBoard()"></div>
+          <button class="btn" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</button>
+          <button class="btn btn-primary" onclick="openLeadModal(null)"><i class="ti ti-plus"></i> Neuer Lead</button>
+        </div>
+      </div>
+      <div class="filterbar">
+        <span class="filterbar-label">Agent</span>
+        <div id="agentChips"></div>
+      </div>
+      <div class="board-wrap">
+        <div class="board" id="board"></div>
+      </div>
+    </div>
+
+    <div class="view" id="viewSettings">
+      <div class="page-hdr">
+        <div class="page-hdr-title">Einstellungen</div>
+        <div class="page-hdr-sub">Agents, Labels und Listen für dieses Projekt verwalten</div>
+      </div>
+      <div class="view-scroll" id="settingsContent"></div>
+    </div>
+
   </div>
-</div>
-
-<div class="filterbar">
-  <span class="filterbar-label">Agent</span>
-  <div id="agentChips"></div>
-</div>
-
-<div class="board-wrap">
-  <div class="board" id="board"></div>
 </div>
 
 <div class="modal-overlay hidden" id="leadModal">
@@ -241,7 +315,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 
 <script>
 // ── CONFIG ──
-const AGENTS=[
+let AGENTS=[
   {id:'a1',name:'Sabine Krause',color:'purple'},
   {id:'a2',name:'Jonas Weber',color:'teal'},
   {id:'a3',name:'Lea Hoffmann',color:'amber'},
@@ -273,13 +347,15 @@ let LABELS=[
 ];
 let currentUser='a1';
 let nextColId=1;
+let nextAgentId=4;
+let currentView='board';
 
 // ── PERSISTENZ (localStorage – Zwischenlösung bis Supabase angebunden ist) ──
 const STORAGE_KEY='toner_kanban_state_v1';
 function saveState(){
   try{
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      leads, COLUMNS, LABELS, nextId, nextLabelId, nextPrinterId, nextColId
+      leads, COLUMNS, LABELS, AGENTS, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId
     }));
   }catch(e){ console.warn('Speichern fehlgeschlagen:', e); }
 }
@@ -291,10 +367,12 @@ function loadState(){
     if(data.leads)leads=data.leads;
     if(data.COLUMNS)COLUMNS=data.COLUMNS;
     if(data.LABELS)LABELS=data.LABELS;
+    if(data.AGENTS)AGENTS=data.AGENTS;
     if(data.nextId)nextId=data.nextId;
     if(data.nextLabelId)nextLabelId=data.nextLabelId;
     if(data.nextPrinterId)nextPrinterId=data.nextPrinterId;
     if(data.nextColId)nextColId=data.nextColId;
+    if(data.nextAgentId)nextAgentId=data.nextAgentId;
     normalizeLeads();
     saveState();
     return true;
@@ -441,6 +519,18 @@ function renderUserSelect(){
 function setAgentFilter(id){activeAgentFilter=id;renderAgentChips();renderBoard();}
 
 // ── RENDER: BOARD ──
+// ── NAVIGATION ──
+function switchView(view){
+  currentView=view;
+  ['dashboard','board','settings'].forEach(v=>{
+    document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.toggle('active',v===view);
+    document.getElementById('nav'+v.charAt(0).toUpperCase()+v.slice(1)).classList.toggle('active',v===view);
+  });
+  if(view==='dashboard')renderDashboard();
+  if(view==='board')renderBoard();
+  if(view==='settings')renderSettings();
+}
+
 function renderBoard(){
   renderStats();
   const fl=getFilteredLeads();
@@ -486,6 +576,203 @@ function renderBoard(){
 
   board.innerHTML = colsHtml + addTileHtml;
 }
+
+// ── DASHBOARD ──
+function renderDashboard(){
+  const total=leads.length;
+  const overdue=leads.filter(l=>l.followup&&daysUntil(l.followup)<0).length;
+  const won=leads.filter(l=>l.status==='won').length;
+  const lost=leads.filter(l=>l.status==='lost').length;
+  const rate=total?Math.round(won/total*100):0;
+  const forecastSum=leads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
+  const investSum=leads.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.price)||0),0),0);
+
+  const kpiHtml=`
+    <div class="dash-kpi-row">
+      <div class="dash-kpi"><div class="dash-kpi-label">Leads gesamt</div><div class="dash-kpi-val">${total}</div></div>
+      <div class="dash-kpi"><div class="dash-kpi-label">Follow-up überfällig</div><div class="dash-kpi-val" style="color:${overdue?'var(--red)':'var(--text)'}">${overdue}</div></div>
+      <div class="dash-kpi"><div class="dash-kpi-label">Gewonnen-Quote</div><div class="dash-kpi-val" style="color:var(--green)">${rate}%</div></div>
+      <div class="dash-kpi"><div class="dash-kpi-label">Forecast gesamt</div><div class="dash-kpi-val" style="color:var(--purple)">${fmtEur(forecastSum)||'0 €'}</div></div>
+      <div class="dash-kpi"><div class="dash-kpi-label">Investition (Versand)</div><div class="dash-kpi-val" style="color:var(--amber-dark)">${fmtEur(investSum)||'0 €'}</div></div>
+    </div>`;
+
+  const maxColCount=Math.max(1,...COLUMNS.map(c=>leads.filter(l=>l.status===c.id).length));
+  const statusHtml=COLUMNS.map(c=>{
+    const count=leads.filter(l=>l.status===c.id).length;
+    const pct=Math.round(count/maxColCount*100);
+    return `<div class="dash-bar-row">
+      <div class="dash-bar-label"><span class="col-dot" style="background:${COLOR_HEX[c.color]}"></span>${c.name}</div>
+      <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${pct}%;background:${COLOR_HEX[c.color]}"></div></div>
+      <div class="dash-bar-count">${count}</div>
+    </div>`;
+  }).join('');
+
+  const agentHtml=AGENTS.map(a=>{
+    const agentLeads=leads.filter(l=>(l.members||[]).includes(a.id));
+    const agentWon=agentLeads.filter(l=>l.status==='won').length;
+    const agentForecast=agentLeads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
+    return `<div class="dash-agent-row">
+      <div class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px">${a.name}</div>
+        <div style="font-size:11px;color:var(--text2)">${agentLeads.length} Leads · ${agentWon} gewonnen</div>
+      </div>
+      <div style="font-weight:600;font-size:13px;color:var(--purple)">${fmtEur(agentForecast)||'0 €'}</div>
+    </div>`;
+  }).join('');
+
+  const topForecast=[...leads].filter(l=>l.status!=='won'&&l.status!=='lost'&&l.forecast)
+    .sort((a,b)=>(parseFloat(b.forecast)||0)-(parseFloat(a.forecast)||0)).slice(0,5);
+  const topForecastHtml=topForecast.length?topForecast.map(l=>`
+    <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${l.id})},50)">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.company}</div>
+        <div style="font-size:11px;color:var(--text2)">${colById(l.status).name}</div>
+      </div>
+      <div style="font-weight:600;font-size:13px;color:var(--green-dark)">${fmtEur(l.forecast)}</div>
+    </div>`).join(''):'<p style="font-size:12px;color:var(--text3)">Keine offenen Leads mit Forecast.</p>';
+
+  const overdueLeads=leads.filter(l=>l.followup&&daysUntil(l.followup)<0).sort((a,b)=>daysUntil(a.followup)-daysUntil(b.followup));
+  const overdueHtml=overdueLeads.length?overdueLeads.map(l=>`
+    <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${l.id})},50)">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.company}</div>
+        <div style="font-size:11px;color:var(--text2)">${colById(l.status).name}</div>
+      </div>
+      <span class="due-badge due-overdue"><i class="ti ti-clock" style="font-size:11px"></i>${Math.abs(daysUntil(l.followup))}T überfällig</span>
+    </div>`).join(''):'<p style="font-size:12px;color:var(--text3)">Keine überfälligen Follow-ups.</p>';
+
+  document.getElementById('dashboardContent').innerHTML=`
+    ${kpiHtml}
+    <div class="dash-grid">
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Leads je Status</div>
+        ${statusHtml}
+      </div>
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Nach Agent</div>
+        ${agentHtml}
+      </div>
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Follow-up überfällig</div>
+        ${overdueHtml}
+      </div>
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Top Forecast (offen)</div>
+        ${topForecastHtml}
+      </div>
+    </div>`;
+}
+
+// ── EINSTELLUNGEN ──
+let editingAgentId=null;
+let newAgentColorSel=null;
+
+function renderSettings(){
+  const usedAgentColors=AGENTS.map(a=>a.color);
+  const allColorKeys=Object.keys(COLOR_HEX);
+  const freeAgentColor=allColorKeys.find(c=>!usedAgentColors.includes(c))||allColorKeys[0];
+
+  const agentsHtml=AGENTS.map(a=>{
+    if(editingAgentId===a.id){
+      return `<div class="settings-row">
+        <input type="text" id="editAgentInput_${a.id}" value="${a.name}" class="col-name-input" style="flex:1"
+          onkeydown="if(event.key==='Enter')confirmEditAgent('${a.id}');if(event.key==='Escape'){editingAgentId=null;renderSettings();}"
+          onblur="confirmEditAgent('${a.id}')" autofocus>
+      </div>`;
+    }
+    const leadCount=leads.filter(l=>(l.members||[]).includes(a.id)).length;
+    return `<div class="settings-row">
+      <div class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px">${a.name}</div>
+        <div style="font-size:11px;color:var(--text2)">${leadCount} zugewiesene Lead(s)</div>
+      </div>
+      <button class="check-item-del" onclick="startEditAgent('${a.id}')" title="Umbenennen"><i class="ti ti-pencil"></i></button>
+      <button class="check-item-del" onclick="deleteAgent('${a.id}')" title="Entfernen"><i class="ti ti-trash"></i></button>
+    </div>`;
+  }).join('');
+
+  const colsHtml=COLUMNS.map((c,i)=>`
+    <div class="settings-row">
+      <span class="col-dot" style="background:${COLOR_HEX[c.color]}"></span>
+      <div style="flex:1;font-weight:600;font-size:13px">${c.name}</div>
+      <span style="font-size:11px;color:var(--text2)">${leads.filter(l=>l.status===c.id).length} Lead(s)</span>
+    </div>`).join('');
+
+  const labelsHtml=LABELS.length?LABELS.map(lb=>{
+    if(editingLabelId===lb.id){
+      return `<div class="settings-row">
+        <input type="text" id="editLabelInput_${lb.id}" value="${lb.name}" class="col-name-input" style="flex:1"
+          onkeydown="if(event.key==='Enter')confirmEditLabel('${lb.id}');if(event.key==='Escape'){editingLabelId=null;renderSettings();}"
+          onblur="confirmEditLabel('${lb.id}')" autofocus>
+      </div>`;
+    }
+    const useCount=leads.filter(l=>(l.labelIds||[]).includes(lb.id)).length;
+    return `<div class="settings-row">
+      <span class="label-chip" style="background:${lb.color}">${lb.name}</span>
+      <span style="flex:1;font-size:11px;color:var(--text2)">${useCount} Lead(s)</span>
+      <button class="check-item-del" onclick="startEditLabelSettings('${lb.id}')" title="Umbenennen"><i class="ti ti-pencil"></i></button>
+      <button class="check-item-del" onclick="deleteLabelGlobal('${lb.id}')" title="Löschen"><i class="ti ti-trash"></i></button>
+    </div>`;
+  }).join(''):'<p style="font-size:12px;color:var(--text3)">Noch keine Labels angelegt.</p>';
+
+  document.getElementById('settingsContent').innerHTML=`
+    <div class="dash-grid">
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Agents</div>
+        <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Verantwortlich für Leads, wählbar als Mitglieder auf Karten.</p>
+        ${agentsHtml}
+        <div class="add-check-row" style="margin-top:10px">
+          <input type="text" id="newAgentName" placeholder="Name neuer Agent…" onkeydown="if(event.key==='Enter')createAgent()">
+          <button class="btn btn-sm btn-primary" onclick="createAgent()"><i class="ti ti-plus"></i></button>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Labels</div>
+        <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Werden auf Lead-Karten zur Kategorisierung genutzt.</p>
+        ${labelsHtml}
+        <p style="font-size:11px;color:var(--text3);margin-top:10px">Neue Labels legst du direkt in einer Lead-Karte an (Bereich "Labels").</p>
+      </div>
+
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Listen (Board-Spalten)</div>
+        <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Reihenfolge, Umbenennen, Farbe und Löschen direkt im Board über das •••-Menü einer Liste.</p>
+        ${colsHtml}
+      </div>
+
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Datenspeicherung</div>
+        <p style="font-size:12px;color:var(--text2);line-height:1.6">Alle Daten liegen aktuell lokal im Browser (localStorage) dieses Geräts. Eine Datenbank-Anbindung (Supabase) für Team-weiten Zugriff ist als nächster Schritt geplant.</p>
+      </div>
+    </div>`;
+}
+
+// Agents CRUD
+function startEditAgent(id){editingAgentId=id;renderSettings();const el=document.getElementById('editAgentInput_'+id);if(el){el.focus();el.select();}}
+function confirmEditAgent(id){
+  const el=document.getElementById('editAgentInput_'+id);
+  if(el){const val=el.value.trim();const a=agentById(id);if(a&&val)a.name=val;}
+  editingAgentId=null;saveState();renderSettings();
+}
+function deleteAgent(id){
+  const a=agentById(id);
+  if(!confirm(`Agent "${a?a.name:''}" wirklich entfernen? Wird von allen Leads als Mitglied entfernt.`))return;
+  AGENTS=AGENTS.filter(x=>x.id!==id);
+  leads.forEach(l=>{l.members=(l.members||[]).filter(m=>m!==id);});
+  saveState();renderSettings();
+}
+function createAgent(){
+  const nameEl=document.getElementById('newAgentName');
+  const name=nameEl.value.trim();
+  if(!name)return;
+  const usedColors=AGENTS.map(a=>a.color);
+  const color=Object.keys(COLOR_HEX).find(c=>!usedColors.includes(c))||'gray';
+  AGENTS.push({id:'a'+(nextAgentId++),name,color});
+  saveState();renderSettings();renderUserSelect();
+}
+function startEditLabelSettings(id){editingLabelId=id;renderSettings();const el=document.getElementById('editLabelInput_'+id);if(el){el.focus();el.select();}}
 
 function cardHtml(l,isFirst,isLast){
   const labelsHtml=(l.labelIds||[]).map(id=>{const lb=labelById(id);return lb?`<span class="label-chip" style="background:${lb.color}">${lb.name}</span>`:'';}).join('');
@@ -1196,6 +1483,13 @@ function startEditLabel(id){
   const el=document.getElementById('editLabelInput_'+id);
   if(el){el.focus();el.select();}
 }
+function isLeadModalOpen(){
+  const m=document.getElementById('leadModal');
+  return m&&!m.classList.contains('hidden');
+}
+function refreshLabelUi(){
+  if(isLeadModalOpen())renderLeadModal();else if(currentView==='settings')renderSettings();
+}
 function confirmEditLabel(id){
   const el=document.getElementById('editLabelInput_'+id);
   if(el){
@@ -1205,7 +1499,7 @@ function confirmEditLabel(id){
   }
   editingLabelId=null;
   saveState();
-  renderLeadModal();
+  refreshLabelUi();
 }
 function deleteLabelGlobal(id){
   const lb=labelById(id);
@@ -1214,7 +1508,7 @@ function deleteLabelGlobal(id){
   leads.forEach(l=>{ l.labelIds=l.labelIds.filter(x=>x!==id); });
   if(draftLead)draftLead.labelIds=draftLead.labelIds.filter(x=>x!==id);
   saveState();
-  renderLeadModal();
+  refreshLabelUi();
 }
 function createLabel(){
   const name=document.getElementById('newLabelName').value.trim();
@@ -1350,7 +1644,7 @@ document.addEventListener('click',e=>{
 loadState();
 renderUserSelect();
 renderAgentChips();
-renderBoard();
+switchView('board');
 </script>
 
 <div class="staging-bottombar">DEV / STAGING — Keine Produktivumgebung — <a href="https://wiegand-sales.github.io/toner-kampagne-kanban/" target="_blank">&rarr; Live</a></div>
