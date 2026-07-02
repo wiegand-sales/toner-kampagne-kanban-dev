@@ -105,6 +105,8 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .card-reorder button:hover{background:var(--bg2);color:var(--text);}
 .card:hover{border-color:var(--border2);box-shadow:0 1px 4px rgba(0,0,0,.06);}
 .card.dragging{opacity:.4;}
+.card.card-drop-top{box-shadow:inset 0 3px 0 var(--purple);}
+.card.card-drop-bottom{box-shadow:inset 0 -3px 0 var(--purple);}
 .card-labels-slot{display:flex;gap:4px;flex-wrap:wrap;min-height:20px;max-height:20px;overflow:hidden;margin-bottom:4px;flex-shrink:0;}
 .label-chip{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;color:#fff;white-space:nowrap;}
 .card-company{font-size:13px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;}
@@ -503,7 +505,7 @@ function cardHtml(l,isFirst,isLast){
   if(openTasks)metaBadges.push(`<span class="chip-badge"><i class="ti ti-list-check" style="font-size:11px"></i>${openTasks}</span>`);
   if(l.forecast)metaBadges.push(`<span class="chip-badge chip-badge-money"><i class="ti ti-currency-euro" style="font-size:11px"></i>${fmtEur(l.forecast)}</span>`);
   const colColor=colById(l.status)?colById(l.status).color:'gray';
-  return `<div class="card" style="border-top:3px solid ${COLOR_HEX[colColor]}" draggable="true" data-id="${l.id}" ondragstart="onDragStart(event,${l.id})" ondragend="onDragEnd(event)" onclick="openLeadModal(${l.id})">
+  return `<div class="card" style="border-top:3px solid ${COLOR_HEX[colColor]}" draggable="true" data-id="${l.id}" ondragstart="onDragStart(event,${l.id})" ondragend="onDragEnd(event)" ondragover="onCardDragOver(event)" ondragleave="onCardDragLeave(event)" ondrop="onCardDrop(event,${l.id})" onclick="openLeadModal(${l.id})">
     <div class="card-reorder" onclick="event.stopPropagation()">
       ${!isFirst?`<button onclick="event.stopPropagation();moveLeadUp(${l.id})" title="Nach oben"><i class="ti ti-chevron-up"></i></button>`:''}
       ${!isLast?`<button onclick="event.stopPropagation();moveLeadDown(${l.id})" title="Nach unten"><i class="ti ti-chevron-down"></i></button>`:''}
@@ -523,9 +525,52 @@ function cardHtml(l,isFirst,isLast){
 
 // ── DRAG & DROP ──
 function onDragStart(e,id){dragCardId=id;e.target.classList.add('dragging');e.dataTransfer.effectAllowed='move';}
-function onDragEnd(e){e.target.classList.remove('dragging');}
+function onDragEnd(e){
+  e.target.classList.remove('dragging');
+  document.querySelectorAll('.card-drop-top,.card-drop-bottom').forEach(el=>el.classList.remove('card-drop-top','card-drop-bottom'));
+}
 function onDragOver(e){e.preventDefault();e.currentTarget.classList.add('drop-hover');}
 function onDragLeave(e){e.currentTarget.classList.remove('drop-hover');}
+
+// Ablegen auf einer Karte (nicht nur in der Spalte) -> Reihenfolge wie bei Trello
+function onCardDragOver(e){
+  if(!dragCardId)return;
+  e.preventDefault();
+  e.stopPropagation();
+  const card=e.currentTarget;
+  const rect=card.getBoundingClientRect();
+  const isTop=(e.clientY-rect.top)<rect.height/2;
+  document.querySelectorAll('.card-drop-top,.card-drop-bottom').forEach(el=>{if(el!==card)el.classList.remove('card-drop-top','card-drop-bottom');});
+  card.classList.toggle('card-drop-top',isTop);
+  card.classList.toggle('card-drop-bottom',!isTop);
+}
+function onCardDragLeave(e){
+  e.currentTarget.classList.remove('card-drop-top','card-drop-bottom');
+}
+function onCardDrop(e,targetId){
+  if(!dragCardId)return;
+  e.preventDefault();
+  e.stopPropagation();
+  const card=e.currentTarget;
+  const isTop=card.classList.contains('card-drop-top');
+  card.classList.remove('card-drop-top','card-drop-bottom');
+  const dragged=leads.find(x=>x.id===dragCardId);
+  const target=leads.find(x=>x.id===targetId);
+  dragCardId=null;
+  if(!dragged||!target||dragged.id===target.id)return;
+  if(dragged.status!==target.status){
+    const oldName=colById(dragged.status).name,newName=colById(target.status).name;
+    dragged.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
+  }
+  dragged.status=target.status;
+  let colCards=leads.filter(x=>x.status===target.status&&x.id!==dragged.id).sort((a,b)=>(a.order||0)-(b.order||0));
+  const targetIdx=colCards.findIndex(x=>x.id===target.id);
+  const insertIdx=isTop?targetIdx:targetIdx+1;
+  colCards.splice(insertIdx,0,dragged);
+  colCards.forEach((c,i)=>{c.order=i;});
+  saveState();
+  renderBoard();
+}
 function onDrop(e,colId){
   e.preventDefault();e.currentTarget.classList.remove('drop-hover');
   const l=leads.find(x=>x.id===dragCardId);
