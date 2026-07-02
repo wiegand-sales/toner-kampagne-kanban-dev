@@ -100,12 +100,12 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(20,20,18,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;}
 .modal-overlay.hidden{display:none;}
-.modal-lg{background:var(--bg);border-radius:var(--r-lg);width:100%;max-width:840px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;}
+.modal-lg{background:var(--bg);border-radius:var(--r-lg);width:100%;max-width:1120px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;}
 .modal-topline{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0;}
 .modal-title-input{font-size:17px;font-weight:700;border:none;background:transparent;flex:1;padding:4px 0;font-family:inherit;color:var(--text);}
 .modal-title-input:focus{outline:none;}
 .modal-close{cursor:pointer;color:var(--text3);font-size:18px;background:none;border:none;flex-shrink:0;margin-left:10px;}
-.modal-grid{display:grid;grid-template-columns:1.5fr 1fr;flex:1;overflow:hidden;}
+.modal-grid{display:grid;grid-template-columns:1fr 360px;flex:1;overflow:hidden;}
 .modal-left{padding:18px 20px;overflow-y:auto;}
 .modal-right{background:var(--bg2);border-left:1px solid var(--border);padding:16px 18px;display:flex;flex-direction:column;overflow:hidden;}
 .field-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
@@ -150,6 +150,16 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .comment-input-row textarea{min-height:44px;flex:1;}
 .modal-actions{display:flex;justify-content:space-between;gap:8px;padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0;}
 .right-hdr{font-size:12px;font-weight:600;color:var(--text2);flex-shrink:0;display:flex;align-items:center;gap:6px;}
+.tab-bar{display:flex;gap:2px;border-bottom:1px solid var(--border);flex-shrink:0;margin-bottom:12px;}
+.tab-btn{background:none;border:none;font-size:12px;font-weight:600;color:var(--text2);padding:8px 8px;cursor:pointer;border-bottom:2px solid transparent;font-family:inherit;white-space:nowrap;}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--purple);border-bottom-color:var(--purple);}
+.printer-card{border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:var(--bg2);}
+.printer-card-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.sku-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+.sku-grid label{font-size:10px;margin-bottom:2px;}
+.file-row{display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;margin-bottom:6px;}
+.file-row a{color:var(--text);text-decoration:none;display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
 @media (max-width:720px){
   .tb-stats{display:none;}
@@ -250,6 +260,17 @@ let leads=[
 ];
 let nextId=13;
 let nextLabelId=5;
+let nextPrinterId=1;
+
+// Alte Einzelfelder (printerModel/sku) in das neue Drucker-Array-Format migrieren
+leads.forEach(l=>{
+  if(!l.printers){
+    l.printers = l.printerModel ? [{id:nextPrinterId++,model:l.printerModel,skus:[l.sku||'','','','']}] : [];
+  }
+  delete l.printerModel; delete l.sku;
+  if(l.annualVolume===undefined) l.annualVolume='';
+  if(!l.files) l.files=[];
+});
 let activeAgentFilter='all';
 let dragCardId=null;
 
@@ -257,6 +278,7 @@ let editingLeadId=null;
 let draftLead=null;
 let labelPopoverOpen=false;
 let memberPopoverOpen=false;
+let rightTab='comments';
 
 // ── HELPERS ──
 function ini(n){return n.split(' ').map(x=>x[0]).join('').toUpperCase().slice(0,2);}
@@ -265,13 +287,14 @@ function colById(id){return COLUMNS.find(c=>c.id===id);}
 function labelById(id){return LABELS.find(l=>l.id===id);}
 function fmtDate(d){if(!d)return'';const p=d.split('-');return`${p[2]}.${p[1]}.${p[0]}`;}
 function daysUntil(d){if(!d)return null;const diff=(new Date(d)-new Date(TODAY))/86400000;return Math.round(diff);}
-function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',printerModel:'',sku:'',contact:'',phone:'',email:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',forecast:'',notes:'',checklist:[],activity:[]};}
+function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',annualVolume:'',printers:[],contact:'',phone:'',email:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',forecast:'',notes:'',checklist:[],activity:[],files:[]};}
 function openGoogleSearch(){
   const q=(document.getElementById('fCompany')?document.getElementById('fCompany').value:draftLead.company).trim();
   if(!q)return;
   window.open('https://www.google.com/search?q='+encodeURIComponent(q),'_blank');
 }
 function fmtEur(v){if(v===''||v===null||v===undefined||isNaN(v))return'';return Number(v).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:0})+' €';}
+function formatBytes(b){if(b<1024)return b+' B';if(b<1024*1024)return(b/1024).toFixed(1)+' KB';return(b/1024/1024).toFixed(1)+' MB';}
 
 function getFilteredLeads(){
   const q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
@@ -423,6 +446,20 @@ function renderLeadModal(){
     <button class="check-item-del" onclick="deleteCheckItem(${c.id})"><i class="ti ti-x"></i></button>
   </div>`).join('');
 
+  const printersHtml=draftLead.printers.map((p,idx)=>`
+    <div class="printer-card">
+      <div class="printer-card-hdr">
+        <span class="small-label" style="margin:0">Drucker ${idx+1}</span>
+        <button class="check-item-del" onclick="removePrinter(${p.id})" title="Drucker entfernen"><i class="ti ti-trash"></i></button>
+      </div>
+      <div class="field" style="margin-bottom:8px">
+        <input type="text" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${p.model}" oninput="updatePrinterModel(${p.id},this.value)" style="width:100%">
+      </div>
+      <div class="sku-grid">
+        ${['I','II','III','IV'].map((rn,i)=>`<div><label>SKU ${rn}</label><input type="text" placeholder="SKU ${rn}" value="${p.skus[i]||''}" oninput="updatePrinterSku(${p.id},${i},this.value)" style="width:100%"></div>`).join('')}
+      </div>
+    </div>`).join('');
+
   const feedItems=[...draftLead.activity].sort((a,b)=>new Date(b.date)-new Date(a.date));
   const feedHtml=feedItems.map(item=>{
     if(item.type==='comment'){
@@ -437,6 +474,34 @@ function renderLeadModal(){
     }
     return `<div class="activity-item"><i class="ti ti-point-filled" style="font-size:8px"></i> ${item.text} · ${fmtDateTime(item.date)}</div>`;
   }).join('')||`<div class="activity-item" style="padding-left:0">Noch keine Kommentare oder Aktivität.</div>`;
+
+  const filesHtml=(draftLead.files||[]).map(f=>`<div class="file-row">
+      <a href="${f.dataUrl}" download="${f.name}"><i class="ti ti-file"></i>${f.name} <span style="color:var(--text3)">(${formatBytes(f.size)})</span></a>
+      <button class="check-item-del" onclick="removeFile(${f.id})"><i class="ti ti-x"></i></button>
+    </div>`).join('')||`<div class="activity-item" style="padding-left:0">Noch keine Dateien angehängt.</div>`;
+
+  let rightContentHtml='';
+  if(rightTab==='forecast'){
+    rightContentHtml=`<div>
+      <label>Forecast (EUR)</label>
+      <input type="number" min="0" step="10" placeholder="0" value="${draftLead.forecast}" oninput="draftLead.forecast=this.value" style="width:100%">
+      <p style="font-size:12px;color:var(--text2);margin-top:10px;line-height:1.5">Geschätzter Auftragswert für diesen Lead. Fließt oben im Board in die Kennzahl "Forecast gesamt" ein.</p>
+    </div>`;
+  }else if(rightTab==='files'){
+    rightContentHtml=`<div>
+      <input type="file" id="fileInput" multiple onchange="handleFileUpload(event)" style="width:100%;font-size:12px;margin-bottom:10px">
+      <div>${filesHtml}</div>
+      <p style="font-size:11px;color:var(--text3);margin-top:10px">Hinweis: Dateien liegen aktuell nur im Browser-Speicher dieser Sitzung, bis die Datenbank-Anbindung fertig ist.</p>
+    </div>`;
+  }else{
+    rightContentHtml=`<div style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+      <div class="comment-input-row">
+        <textarea id="commentInput" placeholder="Kommentar schreiben…"></textarea>
+      </div>
+      <button class="btn btn-sm btn-primary" style="width:100%;justify-content:center;margin-top:6px" onclick="addComment()"><i class="ti ti-send"></i> Kommentieren</button>
+      <div class="activity-feed">${feedHtml}</div>
+    </div>`;
+  }
 
   document.getElementById('leadModalInner').innerHTML=`
     <div class="modal-topline">
@@ -462,11 +527,16 @@ function renderLeadModal(){
         </div>
         <div class="field-row-2">
           <div><label>E-Mail</label><input type="email" value="${draftLead.email}" oninput="draftLead.email=this.value" style="width:100%"></div>
-          <div></div>
+          <div><label>Jahresvolumen (Bewertung, EUR)</label><input type="number" min="0" step="100" placeholder="0" value="${draftLead.annualVolume}" oninput="draftLead.annualVolume=this.value" style="width:100%"></div>
         </div>
-        <div class="field-row-2">
-          <div><label>Drucker (Modell)</label><input type="text" placeholder="z. B. HP LaserJet Pro M404" value="${draftLead.printerModel}" oninput="draftLead.printerModel=this.value" style="width:100%"></div>
-          <div><label>SKU</label><input type="text" placeholder="interne SKU" value="${draftLead.sku}" oninput="draftLead.sku=this.value" style="width:100%"></div>
+
+        <div class="section-block">
+          <div class="section-hdr">
+            <span>Drucker &amp; Patronen</span>
+          </div>
+          <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Ein Kunde kann mehrere Drucker haben, jeder Drucker bis zu 4 Patronen (SKU I–IV).</p>
+          ${printersHtml}
+          <button class="pill-btn" onclick="addPrinter()"><i class="ti ti-plus"></i> Drucker hinzufügen</button>
         </div>
 
         <div class="section-block">
@@ -510,6 +580,7 @@ function renderLeadModal(){
           <div style="margin-top:14px">
             <div class="section-hdr" style="margin-bottom:6px">
               <span>Checkliste ${checkTotal?`(${checkDone}/${checkTotal})`:''}</span>
+              ${checkTotal?`<button class="btn btn-sm" onclick="deleteChecklist()"><i class="ti ti-trash"></i> Löschen</button>`:''}
             </div>
             ${checkTotal?`<div class="checklist-progress-track"><div class="checklist-progress-fill" style="width:${pct}%"></div></div>`:''}
             ${checklistHtml}
@@ -524,27 +595,15 @@ function renderLeadModal(){
             <textarea placeholder="Interne Notiz…" oninput="draftLead.notes=this.value">${draftLead.notes}</textarea>
           </div>
         </div>
-
-        <div class="section-block">
-          <div class="section-hdr">Forecast</div>
-          <div class="field-row-2">
-            <div><label>Forecast (EUR)</label>
-              <div style="position:relative">
-                <input type="number" min="0" step="10" placeholder="0" value="${draftLead.forecast}" oninput="draftLead.forecast=this.value" style="width:100%">
-              </div>
-            </div>
-            <div></div>
-          </div>
-        </div>
       </div>
 
       <div class="modal-right">
-        <div class="right-hdr"><i class="ti ti-message-circle"></i> Kommentare &amp; Aktivität</div>
-        <div class="comment-input-row" style="margin-top:10px">
-          <textarea id="commentInput" placeholder="Kommentar schreiben…"></textarea>
+        <div class="tab-bar">
+          <button class="tab-btn ${rightTab==='forecast'?'active':''}" onclick="setRightTab('forecast')">Forecast</button>
+          <button class="tab-btn ${rightTab==='comments'?'active':''}" onclick="setRightTab('comments')">Kommentare &amp; Aktivität</button>
+          <button class="tab-btn ${rightTab==='files'?'active':''}" onclick="setRightTab('files')">Dateien</button>
         </div>
-        <button class="btn btn-sm btn-primary" style="width:100%;justify-content:center;margin-top:6px" onclick="addComment()"><i class="ti ti-send"></i> Kommentieren</button>
-        <div class="activity-feed">${feedHtml}</div>
+        ${rightContentHtml}
       </div>
     </div>
     <div class="modal-actions">
@@ -554,6 +613,53 @@ function renderLeadModal(){
         <button class="btn btn-primary" onclick="saveLead()"><i class="ti ti-check"></i> Speichern</button>
       </div>
     </div>`;
+}
+
+// Drucker & SKUs
+function addPrinter(){
+  draftLead.printers.push({id:nextPrinterId++,model:'',skus:['','','','']});
+  renderLeadModal();
+}
+function removePrinter(id){
+  draftLead.printers=draftLead.printers.filter(p=>p.id!==id);
+  renderLeadModal();
+}
+function updatePrinterModel(id,val){
+  const p=draftLead.printers.find(x=>x.id===id);
+  if(p)p.model=val;
+}
+function updatePrinterSku(id,idx,val){
+  const p=draftLead.printers.find(x=>x.id===id);
+  if(p)p.skus[idx]=val;
+}
+
+// Rechte Spalte: Tabs
+function setRightTab(tab){rightTab=tab;renderLeadModal();}
+
+// Dateien
+function handleFileUpload(e){
+  const files=Array.from(e.target.files);
+  if(!files.length)return;
+  let pending=files.length;
+  files.forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=()=>{
+      draftLead.files.push({id:Date.now()+Math.random(),name:file.name,size:file.size,dataUrl:reader.result});
+      pending--;
+      if(pending===0)renderLeadModal();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function removeFile(id){
+  draftLead.files=draftLead.files.filter(f=>f.id!==id);
+  renderLeadModal();
+}
+
+// Checkliste
+function deleteChecklist(){
+  draftLead.checklist=[];
+  renderLeadModal();
 }
 
 // Labels
@@ -636,9 +742,11 @@ function deleteLead(){
 
 // ── CSV EXPORT ──
 function exportCSV(){
-  const headers=['Firmenname','Kundennummer','Art','Drucker','SKU','Ansprechpartner','Telefonnummer','E-Mail','Mitglieder','Status','Free Toner verschickt','Datum Erstkontakt','Follow-up-Datum','Forecast (EUR)','Labels','Notizen'];
+  const headers=['Firmenname','Kundennummer','Art','Jahresvolumen (EUR)','Drucker & SKUs','Ansprechpartner','Telefonnummer','E-Mail','Mitglieder','Status','Free Toner verschickt','Datum Erstkontakt','Follow-up-Datum','Forecast (EUR)','Labels','Notizen'];
   const rows=leads.map(l=>[
-    l.company,l.customerNumber,l.art,l.printerModel,l.sku,l.contact,l.phone,l.email,
+    l.company,l.customerNumber,l.art,l.annualVolume,
+    (l.printers||[]).map(p=>`${p.model} [${p.skus.filter(Boolean).join(', ')}]`).join(' | '),
+    l.contact,l.phone,l.email,
     l.members.map(id=>agentById(id)?.name).filter(Boolean).join('; '),
     colById(l.status).name,l.tonerSent,l.firstContact,l.followup,l.forecast,
     l.labelIds.map(id=>labelById(id)?.name).filter(Boolean).join('; '),
