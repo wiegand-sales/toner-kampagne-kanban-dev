@@ -61,6 +61,17 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .dash-lead-row:hover{background:var(--bg2);margin:0 -8px;padding:8px 8px;border-radius:6px;}
 .settings-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
 .settings-row:last-child{border-bottom:none;}
+.task-group{margin-bottom:18px;}
+.task-group-hdr{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:8px;}
+.task-group-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.task-group-count{font-size:11px;font-weight:500;color:var(--text3);}
+.task-row{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;margin-bottom:6px;}
+.task-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--teal);cursor:pointer;flex-shrink:0;}
+.task-row-text{flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.task-row-text.done{text-decoration:line-through;color:var(--text3);}
+.task-row-lead{font-size:12px;color:var(--purple);font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.task-row-lead:hover{text-decoration:underline;}
+.task-row-empty{font-size:12px;color:var(--text3);padding:6px 0;}
 
 .staging-topbar{background:#BA7517;color:#fff;font-size:12px;font-weight:600;text-align:center;padding:6px 10px;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;}
 .staging-topbar a{color:#fff;text-decoration:underline;font-weight:700;}
@@ -257,6 +268,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     </div>
     <div class="sidebar-nav-item" id="navDashboard" onclick="switchView('dashboard')"><i class="ti ti-layout-dashboard"></i> SFP</div>
     <div class="sidebar-nav-item" id="navBoard" onclick="switchView('board')"><i class="ti ti-layout-kanban"></i> Board</div>
+    <div class="sidebar-nav-item" id="navTasks" onclick="switchView('tasks')"><i class="ti ti-list-check"></i> Aufgaben</div>
     <div class="sidebar-nav-item" id="navSettings" onclick="switchView('settings')"><i class="ti ti-settings"></i> Einstellungen</div>
     <div class="sidebar-footer">Weitere Projekte folgen hier bald.</div>
   </div>
@@ -296,6 +308,14 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
       <div class="board-wrap">
         <div class="board" id="board"></div>
       </div>
+    </div>
+
+    <div class="view" id="viewTasks">
+      <div class="page-hdr">
+        <div class="page-hdr-title">Aufgaben</div>
+        <div class="page-hdr-sub">Alle fälligen Aufgaben aus dem Board, gruppiert nach Frist</div>
+      </div>
+      <div class="view-scroll" id="tasksViewContent"></div>
     </div>
 
     <div class="view" id="viewSettings">
@@ -522,12 +542,13 @@ function setAgentFilter(id){activeAgentFilter=id;renderAgentChips();renderBoard(
 // ── NAVIGATION ──
 function switchView(view){
   currentView=view;
-  ['dashboard','board','settings'].forEach(v=>{
+  ['dashboard','board','tasks','settings'].forEach(v=>{
     document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.toggle('active',v===view);
     document.getElementById('nav'+v.charAt(0).toUpperCase()+v.slice(1)).classList.toggle('active',v===view);
   });
   if(view==='dashboard')renderDashboard();
   if(view==='board')renderBoard();
+  if(view==='tasks')renderTasksView();
   if(view==='settings')renderSettings();
 }
 
@@ -667,6 +688,92 @@ function renderDashboard(){
 // ── EINSTELLUNGEN ──
 let editingAgentId=null;
 let newAgentColorSel=null;
+
+// ── AUFGABEN-ÜBERSICHT (alle Leads, live aus dem Board) ──
+let tasksShowDone=false;
+
+function getAllTasksFlat(){
+  const arr=[];
+  leads.forEach(l=>{
+    (l.tasks||[]).forEach(t=>{
+      arr.push({task:t, leadId:l.id, leadCompany:l.company, leadStatus:l.status});
+    });
+  });
+  return arr;
+}
+function taskBucket(t){
+  if(t.done)return 'done';
+  if(!t.dueDate)return 'none';
+  const d=daysUntil(t.dueDate);
+  if(d<0)return 'overdue';
+  if(d===0)return 'today';
+  if(d<=7)return 'week';
+  if(d<=14)return 'nextweek';
+  return 'later';
+}
+function taskRowHtml(item){
+  const t=item.task;
+  const agent=agentById(t.createdBy);
+  let dueHtml='<span style="font-size:12px;color:var(--text3)">–</span>';
+  if(t.dueDate){
+    const d=daysUntil(t.dueDate);
+    const cls=t.done?'due-ok':(d<0?'due-overdue':(d<=2?'due-soon':'due-ok'));
+    const label=d<0?`${Math.abs(d)}T überfällig`:(d===0?'heute':fmtDate(t.dueDate));
+    dueHtml=`<span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${label}</span>`;
+  }
+  return `<div class="task-row">
+    <input type="checkbox" ${t.done?'checked':''} onchange="toggleGlobalTask(${item.leadId},${t.id})">
+    <span class="task-row-text ${t.done?'done':''}">${t.text}</span>
+    <span class="task-row-lead" onclick="switchView('board');setTimeout(function(){openLeadModal(${item.leadId})},50)">${item.leadCompany}</span>
+    ${agent?`<div class="member-av" style="position:static;margin:0;background:${COLOR_BG[agent.color]};color:${COLOR_TEXT[agent.color]}" title="${agent.name}">${ini(agent.name)}</div>`:'<span></span>'}
+    ${dueHtml}
+  </div>`;
+}
+function taskGroupHtml(title,items,colorVar){
+  return `<div class="task-group">
+    <div class="task-group-hdr"><span class="task-group-dot" style="background:${colorVar}"></span>${title} <span class="task-group-count">${items.length} Element${items.length===1?'':'e'}</span></div>
+    ${items.length?items.map(taskRowHtml).join(''):'<div class="task-row-empty">Keine Aufgaben.</div>'}
+  </div>`;
+}
+function toggleTasksShowDone(){
+  tasksShowDone=!tasksShowDone;
+  renderTasksView();
+}
+function toggleGlobalTask(leadId,taskId){
+  const l=leads.find(x=>x.id===leadId);
+  if(!l)return;
+  const t=(l.tasks||[]).find(x=>x.id===taskId);
+  if(t){t.done=!t.done;saveState();renderTasksView();}
+}
+function renderTasksView(){
+  const all=getAllTasksFlat();
+  const buckets={overdue:[],today:[],week:[],nextweek:[],later:[],none:[],done:[]};
+  all.forEach(item=>{buckets[taskBucket(item.task)].push(item);});
+  ['overdue','today','week','nextweek','later','none','done'].forEach(k=>{
+    buckets[k].sort((a,b)=>(a.task.dueDate||'9999').localeCompare(b.task.dueDate||'9999'));
+  });
+  const openCount=all.length-buckets.done.length;
+  const html=`
+    <div class="dash-kpi-row" style="grid-template-columns:repeat(3,1fr)">
+      <div class="dash-kpi"><div class="dash-kpi-label">Offene Aufgaben</div><div class="dash-kpi-val">${openCount}</div></div>
+      <div class="dash-kpi"><div class="dash-kpi-label">Überfällig</div><div class="dash-kpi-val" style="color:${buckets.overdue.length?'var(--red)':'var(--text)'}">${buckets.overdue.length}</div></div>
+      <div class="dash-kpi"><div class="dash-kpi-label">Heute fällig</div><div class="dash-kpi-val" style="color:var(--amber-dark)">${buckets.today.length}</div></div>
+    </div>
+    ${taskGroupHtml('Überfällig',buckets.overdue,'var(--red)')}
+    ${taskGroupHtml('Heute',buckets.today,'var(--amber)')}
+    ${taskGroupHtml('Diese Woche',buckets.week,'var(--teal)')}
+    ${taskGroupHtml('Nächste Woche',buckets.nextweek,'var(--purple)')}
+    ${taskGroupHtml('Später',buckets.later,'var(--gray)')}
+    ${taskGroupHtml('Ohne Frist',buckets.none,'var(--gray)')}
+    <div class="task-group">
+      <div class="task-group-hdr" style="cursor:pointer" onclick="toggleTasksShowDone()">
+        <i class="ti ti-chevron-${tasksShowDone?'down':'right'}" style="font-size:14px"></i>
+        Erledigt <span class="task-group-count">${buckets.done.length} Element${buckets.done.length===1?'':'e'}</span>
+      </div>
+      ${tasksShowDone?(buckets.done.length?buckets.done.map(taskRowHtml).join(''):'<div class="task-row-empty">Keine erledigten Aufgaben.</div>'):''}
+    </div>`;
+  document.getElementById('tasksViewContent').innerHTML=html;
+}
 
 function renderSettings(){
   const usedAgentColors=AGENTS.map(a=>a.color);
