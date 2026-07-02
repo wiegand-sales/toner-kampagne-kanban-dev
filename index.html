@@ -825,18 +825,30 @@ function renderLeadModal(){
       </div>
     </div>`;
   }else if(rightTab==='files'){
-    rightContentHtml=`<div>
-      <input type="file" id="fileInput" multiple onchange="handleFileUpload(event)" style="width:100%;font-size:12px;margin-bottom:10px">
-      <div>${filesHtml}</div>
-      <p style="font-size:11px;color:var(--text3);margin-top:10px">Hinweis: Dateien liegen aktuell nur im Browser-Speicher dieser Sitzung, bis die Datenbank-Anbindung fertig ist.</p>
+    rightContentHtml=`<div style="overflow-y:auto;flex:1">
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Datei hochladen</div>
+        <input type="file" id="fileInput" multiple onchange="handleFileUpload(event)" style="width:100%;font-size:12px">
+        <p style="font-size:11px;color:var(--text3);margin-top:8px">Hinweis: Dateien liegen aktuell nur im Browser-Speicher dieser Sitzung, bis die Datenbank-Anbindung fertig ist.</p>
+      </div>
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Angehängte Dateien</div>
+        ${filesHtml}
+      </div>
     </div>`;
   }else{
-    rightContentHtml=`<div style="display:flex;flex-direction:column;flex:1;overflow:hidden">
-      <div class="comment-input-row">
-        <textarea id="commentInput" placeholder="Kommentar schreiben…"></textarea>
+    rightContentHtml=`<div style="overflow-y:auto;flex:1">
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Neuer Kommentar</div>
+        <div class="field" style="margin-bottom:10px">
+          <textarea id="commentInput" placeholder="Kommentar schreiben… (Strg+Enter zum Senden)" onkeydown="if((event.key==='Enter')&&(event.ctrlKey||event.metaKey))addComment()"></textarea>
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="addComment()"><i class="ti ti-send"></i> Kommentieren</button>
       </div>
-      <button class="btn btn-sm btn-primary" style="width:100%;justify-content:center;margin-top:6px" onclick="addComment()"><i class="ti ti-send"></i> Kommentieren</button>
-      <div class="activity-feed">${feedHtml}</div>
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Verlauf</div>
+        <div class="activity-feed" style="margin-top:0">${feedHtml}</div>
+      </div>
     </div>`;
   }
 
