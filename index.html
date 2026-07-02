@@ -98,15 +98,18 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .col-empty{font-size:11px;color:var(--text3);text-align:center;padding:14px 4px;}
 
 /* CARD */
-.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 11px;margin-bottom:8px;cursor:grab;transition:box-shadow .12s,border-color .12s;height:150px;display:flex;flex-direction:column;overflow:hidden;}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 11px;margin-bottom:8px;cursor:grab;transition:box-shadow .12s,border-color .12s;height:156px;display:flex;flex-direction:column;overflow:hidden;}
 .card:hover{border-color:var(--border2);box-shadow:0 1px 4px rgba(0,0,0,.06);}
 .card.dragging{opacity:.4;}
 .card-labels-slot{display:flex;gap:4px;flex-wrap:wrap;min-height:20px;max-height:20px;overflow:hidden;margin-bottom:4px;flex-shrink:0;}
 .label-chip{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;color:#fff;white-space:nowrap;}
 .card-company{font-size:13px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;}
 .card-contact{font-size:12px;color:var(--text2);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;}
-.card-badges-row{display:flex;align-items:center;gap:8px;min-height:16px;flex-wrap:wrap;overflow:hidden;flex-shrink:0;}
+.card-badges-row{display:flex;align-items:center;gap:6px;min-height:16px;flex-wrap:wrap;overflow:hidden;flex-shrink:0;}
 .card-spacer{flex:1;}
+.card-divider{height:1px;background:var(--border);flex-shrink:0;margin-bottom:8px;}
+.chip-badge{font-size:10px;font-weight:500;color:var(--text2);background:var(--bg2);padding:2px 7px;border-radius:4px;display:flex;align-items:center;gap:3px;white-space:nowrap;}
+.chip-badge-money{color:var(--green-dark);background:var(--green-bg);font-weight:600;}
 .mini-badge{font-size:10px;color:var(--text2);display:flex;align-items:center;gap:3px;white-space:nowrap;}
 .card-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-shrink:0;}
 .member-stack{display:flex;}
@@ -481,16 +484,18 @@ function cardHtml(l){
     dueHtml=`<span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${dlabel}</span>`;
   }
   const metaBadges=[];
-  if(checkTotal)metaBadges.push(`<span class="mini-badge"><i class="ti ti-checklist" style="font-size:12px"></i>${checkDone}/${checkTotal}</span>`);
+  if(checkTotal)metaBadges.push(`<span class="chip-badge"><i class="ti ti-checklist" style="font-size:11px"></i>${checkDone}/${checkTotal}</span>`);
   const openTasks=(l.tasks||[]).filter(t=>!t.done).length;
-  if(openTasks)metaBadges.push(`<span class="mini-badge" style="color:var(--amber-dark);font-weight:600"><i class="ti ti-list-check" style="font-size:12px"></i>${openTasks} Aufgabe${openTasks>1?'n':''}</span>`);
-  if(l.forecast)metaBadges.push(`<span class="mini-badge" style="color:var(--green-dark);font-weight:600"><i class="ti ti-currency-euro" style="font-size:12px"></i>${fmtEur(l.forecast)}</span>`);
-  return `<div class="card" draggable="true" data-id="${l.id}" ondragstart="onDragStart(event,${l.id})" ondragend="onDragEnd(event)" onclick="openLeadModal(${l.id})">
+  if(openTasks)metaBadges.push(`<span class="chip-badge"><i class="ti ti-list-check" style="font-size:11px"></i>${openTasks}</span>`);
+  if(l.forecast)metaBadges.push(`<span class="chip-badge chip-badge-money"><i class="ti ti-currency-euro" style="font-size:11px"></i>${fmtEur(l.forecast)}</span>`);
+  const colColor=colById(l.status)?colById(l.status).color:'gray';
+  return `<div class="card" style="border-top:3px solid ${COLOR_HEX[colColor]}" draggable="true" data-id="${l.id}" ondragstart="onDragStart(event,${l.id})" ondragend="onDragEnd(event)" onclick="openLeadModal(${l.id})">
     <div class="card-company">${l.company}</div>
     <div class="card-contact">${l.contact}${l.customerNumber?` · ${l.customerNumber}`:''}</div>
     <div class="card-labels-slot">${labelsHtml}</div>
     <div class="card-badges-row">${metaBadges.join('')}</div>
     <div class="card-spacer"></div>
+    <div class="card-divider"></div>
     <div class="card-foot">
       <div class="member-stack">${membersHtml}</div>
       ${dueHtml}
