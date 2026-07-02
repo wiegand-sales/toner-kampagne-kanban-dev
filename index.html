@@ -158,6 +158,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .color-swatch-row{display:flex;gap:6px;margin:8px 0;flex-wrap:wrap;}
 .color-swatch{width:18px;height:18px;border-radius:4px;cursor:pointer;border:2px solid transparent;}
 .color-swatch.selected{border-color:var(--text);}
+.color-swatch.disabled{cursor:not-allowed;opacity:.25;}
 .small-label{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;display:block;}
 .activity-feed{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;margin-top:12px;padding-right:2px;}
 .activity-feed::-webkit-scrollbar{width:4px;}
@@ -344,6 +345,7 @@ let editingLeadId=null;
 let draftLead=null;
 let labelPopoverOpen=false;
 let memberPopoverOpen=false;
+let editingLabelId=null;
 let rightTab='comments';
 
 // ── HELPERS ──
@@ -640,18 +642,39 @@ function renderLeadModal(){
     return `<span class="member-chip"><span class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</span>${a.name}</span>`;
   }).join('');
 
+  const usedColors=LABELS.map(l=>l.color);
+  const firstFreeColor=LABEL_PALETTE.find(c=>!usedColors.includes(c));
   const labelPopoverHtml=labelPopoverOpen?`<div class="popover">
-    ${LABELS.map(lb=>`<div class="popover-item" onclick="toggleDraftLabel('${lb.id}')">
-      <input type="checkbox" ${draftLead.labelIds.includes(lb.id)?'checked':''} onclick="event.stopPropagation();toggleDraftLabel('${lb.id}')">
-      <span class="label-chip" style="background:${lb.color}">${lb.name}</span>
-    </div>`).join('')}
+    ${LABELS.map(lb=>{
+      if(editingLabelId===lb.id){
+        return `<div class="popover-item" style="padding:4px 6px" onclick="event.stopPropagation()">
+          <input type="text" id="editLabelInput_${lb.id}" value="${lb.name}" class="col-name-input" style="flex:1"
+            onkeydown="if(event.key==='Enter')confirmEditLabel('${lb.id}');if(event.key==='Escape'){editingLabelId=null;renderLeadModal();}"
+            onblur="confirmEditLabel('${lb.id}')">
+        </div>`;
+      }
+      return `<div class="popover-item" onclick="toggleDraftLabel('${lb.id}')">
+        <input type="checkbox" ${draftLead.labelIds.includes(lb.id)?'checked':''} onclick="event.stopPropagation();toggleDraftLabel('${lb.id}')">
+        <span class="label-chip" style="background:${lb.color}">${lb.name}</span>
+        <span style="flex:1"></span>
+        <button class="check-item-del" onclick="event.stopPropagation();startEditLabel('${lb.id}')" title="Umbenennen"><i class="ti ti-pencil" style="font-size:12px"></i></button>
+        <button class="check-item-del" onclick="event.stopPropagation();deleteLabelGlobal('${lb.id}')" title="Label löschen"><i class="ti ti-trash" style="font-size:12px"></i></button>
+      </div>`;
+    }).join('')}
     <div class="popover-divider"></div>
-    <span class="small-label">Neues Label</span>
-    <input type="text" id="newLabelName" placeholder="Name" style="width:100%;margin-bottom:6px">
-    <div class="color-swatch-row" id="newLabelColors">
-      ${LABEL_PALETTE.map((c,i)=>`<div class="color-swatch ${i===0?'selected':''}" style="background:${c}" data-color="${c}" onclick="selectLabelColor(this)"></div>`).join('')}
-    </div>
-    <button class="btn btn-sm btn-primary" style="width:100%;justify-content:center" onclick="createLabel()">Label erstellen</button>
+    ${firstFreeColor?`
+      <span class="small-label">Neues Label</span>
+      <input type="text" id="newLabelName" placeholder="Name" style="width:100%;margin-bottom:6px">
+      <div class="color-swatch-row" id="newLabelColors">
+        ${LABEL_PALETTE.map(c=>{
+          const isUsed=usedColors.includes(c);
+          const isDefault=c===firstFreeColor;
+          return `<div class="color-swatch ${isDefault?'selected':''} ${isUsed?'disabled':''}" style="background:${c}" data-color="${c}" ${isUsed?'title="Bereits vergeben"':`onclick="selectLabelColor(this)"`}></div>`;
+        }).join('')}
+      </div>
+      <p style="font-size:10px;color:var(--text3);margin:0 0 6px">Jede Farbe kann nur einmal vergeben werden.</p>
+      <button class="btn btn-sm btn-primary" style="width:100%;justify-content:center" onclick="createLabel()">Label erstellen</button>
+    `:`<p style="font-size:11px;color:var(--text3);margin:4px 0 0">Alle 9 Farben sind vergeben. Lösche zuerst ein Label, um Platz für ein neues zu schaffen.</p>`}
   </div>`:'';
 
   const memberPopoverHtml=memberPopoverOpen?`<div class="popover">
@@ -956,6 +979,32 @@ function toggleDraftLabel(id){
 function selectLabelColor(el){
   document.querySelectorAll('#newLabelColors .color-swatch').forEach(s=>s.classList.remove('selected'));
   el.classList.add('selected');
+}
+function startEditLabel(id){
+  editingLabelId=id;
+  renderLeadModal();
+  const el=document.getElementById('editLabelInput_'+id);
+  if(el){el.focus();el.select();}
+}
+function confirmEditLabel(id){
+  const el=document.getElementById('editLabelInput_'+id);
+  if(el){
+    const val=el.value.trim();
+    const lb=labelById(id);
+    if(lb&&val)lb.name=val;
+  }
+  editingLabelId=null;
+  saveState();
+  renderLeadModal();
+}
+function deleteLabelGlobal(id){
+  const lb=labelById(id);
+  if(!confirm(`Label "${lb?lb.name:''}" wirklich löschen? Es wird von allen Leads entfernt.`))return;
+  LABELS=LABELS.filter(l=>l.id!==id);
+  leads.forEach(l=>{ l.labelIds=l.labelIds.filter(x=>x!==id); });
+  if(draftLead)draftLead.labelIds=draftLead.labelIds.filter(x=>x!==id);
+  saveState();
+  renderLeadModal();
 }
 function createLabel(){
   const name=document.getElementById('newLabelName').value.trim();
