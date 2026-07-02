@@ -315,6 +315,16 @@ function openMapsSearch(){
   if(!q)return;
   window.open('https://www.google.com/maps/search/'+encodeURIComponent(q),'_blank');
 }
+function callCustomer(){
+  const phone=(document.getElementById('fPhone')?document.getElementById('fPhone').value:draftLead.phone).trim();
+  if(!phone)return;
+  window.location.href='tel:'+phone.replace(/\s+/g,'');
+}
+function emailCustomer(){
+  const email=(document.getElementById('fEmail')?document.getElementById('fEmail').value:draftLead.email).trim();
+  if(!email)return;
+  window.location.href='mailto:'+email;
+}
 function fmtEur(v){if(v===''||v===null||v===undefined||isNaN(v))return'';return Number(v).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:0})+' €';}
 function formatBytes(b){if(b<1024)return b+' B';if(b<1024*1024)return(b/1024).toFixed(1)+' KB';return(b/1024/1024).toFixed(1)+' MB';}
 
@@ -577,10 +587,20 @@ function renderLeadModal(){
           </div>
           <div class="field-row-2">
             <div><label>Ansprechpartner</label><input type="text" value="${draftLead.contact}" oninput="draftLead.contact=this.value" style="width:100%"></div>
-            <div><label>Telefonnummer</label><input type="tel" value="${draftLead.phone}" oninput="draftLead.phone=this.value" style="width:100%"></div>
+            <div><label>Telefonnummer</label>
+              <div style="display:flex;gap:6px">
+                <input type="tel" id="fPhone" value="${draftLead.phone}" oninput="draftLead.phone=this.value" style="flex:1">
+                <button class="btn btn-sm" onclick="callCustomer()" title="Kunden anrufen (3CX)"><i class="ti ti-phone"></i></button>
+              </div>
+            </div>
           </div>
           <div class="field-row-2">
-            <div><label>E-Mail</label><input type="email" value="${draftLead.email}" oninput="draftLead.email=this.value" style="width:100%"></div>
+            <div><label>E-Mail</label>
+              <div style="display:flex;gap:6px">
+                <input type="email" id="fEmail" value="${draftLead.email}" oninput="draftLead.email=this.value" style="flex:1">
+                <button class="btn btn-sm" onclick="emailCustomer()" title="Mail an Kunden (Outlook)"><i class="ti ti-mail"></i></button>
+              </div>
+            </div>
             <div><label>Adresse</label>
               <div style="display:flex;gap:6px">
                 <input type="text" id="fAddress" placeholder="Straße, PLZ Ort" value="${draftLead.address}" oninput="draftLead.address=this.value" style="flex:1">
