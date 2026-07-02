@@ -106,12 +106,16 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .modal-title-input:focus{outline:none;}
 .modal-close{cursor:pointer;color:var(--text3);font-size:18px;background:none;border:none;flex-shrink:0;margin-left:10px;}
 .modal-grid{display:grid;grid-template-columns:1.25fr 1fr;flex:1;overflow:hidden;}
-.modal-left{padding:18px 20px;overflow-y:auto;}
+.modal-left{padding:18px 20px;overflow-y:auto;background:var(--bg3);}
 .modal-right{background:var(--bg2);border-left:1px solid var(--border);padding:16px 18px;display:flex;flex-direction:column;overflow:hidden;}
 .field-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
 .field-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
 .field{margin-bottom:10px;}
 .section-block{margin-top:18px;}
+.info-section{border:1px solid var(--border2);border-radius:10px;padding:15px 16px;margin-bottom:14px;background:var(--bg);box-shadow:0 1px 2px rgba(0,0,0,.03);}
+.info-section:last-child{margin-bottom:0;}
+.info-section .section-hdr{margin-top:0;}
+.info-section input[type=text],.info-section input[type=date],.info-section input[type=tel],.info-section input[type=email],.info-section input[type=number],.info-section select,.info-section textarea{background:var(--bg3);}
 .section-hdr{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .pill-btn{font-size:11px;padding:4px 10px;border-radius:20px;border:1px dashed var(--border2);background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;}
 .pill-btn:hover{border-color:var(--purple);color:var(--text);}
@@ -511,30 +515,32 @@ function renderLeadModal(){
     </div>
     <div class="modal-grid">
       <div class="modal-left">
-        <div class="section-hdr" style="margin-top:0">Kundeninformationen</div>
-        <div class="field-row-2">
-          <div><label>Kundennummer</label><input type="text" value="${draftLead.customerNumber}" oninput="draftLead.customerNumber=this.value" style="width:100%"></div>
-          <div><label>Art</label>
-            <select style="width:100%" onchange="draftLead.art=this.value">
-              <option value="B2B" ${draftLead.art==='B2B'?'selected':''}>B2B</option>
-              <option value="B2C" ${draftLead.art==='B2C'?'selected':''}>B2C</option>
-            </select>
+        <div class="info-section">
+          <div class="section-hdr">Kundeninformationen</div>
+          <div class="field-row-2">
+            <div><label>Kundennummer</label><input type="text" value="${draftLead.customerNumber}" oninput="draftLead.customerNumber=this.value" style="width:100%"></div>
+            <div><label>Art</label>
+              <select style="width:100%" onchange="draftLead.art=this.value">
+                <option value="B2B" ${draftLead.art==='B2B'?'selected':''}>B2B</option>
+                <option value="B2C" ${draftLead.art==='B2C'?'selected':''}>B2C</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row-2">
+            <div><label>Ansprechpartner</label><input type="text" value="${draftLead.contact}" oninput="draftLead.contact=this.value" style="width:100%"></div>
+            <div><label>Telefonnummer</label><input type="tel" value="${draftLead.phone}" oninput="draftLead.phone=this.value" style="width:100%"></div>
+          </div>
+          <div class="field-row-2">
+            <div><label>E-Mail</label><input type="email" value="${draftLead.email}" oninput="draftLead.email=this.value" style="width:100%"></div>
+            <div><label>Jahresvolumen (Bewertung, EUR)</label><input type="number" min="0" step="100" placeholder="0" value="${draftLead.annualVolume}" oninput="draftLead.annualVolume=this.value" style="width:100%"></div>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label>Notiz</label>
+            <textarea placeholder="Interne Notiz…" oninput="draftLead.notes=this.value">${draftLead.notes}</textarea>
           </div>
         </div>
-        <div class="field-row-2">
-          <div><label>Ansprechpartner</label><input type="text" value="${draftLead.contact}" oninput="draftLead.contact=this.value" style="width:100%"></div>
-          <div><label>Telefonnummer</label><input type="tel" value="${draftLead.phone}" oninput="draftLead.phone=this.value" style="width:100%"></div>
-        </div>
-        <div class="field-row-2">
-          <div><label>E-Mail</label><input type="email" value="${draftLead.email}" oninput="draftLead.email=this.value" style="width:100%"></div>
-          <div><label>Jahresvolumen (Bewertung, EUR)</label><input type="number" min="0" step="100" placeholder="0" value="${draftLead.annualVolume}" oninput="draftLead.annualVolume=this.value" style="width:100%"></div>
-        </div>
-        <div class="field">
-          <label>Notiz</label>
-          <textarea placeholder="Interne Notiz…" oninput="draftLead.notes=this.value">${draftLead.notes}</textarea>
-        </div>
 
-        <div class="section-block">
+        <div class="info-section">
           <div class="section-hdr">
             <span>Drucker &amp; Patronen</span>
           </div>
@@ -543,7 +549,7 @@ function renderLeadModal(){
           <button class="pill-btn" onclick="addPrinter()"><i class="ti ti-plus"></i> Drucker hinzufügen</button>
         </div>
 
-        <div class="section-block">
+        <div class="info-section">
           <div class="section-hdr">Lead-Status</div>
           <div class="field-row-2">
             <div><label>Status</label>
@@ -593,7 +599,6 @@ function renderLeadModal(){
               <button class="btn btn-sm" onclick="addChecklistItem()"><i class="ti ti-plus"></i></button>
             </div>
           </div>
-
         </div>
       </div>
 
