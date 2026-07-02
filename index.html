@@ -235,18 +235,18 @@ function fmtDateTime(iso){
 }
 
 let leads=[
-  {id:1,company:'Musterfirma GmbH',customerNumber:'K-10001',contact:'Max Mustermann',phone:'+49 89 1234567',email:'max@musterfirma.de',status:'qualified',members:['a1'],labelIds:['l3'],firstContact:'',followup:'',notes:'Interessiert, ruft morgen zurück',checklist:[],activity:[{id:1,type:'activity',author:'a1',text:'Karte erstellt',date:'2026-06-20T09:00:00'}]},
-  {id:2,company:'Beispiel AG',customerNumber:'K-10002',contact:'Erika Beispiel',phone:'+49 89 7654321',email:'erika@beispiel.de',status:'toner_shipped',members:['a2'],labelIds:[],firstContact:'2026-06-25',followup:'2026-07-09',notes:'',checklist:[{id:1,text:'Versandbestätigung erhalten',done:true},{id:2,text:'Tracking-Nummer notiert',done:false}],activity:[{id:1,type:'activity',author:'a2',text:'Status geändert: Toner zugesagt → Toner unterwegs',date:'2026-06-27T11:20:00'}]},
-  {id:3,company:'Test & Co KG',customerNumber:'K-10003',contact:'Peter Test',phone:'+49 89 1112233',email:'peter@testco.de',status:'followup',members:['a3'],labelIds:['l1'],firstContact:'2026-06-20',followup:'2026-06-28',notes:'Follow-up-Anruf steht an',checklist:[],activity:[{id:1,type:'comment',author:'a3',text:'Toner kam gut an, wartet auf Rückmeldung vom Einkauf.',date:'2026-06-29T15:40:00'}]},
-  {id:4,company:'Nordbau Systeme',customerNumber:'K-10004',contact:'Anke Nord',phone:'+49 40 998877',email:'anke@nordbau.de',status:'new',members:[],labelIds:[],firstContact:'',followup:'',notes:'',checklist:[],activity:[]},
-  {id:5,company:'Rheinland Druck GmbH',customerNumber:'K-10005',contact:'Tobias Rhein',phone:'+49 221 445566',email:'t.rhein@rheinland-druck.de',status:'contact',members:['a2'],labelIds:['l2'],firstContact:'2026-06-30',followup:'',notes:'Zweiter Versuch am Mittwoch',checklist:[],activity:[]},
-  {id:6,company:'Südwest Büroservice',customerNumber:'K-10006',contact:'Nina Süd',phone:'+49 711 223344',email:'nina@suedwest-buero.de',status:'offer_build',members:['a3','a1'],labelIds:['l3'],firstContact:'2026-06-15',followup:'',notes:'Sehr zufrieden mit Toner, will Preisliste',checklist:[{id:1,text:'Preisliste erstellen',done:true},{id:2,text:'Rabattstaffel abstimmen',done:false},{id:3,text:'Angebot an Einkauf senden',done:false}],activity:[{id:1,type:'comment',author:'a3',text:'Sehr angetan vom Testprodukt, Budget ist vorhanden.',date:'2026-06-24T10:05:00'}]},
-  {id:7,company:'Alpin Office Solutions',customerNumber:'K-10007',contact:'Felix Alpin',phone:'+49 89 5566778',email:'felix@alpin-office.de',status:'offer_sent',members:['a1'],labelIds:[],firstContact:'2026-06-10',followup:'2026-07-05',notes:'',checklist:[],activity:[]},
-  {id:8,company:'Berlin Print Partner',customerNumber:'K-10008',contact:'Julia Berg',phone:'+49 30 9988776',email:'julia@berlinprint.de',status:'won',members:['a2'],labelIds:['l3'],firstContact:'2026-05-20',followup:'',notes:'Rahmenvertrag unterschrieben',checklist:[],activity:[{id:1,type:'activity',author:'a2',text:'Status geändert: Angebot raus → Gewonnen',date:'2026-06-18T09:30:00'}]},
-  {id:9,company:'Kontor Nord',customerNumber:'K-10009',contact:'Simon Kontor',phone:'+49 40 3322110',email:'simon@kontor-nord.de',status:'lost',members:['a3'],labelIds:['l4'],firstContact:'2026-05-18',followup:'',notes:'Bereits langfristiger Vertrag mit Wettbewerber',checklist:[],activity:[]},
-  {id:10,company:'Meier Bürobedarf',customerNumber:'K-10010',contact:'Claudia Meier',phone:'+49 221 887766',email:'c.meier@meier-buero.de',status:'toner_confirmed',members:['a1'],labelIds:[],firstContact:'2026-06-29',followup:'',notes:'',checklist:[],activity:[]},
-  {id:11,company:'Franke Elektro GmbH',customerNumber:'K-10011',contact:'Robert Franke',phone:'+49 69 556677',email:'r.franke@franke-elektro.de',status:'followup',members:['a2'],labelIds:['l1'],firstContact:'2026-06-18',followup:'2026-06-30',notes:'Toner kam gut an, wartet auf Rückruf',checklist:[],activity:[]},
-  {id:12,company:'Vogel Consulting',customerNumber:'K-10012',contact:'Petra Vogel',phone:'+49 211 998811',email:'petra@vogel-consulting.de',status:'new',members:[],labelIds:[],firstContact:'',followup:'',notes:'',checklist:[],activity:[]},
+  {id:1,company:'Musterfirma GmbH',customerNumber:'K-10001',art:'B2B',printerModel:'HP LaserJet Pro M404',sku:'TN-1001-BK',contact:'Max Mustermann',phone:'+49 89 1234567',email:'max@musterfirma.de',status:'qualified',tonerSent:'Nein',members:['a1'],labelIds:['l3'],firstContact:'',followup:'',forecast:'',notes:'Interessiert, ruft morgen zurück',checklist:[],activity:[{id:1,type:'activity',author:'a1',text:'Karte erstellt',date:'2026-06-20T09:00:00'}]},
+  {id:2,company:'Beispiel AG',customerNumber:'K-10002',art:'B2B',printerModel:'Brother HL-L2350DW',sku:'TN-1002-BK',contact:'Erika Beispiel',phone:'+49 89 7654321',email:'erika@beispiel.de',status:'toner_shipped',tonerSent:'Ja',members:['a2'],labelIds:[],firstContact:'2026-06-25',followup:'2026-07-09',forecast:'1200',notes:'',checklist:[{id:1,text:'Versandbestätigung erhalten',done:true},{id:2,text:'Tracking-Nummer notiert',done:false}],activity:[{id:1,type:'activity',author:'a2',text:'Status geändert: Toner zugesagt → Toner unterwegs',date:'2026-06-27T11:20:00'}]},
+  {id:3,company:'Test & Co KG',customerNumber:'K-10003',art:'B2B',printerModel:'Canon i-SENSYS MF445dw',sku:'TN-1003-BK',contact:'Peter Test',phone:'+49 89 1112233',email:'peter@testco.de',status:'followup',tonerSent:'Ja',members:['a3'],labelIds:['l1'],firstContact:'2026-06-20',followup:'2026-06-28',forecast:'800',notes:'Follow-up-Anruf steht an',checklist:[],activity:[{id:1,type:'comment',author:'a3',text:'Toner kam gut an, wartet auf Rückmeldung vom Einkauf.',date:'2026-06-29T15:40:00'}]},
+  {id:4,company:'Nordbau Systeme',customerNumber:'K-10004',art:'B2B',printerModel:'',sku:'',contact:'Anke Nord',phone:'+49 40 998877',email:'anke@nordbau.de',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',forecast:'',notes:'',checklist:[],activity:[]},
+  {id:5,company:'Rheinland Druck GmbH',customerNumber:'K-10005',art:'B2B',printerModel:'Xerox VersaLink C405',sku:'TN-1005-CMYK',contact:'Tobias Rhein',phone:'+49 221 445566',email:'t.rhein@rheinland-druck.de',status:'contact',tonerSent:'Nein',members:['a2'],labelIds:['l2'],firstContact:'2026-06-30',followup:'',forecast:'',notes:'Zweiter Versuch am Mittwoch',checklist:[],activity:[]},
+  {id:6,company:'Südwest Büroservice',customerNumber:'K-10006',art:'B2B',printerModel:'HP LaserJet Enterprise M507',sku:'TN-1006-BK',contact:'Nina Süd',phone:'+49 711 223344',email:'nina@suedwest-buero.de',status:'offer_build',tonerSent:'Ja',members:['a3','a1'],labelIds:['l3'],firstContact:'2026-06-15',followup:'',forecast:'3400',notes:'Sehr zufrieden mit Toner, will Preisliste',checklist:[{id:1,text:'Preisliste erstellen',done:true},{id:2,text:'Rabattstaffel abstimmen',done:false},{id:3,text:'Angebot an Einkauf senden',done:false}],activity:[{id:1,type:'comment',author:'a3',text:'Sehr angetan vom Testprodukt, Budget ist vorhanden.',date:'2026-06-24T10:05:00'}]},
+  {id:7,company:'Alpin Office Solutions',customerNumber:'K-10007',art:'B2C',printerModel:'Epson EcoTank ET-4850',sku:'TN-1007-CMYK',contact:'Felix Alpin',phone:'+49 89 5566778',email:'felix@alpin-office.de',status:'offer_sent',tonerSent:'Ja',members:['a1'],labelIds:[],firstContact:'2026-06-10',followup:'2026-07-05',forecast:'650',notes:'',checklist:[],activity:[]},
+  {id:8,company:'Berlin Print Partner',customerNumber:'K-10008',art:'B2B',printerModel:'Konica Minolta bizhub C258',sku:'TN-1008-CMYK',contact:'Julia Berg',phone:'+49 30 9988776',email:'julia@berlinprint.de',status:'won',tonerSent:'Ja',members:['a2'],labelIds:['l3'],firstContact:'2026-05-20',followup:'',forecast:'5200',notes:'Rahmenvertrag unterschrieben',checklist:[],activity:[{id:1,type:'activity',author:'a2',text:'Status geändert: Angebot raus → Gewonnen',date:'2026-06-18T09:30:00'}]},
+  {id:9,company:'Kontor Nord',customerNumber:'K-10009',art:'B2B',printerModel:'',sku:'',contact:'Simon Kontor',phone:'+49 40 3322110',email:'simon@kontor-nord.de',status:'lost',tonerSent:'Ja',members:['a3'],labelIds:['l4'],firstContact:'2026-05-18',followup:'',forecast:'',notes:'Bereits langfristiger Vertrag mit Wettbewerber',checklist:[],activity:[]},
+  {id:10,company:'Meier Bürobedarf',customerNumber:'K-10010',art:'B2C',printerModel:'Brother MFC-L3770CDW',sku:'TN-1010-CMYK',contact:'Claudia Meier',phone:'+49 221 887766',email:'c.meier@meier-buero.de',status:'toner_confirmed',tonerSent:'Nein',members:['a1'],labelIds:[],firstContact:'2026-06-29',followup:'',forecast:'',notes:'',checklist:[],activity:[]},
+  {id:11,company:'Franke Elektro GmbH',customerNumber:'K-10011',art:'B2B',printerModel:'HP Color LaserJet Pro M255',sku:'TN-1011-CMYK',contact:'Robert Franke',phone:'+49 69 556677',email:'r.franke@franke-elektro.de',status:'followup',tonerSent:'Ja',members:['a2'],labelIds:['l1'],firstContact:'2026-06-18',followup:'2026-06-30',forecast:'950',notes:'Toner kam gut an, wartet auf Rückruf',checklist:[],activity:[]},
+  {id:12,company:'Vogel Consulting',customerNumber:'K-10012',art:'B2C',printerModel:'',sku:'',contact:'Petra Vogel',phone:'+49 211 998811',email:'petra@vogel-consulting.de',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',forecast:'',notes:'',checklist:[],activity:[]},
 ];
 let nextId=13;
 let nextLabelId=5;
@@ -265,7 +265,13 @@ function colById(id){return COLUMNS.find(c=>c.id===id);}
 function labelById(id){return LABELS.find(l=>l.id===id);}
 function fmtDate(d){if(!d)return'';const p=d.split('-');return`${p[2]}.${p[1]}.${p[0]}`;}
 function daysUntil(d){if(!d)return null;const diff=(new Date(d)-new Date(TODAY))/86400000;return Math.round(diff);}
-function blankLead(){return{id:null,company:'',customerNumber:'',contact:'',phone:'',email:'',status:'new',members:[],labelIds:[],firstContact:'',followup:'',notes:'',checklist:[],activity:[]};}
+function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',printerModel:'',sku:'',contact:'',phone:'',email:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',forecast:'',notes:'',checklist:[],activity:[]};}
+function openGoogleSearch(){
+  const q=(document.getElementById('fCompany')?document.getElementById('fCompany').value:draftLead.company).trim();
+  if(!q)return;
+  window.open('https://www.google.com/search?q='+encodeURIComponent(q),'_blank');
+}
+function fmtEur(v){if(v===''||v===null||v===undefined||isNaN(v))return'';return Number(v).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:0})+' €';}
 
 function getFilteredLeads(){
   const q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
@@ -283,10 +289,12 @@ function renderStats(){
   const won=fl.filter(l=>l.status==='won').length;
   const overdue=fl.filter(l=>l.followup&&daysUntil(l.followup)<0).length;
   const rate=total?Math.round(won/total*100):0;
+  const forecastSum=fl.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
   document.getElementById('statsBar').innerHTML=`
     <div class="tb-stat"><div class="tb-stat-val">${total}</div><div class="tb-stat-label">Leads</div></div>
     <div class="tb-stat"><div class="tb-stat-val" style="color:${overdue>0?'var(--red)':'var(--text)'}">${overdue}</div><div class="tb-stat-label">Follow-up überfällig</div></div>
-    <div class="tb-stat"><div class="tb-stat-val" style="color:var(--green)">${rate}%</div><div class="tb-stat-label">Gewonnen</div></div>`;
+    <div class="tb-stat"><div class="tb-stat-val" style="color:var(--green)">${rate}%</div><div class="tb-stat-label">Gewonnen</div></div>
+    <div class="tb-stat"><div class="tb-stat-val" style="color:var(--purple)">${fmtEur(forecastSum)}</div><div class="tb-stat-label">Forecast gesamt</div></div>`;
 }
 
 // ── RENDER: AGENT FILTER + USER SELECT ──
@@ -334,11 +342,15 @@ function cardHtml(l){
     const dlabel=d<0?`${Math.abs(d)}T überfällig`:(d===0?'heute':fmtDate(l.followup));
     dueHtml=`<span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${dlabel}</span>`;
   }
+  const metaBadges=[];
+  if(l.art)metaBadges.push(`<span class="mini-badge"><i class="ti ti-building-store" style="font-size:12px"></i>${l.art}</span>`);
+  if(checkTotal)metaBadges.push(`<span class="mini-badge"><i class="ti ti-checklist" style="font-size:12px"></i>${checkDone}/${checkTotal}</span>`);
+  if(l.forecast)metaBadges.push(`<span class="mini-badge" style="color:var(--green-dark);font-weight:600"><i class="ti ti-currency-euro" style="font-size:12px"></i>${fmtEur(l.forecast)}</span>`);
   return `<div class="card" draggable="true" data-id="${l.id}" ondragstart="onDragStart(event,${l.id})" ondragend="onDragEnd(event)" onclick="openLeadModal(${l.id})">
     ${labelsHtml?`<div class="card-labels">${labelsHtml}</div>`:''}
     <div class="card-company">${l.company}</div>
     <div class="card-contact">${l.contact}${l.customerNumber?` · ${l.customerNumber}`:''}</div>
-    ${checkTotal?`<div class="card-badges-row"><span class="mini-badge"><i class="ti ti-checklist" style="font-size:12px"></i>${checkDone}/${checkTotal}</span></div>`:''}
+    ${metaBadges.length?`<div class="card-badges-row">${metaBadges.join('')}</div>`:''}
     <div class="card-foot">
       <div class="member-stack">${membersHtml}</div>
       ${dueHtml}
@@ -429,15 +441,18 @@ function renderLeadModal(){
   document.getElementById('leadModalInner').innerHTML=`
     <div class="modal-topline">
       <input type="text" class="modal-title-input" id="fCompany" placeholder="Firmenname" value="${draftLead.company}" oninput="draftLead.company=this.value">
+      <button class="modal-close" title="Firma bei Google suchen" onclick="openGoogleSearch()"><i class="ti ti-brand-google"></i></button>
       <button class="modal-close" onclick="closeModal('leadModal')"><i class="ti ti-x"></i></button>
     </div>
     <div class="modal-grid">
       <div class="modal-left">
+        <div class="section-hdr" style="margin-top:0">Kundeninformationen</div>
         <div class="field-row-2">
           <div><label>Kundennummer</label><input type="text" value="${draftLead.customerNumber}" oninput="draftLead.customerNumber=this.value" style="width:100%"></div>
-          <div><label>Status</label>
-            <select id="fStatus" style="width:100%" onchange="draftLead.status=this.value">
-              ${COLUMNS.map(c=>`<option value="${c.id}" ${draftLead.status===c.id?'selected':''}>${c.name}</option>`).join('')}
+          <div><label>Art</label>
+            <select style="width:100%" onchange="draftLead.art=this.value">
+              <option value="B2B" ${draftLead.art==='B2B'?'selected':''}>B2B</option>
+              <option value="B2C" ${draftLead.art==='B2C'?'selected':''}>B2C</option>
             </select>
           </div>
         </div>
@@ -450,43 +465,76 @@ function renderLeadModal(){
           <div></div>
         </div>
         <div class="field-row-2">
-          <div><label>Datum Erstkontakt</label><input type="date" value="${draftLead.firstContact}" onchange="draftLead.firstContact=this.value" style="width:100%"></div>
-          <div><label>Follow-up-Datum</label><input type="date" value="${draftLead.followup}" onchange="draftLead.followup=this.value" style="width:100%"></div>
+          <div><label>Drucker (Modell)</label><input type="text" placeholder="z. B. HP LaserJet Pro M404" value="${draftLead.printerModel}" oninput="draftLead.printerModel=this.value" style="width:100%"></div>
+          <div><label>SKU</label><input type="text" placeholder="interne SKU" value="${draftLead.sku}" oninput="draftLead.sku=this.value" style="width:100%"></div>
         </div>
 
         <div class="section-block">
-          <div class="section-hdr">Labels</div>
+          <div class="section-hdr">Lead-Status</div>
+          <div class="field-row-2">
+            <div><label>Status</label>
+              <select id="fStatus" style="width:100%" onchange="draftLead.status=this.value">
+                ${COLUMNS.map(c=>`<option value="${c.id}" ${draftLead.status===c.id?'selected':''}>${c.name}</option>`).join('')}
+              </select>
+            </div>
+            <div><label>Free Toner verschickt</label>
+              <select style="width:100%" onchange="draftLead.tonerSent=this.value">
+                <option value="Nein" ${draftLead.tonerSent==='Nein'?'selected':''}>Nein</option>
+                <option value="Ja" ${draftLead.tonerSent==='Ja'?'selected':''}>Ja</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row-2">
+            <div><label>Datum Erstkontakt</label><input type="date" value="${draftLead.firstContact}" onchange="draftLead.firstContact=this.value" style="width:100%"></div>
+            <div><label>Follow-up-Datum</label><input type="date" value="${draftLead.followup}" onchange="draftLead.followup=this.value" style="width:100%"></div>
+          </div>
+
+          <div class="label-row-editor" style="margin-top:10px">
+            <span class="small-label" style="width:100%;margin-bottom:0">Labels</span>
+          </div>
           <div class="label-row-editor">
             ${labelChips}
             <button class="pill-btn" onclick="event.stopPropagation();toggleLabelPopover()"><i class="ti ti-plus"></i> Label</button>
             ${labelPopoverHtml}
           </div>
-        </div>
 
-        <div class="section-block">
-          <div class="section-hdr">Mitglieder</div>
+          <div class="member-row-editor" style="margin-top:14px">
+            <span class="small-label" style="width:100%;margin-bottom:0">Mitglieder</span>
+          </div>
           <div class="member-row-editor">
             ${memberChips}
             <button class="pill-btn" onclick="event.stopPropagation();toggleMemberPopover()"><i class="ti ti-plus"></i> Person</button>
             ${memberPopoverHtml}
           </div>
+
+          <div style="margin-top:14px">
+            <div class="section-hdr" style="margin-bottom:6px">
+              <span>Checkliste ${checkTotal?`(${checkDone}/${checkTotal})`:''}</span>
+            </div>
+            ${checkTotal?`<div class="checklist-progress-track"><div class="checklist-progress-fill" style="width:${pct}%"></div></div>`:''}
+            ${checklistHtml}
+            <div class="add-check-row">
+              <input type="text" id="newCheckItemInput" placeholder="Element hinzufügen…" onkeydown="if(event.key==='Enter')addChecklistItem()">
+              <button class="btn btn-sm" onclick="addChecklistItem()"><i class="ti ti-plus"></i></button>
+            </div>
+          </div>
+
+          <div style="margin-top:14px">
+            <label>Notiz</label>
+            <textarea placeholder="Interne Notiz…" oninput="draftLead.notes=this.value">${draftLead.notes}</textarea>
+          </div>
         </div>
 
         <div class="section-block">
-          <div class="section-hdr">
-            <span>Checkliste ${checkTotal?`(${checkDone}/${checkTotal})`:''}</span>
+          <div class="section-hdr">Forecast</div>
+          <div class="field-row-2">
+            <div><label>Forecast (EUR)</label>
+              <div style="position:relative">
+                <input type="number" min="0" step="10" placeholder="0" value="${draftLead.forecast}" oninput="draftLead.forecast=this.value" style="width:100%">
+              </div>
+            </div>
+            <div></div>
           </div>
-          ${checkTotal?`<div class="checklist-progress-track"><div class="checklist-progress-fill" style="width:${pct}%"></div></div>`:''}
-          ${checklistHtml}
-          <div class="add-check-row">
-            <input type="text" id="newCheckItemInput" placeholder="Element hinzufügen…" onkeydown="if(event.key==='Enter')addChecklistItem()">
-            <button class="btn btn-sm" onclick="addChecklistItem()"><i class="ti ti-plus"></i></button>
-          </div>
-        </div>
-
-        <div class="section-block">
-          <div class="section-hdr">Notiz</div>
-          <textarea placeholder="Interne Notiz…" oninput="draftLead.notes=this.value">${draftLead.notes}</textarea>
         </div>
       </div>
 
@@ -588,11 +636,11 @@ function deleteLead(){
 
 // ── CSV EXPORT ──
 function exportCSV(){
-  const headers=['Firmenname','Kundennummer','Ansprechpartner','Telefonnummer','E-Mail','Mitglieder','Status','Datum Erstkontakt','Follow-up-Datum','Labels','Notizen'];
+  const headers=['Firmenname','Kundennummer','Art','Drucker','SKU','Ansprechpartner','Telefonnummer','E-Mail','Mitglieder','Status','Free Toner verschickt','Datum Erstkontakt','Follow-up-Datum','Forecast (EUR)','Labels','Notizen'];
   const rows=leads.map(l=>[
-    l.company,l.customerNumber,l.contact,l.phone,l.email,
+    l.company,l.customerNumber,l.art,l.printerModel,l.sku,l.contact,l.phone,l.email,
     l.members.map(id=>agentById(id)?.name).filter(Boolean).join('; '),
-    colById(l.status).name,l.firstContact,l.followup,
+    colById(l.status).name,l.tonerSent,l.firstContact,l.followup,l.forecast,
     l.labelIds.map(id=>labelById(id)?.name).filter(Boolean).join('; '),
     l.notes
   ]);
