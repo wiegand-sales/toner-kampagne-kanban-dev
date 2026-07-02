@@ -40,7 +40,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .tb-stat-val{font-size:16px;font-weight:700;}
 .tb-stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;}
 .tb-right{display:flex;align-items:center;gap:8px;}
-input[type=text],input[type=date],input[type=tel],input[type=email],select,textarea{
+input[type=text],input[type=date],input[type=tel],input[type=email],input[type=number],input[type=file],select,textarea{
   font-size:13px;padding:8px 11px;border-radius:var(--r-md);border:1px solid var(--border2);
   background:var(--bg2);color:var(--text);font-family:inherit;outline:none;transition:border-color .12s;}
 input:focus,select:focus,textarea:focus{border-color:var(--purple);}
@@ -100,12 +100,12 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(20,20,18,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;}
 .modal-overlay.hidden{display:none;}
-.modal-lg{background:var(--bg);border-radius:var(--r-lg);width:100%;max-width:1120px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;}
+.modal-lg{background:var(--bg);border-radius:var(--r-lg);width:100%;max-width:1220px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;}
 .modal-topline{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0;}
 .modal-title-input{font-size:17px;font-weight:700;border:none;background:transparent;flex:1;padding:4px 0;font-family:inherit;color:var(--text);}
 .modal-title-input:focus{outline:none;}
 .modal-close{cursor:pointer;color:var(--text3);font-size:18px;background:none;border:none;flex-shrink:0;margin-left:10px;}
-.modal-grid{display:grid;grid-template-columns:1fr 360px;flex:1;overflow:hidden;}
+.modal-grid{display:grid;grid-template-columns:1.25fr 1fr;flex:1;overflow:hidden;}
 .modal-left{padding:18px 20px;overflow-y:auto;}
 .modal-right{background:var(--bg2);border-left:1px solid var(--border);padding:16px 18px;display:flex;flex-direction:column;overflow:hidden;}
 .field-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
@@ -150,10 +150,10 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .comment-input-row textarea{min-height:44px;flex:1;}
 .modal-actions{display:flex;justify-content:space-between;gap:8px;padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0;}
 .right-hdr{font-size:12px;font-weight:600;color:var(--text2);flex-shrink:0;display:flex;align-items:center;gap:6px;}
-.tab-bar{display:flex;gap:2px;border-bottom:1px solid var(--border);flex-shrink:0;margin-bottom:12px;}
-.tab-btn{background:none;border:none;font-size:12px;font-weight:600;color:var(--text2);padding:8px 8px;cursor:pointer;border-bottom:2px solid transparent;font-family:inherit;white-space:nowrap;}
-.tab-btn:hover{color:var(--text);}
-.tab-btn.active{color:var(--purple);border-bottom-color:var(--purple);}
+.tab-bar{display:flex;gap:3px;background:var(--bg3);border-radius:9px;padding:4px;flex-shrink:0;margin-bottom:14px;}
+.tab-btn{flex:1;background:transparent;border:none;border-radius:6px;font-size:12px;font-weight:600;color:var(--text2);padding:9px 8px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s;}
+.tab-btn:hover:not(.active){color:var(--text);}
+.tab-btn.active{background:var(--bg);color:var(--purple);box-shadow:0 1px 3px rgba(0,0,0,.1);}
 .printer-card{border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:var(--bg2);}
 .printer-card-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
 .sku-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
@@ -529,6 +529,10 @@ function renderLeadModal(){
           <div><label>E-Mail</label><input type="email" value="${draftLead.email}" oninput="draftLead.email=this.value" style="width:100%"></div>
           <div><label>Jahresvolumen (Bewertung, EUR)</label><input type="number" min="0" step="100" placeholder="0" value="${draftLead.annualVolume}" oninput="draftLead.annualVolume=this.value" style="width:100%"></div>
         </div>
+        <div class="field">
+          <label>Notiz</label>
+          <textarea placeholder="Interne Notiz…" oninput="draftLead.notes=this.value">${draftLead.notes}</textarea>
+        </div>
 
         <div class="section-block">
           <div class="section-hdr">
@@ -590,10 +594,6 @@ function renderLeadModal(){
             </div>
           </div>
 
-          <div style="margin-top:14px">
-            <label>Notiz</label>
-            <textarea placeholder="Interne Notiz…" oninput="draftLead.notes=this.value">${draftLead.notes}</textarea>
-          </div>
         </div>
       </div>
 
