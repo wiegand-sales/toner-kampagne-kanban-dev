@@ -98,20 +98,21 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .col-empty{font-size:11px;color:var(--text3);text-align:center;padding:14px 4px;}
 
 /* CARD */
-.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 11px;margin-bottom:8px;cursor:grab;transition:box-shadow .12s,border-color .12s;}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 11px;margin-bottom:8px;cursor:grab;transition:box-shadow .12s,border-color .12s;height:150px;display:flex;flex-direction:column;overflow:hidden;}
 .card:hover{border-color:var(--border2);box-shadow:0 1px 4px rgba(0,0,0,.06);}
 .card.dragging{opacity:.4;}
-.card-labels{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;}
-.label-chip{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;color:#fff;}
-.card-company{font-size:13px;font-weight:600;margin-bottom:2px;}
-.card-contact{font-size:12px;color:var(--text2);margin-bottom:8px;}
-.card-badges-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
-.mini-badge{font-size:10px;color:var(--text2);display:flex;align-items:center;gap:3px;}
-.card-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;}
+.card-labels-slot{display:flex;gap:4px;flex-wrap:wrap;min-height:20px;max-height:20px;overflow:hidden;margin-bottom:4px;flex-shrink:0;}
+.label-chip{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;color:#fff;white-space:nowrap;}
+.card-company{font-size:13px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;}
+.card-contact{font-size:12px;color:var(--text2);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;}
+.card-badges-row{display:flex;align-items:center;gap:8px;min-height:16px;flex-wrap:wrap;overflow:hidden;flex-shrink:0;}
+.card-spacer{flex:1;}
+.mini-badge{font-size:10px;color:var(--text2);display:flex;align-items:center;gap:3px;white-space:nowrap;}
+.card-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-shrink:0;}
 .member-stack{display:flex;}
 .member-av{width:19px;height:19px;border-radius:50%;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid var(--bg);margin-left:-6px;}
 .member-av:first-child{margin-left:0;}
-.due-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;display:flex;align-items:center;gap:3px;white-space:nowrap;}
+.due-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;display:flex;align-items:center;gap:3px;white-space:nowrap;flex-shrink:0;}
 .due-ok{background:var(--gray-bg);color:var(--gray-dark);}
 .due-soon{background:var(--amber-bg);color:var(--amber-dark);}
 .due-overdue{background:var(--red-bg);color:var(--red-dark);}
@@ -477,14 +478,14 @@ function cardHtml(l){
     dueHtml=`<span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${dlabel}</span>`;
   }
   const metaBadges=[];
-  if(l.art)metaBadges.push(`<span class="mini-badge"><i class="ti ti-building-store" style="font-size:12px"></i>${l.art}</span>`);
   if(checkTotal)metaBadges.push(`<span class="mini-badge"><i class="ti ti-checklist" style="font-size:12px"></i>${checkDone}/${checkTotal}</span>`);
   if(l.forecast)metaBadges.push(`<span class="mini-badge" style="color:var(--green-dark);font-weight:600"><i class="ti ti-currency-euro" style="font-size:12px"></i>${fmtEur(l.forecast)}</span>`);
   return `<div class="card" draggable="true" data-id="${l.id}" ondragstart="onDragStart(event,${l.id})" ondragend="onDragEnd(event)" onclick="openLeadModal(${l.id})">
-    ${labelsHtml?`<div class="card-labels">${labelsHtml}</div>`:''}
     <div class="card-company">${l.company}</div>
     <div class="card-contact">${l.contact}${l.customerNumber?` · ${l.customerNumber}`:''}</div>
-    ${metaBadges.length?`<div class="card-badges-row">${metaBadges.join('')}</div>`:''}
+    <div class="card-labels-slot">${labelsHtml}</div>
+    <div class="card-badges-row">${metaBadges.join('')}</div>
+    <div class="card-spacer"></div>
     <div class="card-foot">
       <div class="member-stack">${membersHtml}</div>
       ${dueHtml}
