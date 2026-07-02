@@ -808,8 +808,9 @@ function renderLeadModal(){
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Neue Aufgabe</div>
         <div class="field" style="margin-bottom:10px">
-          <textarea id="newTaskText" placeholder="Aufgabe beschreiben…" style="min-height:44px"></textarea>
+          <textarea id="newTaskText" placeholder="Aufgabe beschreiben… (Strg+Enter zum Erstellen)" style="min-height:44px" onkeydown="if((event.key==='Enter')&&(event.ctrlKey||event.metaKey))addTask()" oninput="clearTaskFormError()"></textarea>
         </div>
+        <div id="taskFormError" style="display:none;color:var(--red);font-size:11px;margin-bottom:6px"></div>
         <div class="field-row-2" style="margin-bottom:0;align-items:end">
           <div><label>Frist</label><input type="date" id="newTaskDue" style="width:100%"></div>
           <div><label style="visibility:hidden">Aktion</label>
@@ -1029,12 +1030,27 @@ function removeFile(id){
 }
 
 // Aufgaben
+function clearTaskFormError(){
+  const el=document.getElementById('taskFormError');
+  if(el){el.style.display='none';el.textContent='';}
+  const ta=document.getElementById('newTaskText');
+  if(ta)ta.classList.remove('input-error');
+}
 function addTask(){
   const textEl=document.getElementById('newTaskText');
   const dueEl=document.getElementById('newTaskDue');
   const text=textEl.value.trim();
-  if(!text)return;
+  if(!text){
+    const errEl=document.getElementById('taskFormError');
+    if(errEl){errEl.style.display='block';errEl.textContent='Bitte zuerst eine Beschreibung für die Aufgabe eingeben.';}
+    textEl.classList.add('input-error');
+    textEl.focus();
+    return;
+  }
+  clearTaskFormError();
   draftLead.tasks.push({id:Date.now(),text,dueDate:dueEl.value,done:false,createdBy:currentUser,createdAt:nowISO()});
+  textEl.value='';
+  dueEl.value='';
   autoPersistIfEditing();
   renderLeadModal();
 }
