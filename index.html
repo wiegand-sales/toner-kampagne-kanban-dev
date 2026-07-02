@@ -334,6 +334,7 @@ leads.forEach(l=>{
   if(l.orderCount===undefined) l.orderCount='';
   if(l.revenue===undefined) l.revenue='';
   if(!l.files) l.files=[];
+  if(!l.tasks) l.tasks=[];
 });
 let activeAgentFilter='all';
 let dragCardId=null;
@@ -356,7 +357,7 @@ function colById(id){return COLUMNS.find(c=>c.id===id);}
 function labelById(id){return LABELS.find(l=>l.id===id);}
 function fmtDate(d){if(!d)return'';const p=d.split('-');return`${p[2]}.${p[1]}.${p[0]}`;}
 function daysUntil(d){if(!d)return null;const diff=(new Date(d)-new Date(TODAY))/86400000;return Math.round(diff);}
-function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],contact:'',phone:'',email:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',forecast:'',notes:'',checklist:[],activity:[],files:[]};}
+function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],contact:'',phone:'',email:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',forecast:'',notes:'',checklist:[],activity:[],files:[],tasks:[]};}
 function openGoogleSearch(){
   const q=(document.getElementById('fCompany')?document.getElementById('fCompany').value:draftLead.company).trim();
   if(!q)return;
@@ -479,6 +480,8 @@ function cardHtml(l){
   }
   const metaBadges=[];
   if(checkTotal)metaBadges.push(`<span class="mini-badge"><i class="ti ti-checklist" style="font-size:12px"></i>${checkDone}/${checkTotal}</span>`);
+  const openTasks=(l.tasks||[]).filter(t=>!t.done).length;
+  if(openTasks)metaBadges.push(`<span class="mini-badge" style="color:var(--amber-dark);font-weight:600"><i class="ti ti-list-check" style="font-size:12px"></i>${openTasks} Aufgabe${openTasks>1?'n':''}</span>`);
   if(l.forecast)metaBadges.push(`<span class="mini-badge" style="color:var(--green-dark);font-weight:600"><i class="ti ti-currency-euro" style="font-size:12px"></i>${fmtEur(l.forecast)}</span>`);
   return `<div class="card" draggable="true" data-id="${l.id}" ondragstart="onDragStart(event,${l.id})" ondragend="onDragEnd(event)" onclick="openLeadModal(${l.id})">
     <div class="card-company">${l.company}</div>
@@ -744,6 +747,29 @@ function renderLeadModal(){
       <button class="check-item-del" onclick="removeFile(${f.id})"><i class="ti ti-x"></i></button>
     </div>`).join('')||`<div class="activity-item" style="padding-left:0">Noch keine Dateien angehängt.</div>`;
 
+  const sortedTasks=[...(draftLead.tasks||[])].sort((a,b)=>{
+    if(a.done!==b.done)return a.done?1:-1;
+    return (a.dueDate||'9999').localeCompare(b.dueDate||'9999');
+  });
+  const tasksHtml=sortedTasks.map(t=>{
+    let dueBadge='';
+    if(t.dueDate){
+      const d=daysUntil(t.dueDate);
+      const cls=t.done?'due-ok':(d<0?'due-overdue':(d<=2?'due-soon':'due-ok'));
+      const dlabel=d<0?`${Math.abs(d)}T überfällig`:(d===0?'heute':fmtDate(t.dueDate));
+      dueBadge=`<span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${dlabel}</span>`;
+    }
+    return `<div class="check-item-row" style="align-items:flex-start">
+      <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask(${t.id})" style="margin-top:2px">
+      <div style="flex:1">
+        <span class="check-item-text ${t.done?'done':''}">${t.text}</span>
+        ${dueBadge?`<div style="margin-top:4px">${dueBadge}</div>`:''}
+      </div>
+      <button class="check-item-del" onclick="deleteTask(${t.id})"><i class="ti ti-x"></i></button>
+    </div>`;
+  }).join('')||`<div class="activity-item" style="padding-left:0">Noch keine Aufgaben.</div>`;
+  const openTaskCount=(draftLead.tasks||[]).filter(t=>!t.done).length;
+
   const forecastComputedNow=draftLead.demandPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+(parseFloat(x.price)||0)*(parseFloat(x.qty)||0),0),0);
 
   let rightContentHtml='';
@@ -761,6 +787,22 @@ function renderLeadModal(){
         ${demandPrintersHtml}
         <button class="pill-btn" onclick="addDemandPrinter()"><i class="ti ti-plus"></i> Drucker hinzufügen</button>
       </div>
+    </div>`;
+  }else if(rightTab==='tasks'){
+    rightContentHtml=`<div style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+      <div class="field-row-2" style="margin-bottom:6px">
+        <div style="grid-column:span 2">
+          <textarea id="newTaskText" placeholder="Neue Aufgabe beschreiben…" style="min-height:44px"></textarea>
+        </div>
+      </div>
+      <div class="field-row-2" style="margin-bottom:0">
+        <div><label>Frist</label><input type="date" id="newTaskDue" style="width:100%"></div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn btn-sm btn-primary" style="width:100%;justify-content:center" onclick="addTask()"><i class="ti ti-plus"></i> Aufgabe erstellen</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin:8px 0 4px">${openTaskCount?`${openTaskCount} offene Aufgabe(n)`:'Keine offenen Aufgaben'}</div>
+      <div class="activity-feed" style="margin-top:0">${tasksHtml}</div>
     </div>`;
   }else if(rightTab==='files'){
     rightContentHtml=`<div>
@@ -895,6 +937,7 @@ function renderLeadModal(){
         <div class="tab-bar">
           <button class="tab-btn ${rightTab==='forecast'?'active':''}" onclick="setRightTab('forecast')">Forecast</button>
           <button class="tab-btn ${rightTab==='comments'?'active':''}" onclick="setRightTab('comments')">Kommentare &amp; Aktivität</button>
+          <button class="tab-btn ${rightTab==='tasks'?'active':''}" onclick="setRightTab('tasks')">Aufgaben</button>
           <button class="tab-btn ${rightTab==='files'?'active':''}" onclick="setRightTab('files')">Dateien</button>
         </div>
         ${rightContentHtml}
@@ -961,6 +1004,25 @@ function handleFileUpload(e){
 }
 function removeFile(id){
   draftLead.files=draftLead.files.filter(f=>f.id!==id);
+  renderLeadModal();
+}
+
+// Aufgaben
+function addTask(){
+  const textEl=document.getElementById('newTaskText');
+  const dueEl=document.getElementById('newTaskDue');
+  const text=textEl.value.trim();
+  if(!text)return;
+  draftLead.tasks.push({id:Date.now(),text,dueDate:dueEl.value,done:false,createdBy:currentUser,createdAt:nowISO()});
+  renderLeadModal();
+}
+function toggleTask(id){
+  const t=draftLead.tasks.find(x=>x.id===id);
+  if(t)t.done=!t.done;
+  renderLeadModal();
+}
+function deleteTask(id){
+  draftLead.tasks=draftLead.tasks.filter(x=>x.id!==id);
   renderLeadModal();
 }
 
