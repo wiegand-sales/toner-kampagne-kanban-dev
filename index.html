@@ -789,20 +789,24 @@ function renderLeadModal(){
       </div>
     </div>`;
   }else if(rightTab==='tasks'){
-    rightContentHtml=`<div style="display:flex;flex-direction:column;flex:1;overflow:hidden">
-      <div class="field-row-2" style="margin-bottom:6px">
-        <div style="grid-column:span 2">
-          <textarea id="newTaskText" placeholder="Neue Aufgabe beschreiben…" style="min-height:44px"></textarea>
+    rightContentHtml=`<div style="overflow-y:auto;flex:1">
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Neue Aufgabe</div>
+        <div class="field" style="margin-bottom:10px">
+          <textarea id="newTaskText" placeholder="Aufgabe beschreiben…" style="min-height:44px"></textarea>
+        </div>
+        <div class="field-row-2" style="margin-bottom:0;align-items:end">
+          <div><label>Frist</label><input type="date" id="newTaskDue" style="width:100%"></div>
+          <div><label style="visibility:hidden">Aktion</label>
+            <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="addTask()"><i class="ti ti-plus"></i> Aufgabe erstellen</button>
+          </div>
         </div>
       </div>
-      <div class="field-row-2" style="margin-bottom:0">
-        <div><label>Frist</label><input type="date" id="newTaskDue" style="width:100%"></div>
-        <div style="display:flex;align-items:flex-end">
-          <button class="btn btn-sm btn-primary" style="width:100%;justify-content:center" onclick="addTask()"><i class="ti ti-plus"></i> Aufgabe erstellen</button>
-        </div>
+
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">${openTaskCount?`${openTaskCount} offene Aufgabe(n)`:'Keine offenen Aufgaben'}</div>
+        ${tasksHtml}
       </div>
-      <div style="font-size:11px;color:var(--text3);margin:8px 0 4px">${openTaskCount?`${openTaskCount} offene Aufgabe(n)`:'Keine offenen Aufgaben'}</div>
-      <div class="activity-feed" style="margin-top:0">${tasksHtml}</div>
     </div>`;
   }else if(rightTab==='files'){
     rightContentHtml=`<div>
