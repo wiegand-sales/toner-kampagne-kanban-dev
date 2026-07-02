@@ -282,8 +282,10 @@ leads.forEach(l=>{
     l.demandPrinters = oldPrinters.map(p=>({id:nextPrinterId++,model:p.model,skus:p.skus.map(s=>({sku:s||'',qty:'',price:''}))}));
   }
   l.demandPrinters.forEach(p=>p.skus.forEach(s=>{if(s.price===undefined)s.price='';}));
-  delete l.printers; delete l.printerModel; delete l.sku;
-  if(l.annualVolume===undefined) l.annualVolume='';
+  delete l.printers; delete l.printerModel; delete l.sku; delete l.annualVolume;
+  if(l.address===undefined) l.address='';
+  if(l.orderCount===undefined) l.orderCount='';
+  if(l.revenue===undefined) l.revenue='';
   if(!l.files) l.files=[];
 });
 let activeAgentFilter='all';
@@ -302,11 +304,16 @@ function colById(id){return COLUMNS.find(c=>c.id===id);}
 function labelById(id){return LABELS.find(l=>l.id===id);}
 function fmtDate(d){if(!d)return'';const p=d.split('-');return`${p[2]}.${p[1]}.${p[0]}`;}
 function daysUntil(d){if(!d)return null;const diff=(new Date(d)-new Date(TODAY))/86400000;return Math.round(diff);}
-function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',annualVolume:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],contact:'',phone:'',email:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',forecast:'',notes:'',checklist:[],activity:[],files:[]};}
+function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],contact:'',phone:'',email:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',forecast:'',notes:'',checklist:[],activity:[],files:[]};}
 function openGoogleSearch(){
   const q=(document.getElementById('fCompany')?document.getElementById('fCompany').value:draftLead.company).trim();
   if(!q)return;
   window.open('https://www.google.com/search?q='+encodeURIComponent(q),'_blank');
+}
+function openMapsSearch(){
+  const q=(document.getElementById('fAddress')?document.getElementById('fAddress').value:draftLead.address).trim();
+  if(!q)return;
+  window.open('https://www.google.com/maps/search/'+encodeURIComponent(q),'_blank');
 }
 function fmtEur(v){if(v===''||v===null||v===undefined||isNaN(v))return'';return Number(v).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:0})+' €';}
 function formatBytes(b){if(b<1024)return b+' B';if(b<1024*1024)return(b/1024).toFixed(1)+' KB';return(b/1024/1024).toFixed(1)+' MB';}
@@ -574,7 +581,16 @@ function renderLeadModal(){
           </div>
           <div class="field-row-2">
             <div><label>E-Mail</label><input type="email" value="${draftLead.email}" oninput="draftLead.email=this.value" style="width:100%"></div>
-            <div><label>Jahresvolumen (Bewertung, EUR)</label><input type="number" min="0" step="100" placeholder="0" value="${draftLead.annualVolume}" oninput="draftLead.annualVolume=this.value" style="width:100%"></div>
+            <div><label>Adresse</label>
+              <div style="display:flex;gap:6px">
+                <input type="text" id="fAddress" placeholder="Straße, PLZ Ort" value="${draftLead.address}" oninput="draftLead.address=this.value" style="flex:1">
+                <button class="btn btn-sm" onclick="openMapsSearch()" title="Adresse auf Google Maps anzeigen"><i class="ti ti-map-pin"></i></button>
+              </div>
+            </div>
+          </div>
+          <div class="field-row-2">
+            <div><label>Anzahl Bestellungen</label><input type="number" min="0" step="1" placeholder="0" value="${draftLead.orderCount}" oninput="draftLead.orderCount=this.value" style="width:100%"></div>
+            <div><label>Umsatz (EUR)</label><input type="number" min="0" step="10" placeholder="0" value="${draftLead.revenue}" oninput="draftLead.revenue=this.value" style="width:100%"></div>
           </div>
           <div class="field" style="margin-bottom:0">
             <label>Notiz</label>
@@ -802,13 +818,13 @@ function deleteLead(){
 
 // ── CSV EXPORT ──
 function exportCSV(){
-  const headers=['Firmenname','Kundennummer','Art','Jahresvolumen (EUR)','Versand-Drucker','Versand-SKUs (Preis)','Investition gesamt (EUR)','Kundenbedarf Drucker & Anzahl','Ansprechpartner','Telefonnummer','E-Mail','Mitglieder','Status','Free Toner verschickt','Datum Erstkontakt','Follow-up-Datum','Forecast (EUR)','Labels','Notizen'];
+  const headers=['Firmenname','Kundennummer','Art','Adresse','Anzahl Bestellungen','Umsatz (EUR)','Versand-Drucker','Versand-SKUs (Preis)','Investition gesamt (EUR)','Kundenbedarf Drucker & Anzahl','Ansprechpartner','Telefonnummer','E-Mail','Mitglieder','Status','Free Toner verschickt','Datum Erstkontakt','Follow-up-Datum','Forecast (EUR)','Labels','Notizen'];
   const rows=leads.map(l=>{
     const shipSkus=l.shipPrinter.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.price?` (${fmtEur(s.price)})`:''}`).join(', ');
     const investTotal=l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.price)||0),0);
     const demand=(l.demandPrinters||[]).map(p=>`${p.model} [${p.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.qty?` x${s.qty}`:''}`).join(', ')}]`).join(' | ');
     return [
-      l.company,l.customerNumber,l.art,l.annualVolume,
+      l.company,l.customerNumber,l.art,l.address,l.orderCount,l.revenue,
       l.shipPrinter.model,shipSkus,investTotal||'',demand,
       l.contact,l.phone,l.email,
       l.members.map(id=>agentById(id)?.name).filter(Boolean).join('; '),
