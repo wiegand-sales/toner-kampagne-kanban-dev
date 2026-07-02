@@ -69,7 +69,26 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .board{display:flex;gap:12px;height:100%;min-width:max-content;}
 .col{width:230px;flex-shrink:0;display:flex;flex-direction:column;background:var(--bg2);border-radius:var(--r-lg);height:100%;}
 .col.drop-hover{outline:2px dashed var(--purple);outline-offset:-2px;}
-.col-hdr{padding:11px 12px 9px;display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.col-hdr{padding:11px 12px 9px;display:flex;align-items:center;gap:7px;flex-shrink:0;cursor:grab;}
+.col-hdr.col-dragging{opacity:.4;}
+.col.col-drop-hover{outline:2px dashed var(--purple);outline-offset:-2px;}
+.col-menu-btn{background:none;border:none;color:var(--text3);cursor:pointer;padding:2px 4px;border-radius:4px;flex-shrink:0;}
+.col-menu-btn:hover{background:var(--bg);color:var(--text);}
+.col-hdr-wrap{position:relative;}
+.col-menu-popover{position:absolute;top:100%;right:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:0 6px 20px rgba(0,0,0,.14);padding:8px;z-index:150;min-width:190px;}
+.col-menu-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;cursor:pointer;font-size:12px;color:var(--text);}
+.col-menu-item:hover{background:var(--bg2);}
+.col-menu-item.danger{color:var(--red);}
+.col-color-row{display:flex;gap:6px;padding:6px 8px;flex-wrap:wrap;}
+.col-color-dot{width:16px;height:16px;border-radius:50%;cursor:pointer;border:2px solid transparent;}
+.col-color-dot.selected{border-color:var(--text);}
+.col-name-input{font-size:12px;font-weight:600;border:1px solid var(--purple);border-radius:4px;padding:2px 6px;width:100%;background:var(--bg);font-family:inherit;}
+.col-add-tile{width:230px;flex-shrink:0;height:fit-content;}
+.col-add-btn{width:100%;background:rgba(0,0,0,.03);border:1px dashed var(--border2);border-radius:var(--r-lg);padding:12px;color:var(--text2);font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;justify-content:center;font-family:inherit;}
+.col-add-btn:hover{background:rgba(0,0,0,.06);color:var(--text);}
+.col-add-form{background:var(--bg2);border-radius:var(--r-lg);padding:10px;}
+.col-add-form input{width:100%;margin-bottom:8px;}
+.col-add-form-actions{display:flex;gap:6px;}
 .col-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 .col-name{font-size:12px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .col-count{font-size:11px;font-weight:600;color:var(--text3);background:var(--bg);border-radius:20px;padding:1px 7px;}
@@ -214,7 +233,7 @@ const AGENTS=[
   {id:'a2',name:'Jonas Weber',color:'teal'},
   {id:'a3',name:'Lea Hoffmann',color:'amber'},
 ];
-const COLUMNS=[
+let COLUMNS=[
   {id:'new',name:'Neue Leads',color:'gray'},
   {id:'qualified',name:'Qualifiziert',color:'gray'},
   {id:'contact',name:'Erstkontakt läuft',color:'teal'},
@@ -240,6 +259,32 @@ let LABELS=[
   {id:'l4',name:'Reklamation',color:'#E24B4A'},
 ];
 let currentUser='a1';
+let nextColId=1;
+
+// ── PERSISTENZ (localStorage – Zwischenlösung bis Supabase angebunden ist) ──
+const STORAGE_KEY='toner_kanban_state_v1';
+function saveState(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      leads, COLUMNS, LABELS, nextId, nextLabelId, nextPrinterId, nextColId
+    }));
+  }catch(e){ console.warn('Speichern fehlgeschlagen:', e); }
+}
+function loadState(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw)return false;
+    const data=JSON.parse(raw);
+    if(data.leads)leads=data.leads;
+    if(data.COLUMNS)COLUMNS=data.COLUMNS;
+    if(data.LABELS)LABELS=data.LABELS;
+    if(data.nextId)nextId=data.nextId;
+    if(data.nextLabelId)nextLabelId=data.nextLabelId;
+    if(data.nextPrinterId)nextPrinterId=data.nextPrinterId;
+    if(data.nextColId)nextColId=data.nextColId;
+    return true;
+  }catch(e){ console.warn('Laden fehlgeschlagen:', e); return false; }
+}
 
 function nowISO(){return new Date().toISOString();}
 function fmtDateTime(iso){
@@ -290,6 +335,10 @@ leads.forEach(l=>{
 });
 let activeAgentFilter='all';
 let dragCardId=null;
+let dragColId=null;
+let colMenuOpenId=null;
+let editingColId=null;
+let addColumnFormOpen=false;
 
 let editingLeadId=null;
 let draftLead=null;
@@ -371,18 +420,46 @@ function renderBoard(){
   renderStats();
   const fl=getFilteredLeads();
   const board=document.getElementById('board');
-  board.innerHTML=COLUMNS.map(col=>{
+  const colsHtml=COLUMNS.map(col=>{
     const items=fl.filter(l=>l.status===col.id);
     const cardsHtml=items.length?items.map(cardHtml).join(''):`<div class="col-empty">Keine Leads</div>`;
+    const isEditing=editingColId===col.id;
+    const isMenuOpen=colMenuOpenId===col.id;
+    const menuHtml=isMenuOpen?`<div class="col-menu-popover" onclick="event.stopPropagation()">
+      <div class="col-menu-item" onclick="startRenameColumn('${col.id}')"><i class="ti ti-pencil"></i> Umbenennen</div>
+      <div class="col-color-row">
+        ${Object.keys(COLOR_HEX).map(c=>`<div class="col-color-dot ${col.color===c?'selected':''}" style="background:${COLOR_HEX[c]}" onclick="setColumnColor('${col.id}','${c}')"></div>`).join('')}
+      </div>
+      <div class="col-menu-item danger" onclick="deleteColumn('${col.id}')"><i class="ti ti-trash"></i> Liste löschen</div>
+    </div>`:'';
+    const nameHtml=isEditing
+      ? `<input type="text" class="col-name-input" id="colNameInput_${col.id}" value="${col.name}" onkeydown="if(event.key==='Enter')confirmRenameColumn('${col.id}');if(event.key==='Escape'){editingColId=null;renderBoard();}" onblur="confirmRenameColumn('${col.id}')" autofocus>`
+      : `<div class="col-name">${col.name}</div>`;
     return `<div class="col" data-col="${col.id}" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${col.id}')">
-      <div class="col-hdr">
-        <div class="col-dot" style="background:${COLOR_HEX[col.color]}"></div>
-        <div class="col-name">${col.name}</div>
-        <div class="col-count">${items.length}</div>
+      <div class="col-hdr-wrap">
+        <div class="col-hdr" draggable="${!isEditing}" ondragstart="onColDragStart(event,'${col.id}')" ondragover="onColDragOver(event)" ondrop="onColDrop(event,'${col.id}')" ondragend="onColDragEnd(event)">
+          <div class="col-dot" style="background:${COLOR_HEX[col.color]}"></div>
+          ${nameHtml}
+          <div class="col-count">${items.length}</div>
+          <button class="col-menu-btn" onclick="event.stopPropagation();toggleColMenu('${col.id}')"><i class="ti ti-dots"></i></button>
+        </div>
+        ${menuHtml}
       </div>
       <div class="col-body">${cardsHtml}</div>
     </div>`;
   }).join('');
+
+  const addTileHtml = addColumnFormOpen
+    ? `<div class="col-add-tile"><div class="col-add-form">
+        <input type="text" id="newColumnNameInput" placeholder="Name der Liste…" onkeydown="if(event.key==='Enter')confirmAddColumn();if(event.key==='Escape')cancelAddColumn()" autofocus>
+        <div class="col-add-form-actions">
+          <button class="btn btn-sm btn-primary" onclick="confirmAddColumn()">Hinzufügen</button>
+          <button class="btn btn-sm" onclick="cancelAddColumn()">Abbrechen</button>
+        </div>
+      </div></div>`
+    : `<div class="col-add-tile"><button class="col-add-btn" onclick="openAddColumnForm()"><i class="ti ti-plus"></i> Liste hinzufügen</button></div>`;
+
+  board.innerHTML = colsHtml + addTileHtml;
 }
 
 function cardHtml(l){
@@ -425,9 +502,120 @@ function onDrop(e,colId){
     const oldName=colById(l.status).name,newName=colById(colId).name;
     l.status=colId;
     l.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
+    saveState();
     renderBoard();
   }
   dragCardId=null;
+}
+
+// ── SPALTEN (LISTEN): Hinzufügen, Löschen, Umbenennen, Farbe, Reihenfolge ──
+function toggleColMenu(id){
+  colMenuOpenId = colMenuOpenId===id ? null : id;
+  renderBoard();
+}
+function startRenameColumn(id){
+  colMenuOpenId=null;
+  editingColId=id;
+  renderBoard();
+  const el=document.getElementById('colNameInput_'+id);
+  if(el){el.focus();el.select();}
+}
+function confirmRenameColumn(id){
+  const el=document.getElementById('colNameInput_'+id);
+  if(el){
+    const val=el.value.trim();
+    const col=COLUMNS.find(c=>c.id===id);
+    if(col && val) col.name=val;
+  }
+  editingColId=null;
+  saveState();
+  renderBoard();
+}
+function setColumnColor(id,color){
+  const col=COLUMNS.find(c=>c.id===id);
+  if(col)col.color=color;
+  colMenuOpenId=null;
+  saveState();
+  renderBoard();
+}
+function deleteColumn(id){
+  if(COLUMNS.length<=1){
+    alert('Die letzte verbleibende Liste kann nicht gelöscht werden.');
+    return;
+  }
+  const col=COLUMNS.find(c=>c.id===id);
+  const leadsInCol=leads.filter(l=>l.status===id);
+  const otherCol=COLUMNS.find(c=>c.id!==id);
+  const msg=leadsInCol.length
+    ? `Die Liste "${col.name}" enthält ${leadsInCol.length} Lead(s). Diese werden nach "${otherCol.name}" verschoben. Liste trotzdem löschen?`
+    : `Liste "${col.name}" wirklich löschen?`;
+  if(!confirm(msg))return;
+  leadsInCol.forEach(l=>{
+    l.status=otherCol.id;
+    l.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Status geändert: ${col.name} → ${otherCol.name} (Liste gelöscht)`,date:nowISO()});
+  });
+  COLUMNS=COLUMNS.filter(c=>c.id!==id);
+  colMenuOpenId=null;
+  saveState();
+  renderBoard();
+}
+function openAddColumnForm(){
+  addColumnFormOpen=true;
+  renderBoard();
+  const el=document.getElementById('newColumnNameInput');
+  if(el)el.focus();
+}
+function cancelAddColumn(){
+  addColumnFormOpen=false;
+  renderBoard();
+}
+function confirmAddColumn(){
+  const el=document.getElementById('newColumnNameInput');
+  const name=el?el.value.trim():'';
+  if(!name){cancelAddColumn();return;}
+  const palette=['gray','teal','amber','purple','green','red'];
+  const color=palette[COLUMNS.length%palette.length];
+  COLUMNS.push({id:'col_'+(nextColId++)+'_'+Date.now(),name,color});
+  addColumnFormOpen=false;
+  saveState();
+  renderBoard();
+}
+
+// Spalten-Reihenfolge per Drag & Drop
+function onColDragStart(e,id){
+  dragColId=id;
+  e.dataTransfer.effectAllowed='move';
+  e.currentTarget.classList.add('col-dragging');
+}
+function onColDragOver(e){
+  if(!dragColId)return;
+  e.preventDefault();
+  e.stopPropagation();
+  const col=e.currentTarget.closest('.col');
+  if(col)col.classList.add('col-drop-hover');
+}
+function onColDrop(e,targetId){
+  if(!dragColId)return;
+  e.preventDefault();
+  e.stopPropagation();
+  const col=e.currentTarget.closest('.col');
+  if(col)col.classList.remove('col-drop-hover');
+  if(dragColId!==targetId){
+    const fromIdx=COLUMNS.findIndex(c=>c.id===dragColId);
+    const toIdx=COLUMNS.findIndex(c=>c.id===targetId);
+    if(fromIdx>-1&&toIdx>-1){
+      const [moved]=COLUMNS.splice(fromIdx,1);
+      COLUMNS.splice(toIdx,0,moved);
+      saveState();
+    }
+  }
+  dragColId=null;
+  renderBoard();
+}
+function onColDragEnd(e){
+  e.currentTarget.classList.remove('col-dragging');
+  document.querySelectorAll('.col-drop-hover').forEach(el=>el.classList.remove('col-drop-hover'));
+  dragColId=null;
 }
 
 // ── LEAD MODAL ──
@@ -777,6 +965,7 @@ function createLabel(){
   const newLabel={id:'l'+(nextLabelId++),name,color};
   LABELS.push(newLabel);
   draftLead.labelIds.push(newLabel.id);
+  saveState();
   renderLeadModal();
 }
 
@@ -829,10 +1018,14 @@ function saveLead(){
     draftLead.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:'Lead erstellt',date:nowISO()});
     leads.push(draftLead);
   }
+  saveState();
   closeModal('leadModal');renderBoard();
 }
 function deleteLead(){
+  const l=leads.find(x=>x.id===editingLeadId);
+  if(!confirm(`Lead "${l?l.company:''}" wirklich unwiderruflich löschen?`))return;
   leads=leads.filter(x=>x.id!==editingLeadId);
+  saveState();
   closeModal('leadModal');renderBoard();
 }
 
@@ -868,8 +1061,10 @@ document.getElementById('leadModal').addEventListener('click',e=>{if(e.target.id
 document.addEventListener('click',e=>{
   if(!e.target.closest('.label-row-editor')&&labelPopoverOpen){labelPopoverOpen=false;renderLeadModal();}
   if(!e.target.closest('.member-row-editor')&&memberPopoverOpen){memberPopoverOpen=false;renderLeadModal();}
+  if(!e.target.closest('.col-hdr-wrap')&&colMenuOpenId){colMenuOpenId=null;renderBoard();}
 });
 
+loadState();
 renderUserSelect();
 renderAgentChips();
 renderBoard();
