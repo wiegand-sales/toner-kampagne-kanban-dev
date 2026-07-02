@@ -122,6 +122,8 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .modal-overlay.hidden{display:none;}
 .modal-lg{background:var(--bg);border-radius:var(--r-lg);width:100%;max-width:1360px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;}
 .modal-topline{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.modal-error-msg{background:var(--red-bg);color:var(--red-dark);font-size:12px;font-weight:500;padding:8px 18px;display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.input-error{border-color:var(--red) !important;}
 .modal-title-input{font-size:17px;font-weight:700;border:none;background:transparent;flex:1;padding:4px 0;font-family:inherit;color:var(--text);}
 .modal-title-input:focus{outline:none;}
 .modal-close{cursor:pointer;color:var(--text3);font-size:18px;background:none;border:none;flex-shrink:0;margin-left:10px;}
@@ -839,10 +841,11 @@ function renderLeadModal(){
 
   document.getElementById('leadModalInner').innerHTML=`
     <div class="modal-topline">
-      <input type="text" class="modal-title-input" id="fCompany" placeholder="Firmenname" value="${draftLead.company}" oninput="draftLead.company=this.value">
+      <input type="text" class="modal-title-input" id="fCompany" placeholder="Firmenname" value="${draftLead.company}" oninput="draftLead.company=this.value;clearModalError()">
       <button class="modal-close" title="Firma bei Google suchen" onclick="openGoogleSearch()"><i class="ti ti-brand-google"></i></button>
       <button class="modal-close" onclick="closeModal('leadModal')"><i class="ti ti-x"></i></button>
     </div>
+    <div id="modalErrorMsg" style="display:none"></div>
     <div class="modal-grid">
       <div class="modal-left">
         <div class="info-section">
@@ -1146,8 +1149,26 @@ function addComment(){
 }
 
 // Save / Delete
+function showModalError(msg){
+  const el=document.getElementById('modalErrorMsg');
+  if(el){el.className='modal-error-msg';el.style.display='flex';el.innerHTML=`<i class="ti ti-alert-circle"></i> ${msg}`;}
+  const companyEl=document.getElementById('fCompany');
+  if(companyEl)companyEl.classList.add('input-error');
+}
+function clearModalError(){
+  const el=document.getElementById('modalErrorMsg');
+  if(el){el.style.display='none';el.innerHTML='';}
+  const companyEl=document.getElementById('fCompany');
+  if(companyEl)companyEl.classList.remove('input-error');
+}
 function saveLead(){
-  if(!draftLead.company.trim()){document.getElementById('fCompany').focus();return;}
+  if(!draftLead.company.trim()){
+    showModalError('Bitte zuerst einen Firmennamen eingeben (oben im Fenster) – erst dann lässt sich der Lead speichern.');
+    const el=document.getElementById('fCompany');
+    if(el)el.focus();
+    return;
+  }
+  clearModalError();
   if(editingLeadId){
     const original=leads.find(x=>x.id===editingLeadId);
     if(original.status!==draftLead.status){
