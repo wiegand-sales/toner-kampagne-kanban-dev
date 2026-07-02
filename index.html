@@ -98,7 +98,11 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .col-empty{font-size:11px;color:var(--text3);text-align:center;padding:14px 4px;}
 
 /* CARD */
-.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 11px;margin-bottom:8px;cursor:grab;transition:box-shadow .12s,border-color .12s;height:156px;display:flex;flex-direction:column;overflow:hidden;}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 11px;margin-bottom:8px;cursor:grab;transition:box-shadow .12s,border-color .12s;height:156px;display:flex;flex-direction:column;overflow:hidden;position:relative;}
+.card-reorder{position:absolute;top:6px;right:6px;display:none;flex-direction:column;background:var(--bg);border:1px solid var(--border2);border-radius:5px;overflow:hidden;z-index:5;}
+.card:hover .card-reorder{display:flex;}
+.card-reorder button{background:none;border:none;padding:2px 4px;cursor:pointer;color:var(--text2);font-size:12px;line-height:1;display:flex;}
+.card-reorder button:hover{background:var(--bg2);color:var(--text);}
 .card:hover{border-color:var(--border2);box-shadow:0 1px 4px rgba(0,0,0,.06);}
 .card.dragging{opacity:.4;}
 .card-labels-slot{display:flex;gap:4px;flex-wrap:wrap;min-height:20px;max-height:20px;overflow:hidden;margin-bottom:4px;flex-shrink:0;}
@@ -289,6 +293,8 @@ function loadState(){
     if(data.nextLabelId)nextLabelId=data.nextLabelId;
     if(data.nextPrinterId)nextPrinterId=data.nextPrinterId;
     if(data.nextColId)nextColId=data.nextColId;
+    normalizeLeads();
+    saveState();
     return true;
   }catch(e){ console.warn('Laden fehlgeschlagen:', e); return false; }
 }
@@ -318,29 +324,37 @@ let nextId=13;
 let nextLabelId=5;
 let nextPrinterId=1;
 
-// Migration: aus dem alten Drucker-Array werden zwei getrennte Bereiche:
-// shipPrinter = EIN Drucker, den wir beliefern (mit Einkaufspreis je SKU)
-// demandPrinters = ALLE Drucker des Kunden (mit benötigter Anzahl je SKU) fuer den Forecast
-leads.forEach(l=>{
-  const oldPrinters = l.printers || (l.printerModel ? [{id:0,model:l.printerModel,skus:[l.sku||'','','','']}] : []);
-  if(!l.shipPrinter){
-    const first = oldPrinters[0];
-    l.shipPrinter = {
-      model: first ? first.model : '',
-      skus: first ? first.skus.map(s=>({sku:s||'',price:''})) : [{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]
-    };
-  }
-  if(!l.demandPrinters){
-    l.demandPrinters = oldPrinters.map(p=>({id:nextPrinterId++,model:p.model,skus:p.skus.map(s=>({sku:s||'',qty:'',price:''}))}));
-  }
-  l.demandPrinters.forEach(p=>p.skus.forEach(s=>{if(s.price===undefined)s.price='';}));
-  delete l.printers; delete l.printerModel; delete l.sku; delete l.annualVolume;
-  if(l.address===undefined) l.address='';
-  if(l.orderCount===undefined) l.orderCount='';
-  if(l.revenue===undefined) l.revenue='';
-  if(!l.files) l.files=[];
-  if(!l.tasks) l.tasks=[];
-});
+// Migration: stellt sicher, dass jeder Lead alle aktuell erwarteten Felder hat -
+// egal ob er aus den Standarddaten kommt ODER aus einem aelteren localStorage-Stand
+// (der ggf. vor neueren Funktionen wie Aufgaben/Dateien gespeichert wurde).
+function normalizeLeads(){
+  leads.forEach(l=>{
+    const oldPrinters = l.printers || (l.printerModel ? [{id:0,model:l.printerModel,skus:[l.sku||'','','','']}] : []);
+    if(!l.shipPrinter){
+      const first = oldPrinters[0];
+      l.shipPrinter = {
+        model: first ? first.model : '',
+        skus: first ? first.skus.map(s=>({sku:s||'',price:''})) : [{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]
+      };
+    }
+    if(!l.demandPrinters){
+      l.demandPrinters = oldPrinters.map(p=>({id:nextPrinterId++,model:p.model,skus:p.skus.map(s=>({sku:s||'',qty:'',price:''}))}));
+    }
+    l.demandPrinters.forEach(p=>p.skus.forEach(s=>{if(s.price===undefined)s.price='';}));
+    delete l.printers; delete l.printerModel; delete l.sku; delete l.annualVolume;
+    if(l.address===undefined) l.address='';
+    if(l.orderCount===undefined) l.orderCount='';
+    if(l.revenue===undefined) l.revenue='';
+    if(!l.files) l.files=[];
+    if(!l.tasks) l.tasks=[];
+    if(!l.checklist) l.checklist=[];
+    if(!l.activity) l.activity=[];
+    if(!l.members) l.members=[];
+    if(!l.labelIds) l.labelIds=[];
+    if(l.order===undefined) l.order=l.id||Date.now();
+  });
+}
+normalizeLeads();
 let activeAgentFilter='all';
 let dragCardId=null;
 let dragColId=null;
@@ -362,7 +376,7 @@ function colById(id){return COLUMNS.find(c=>c.id===id);}
 function labelById(id){return LABELS.find(l=>l.id===id);}
 function fmtDate(d){if(!d)return'';const p=d.split('-');return`${p[2]}.${p[1]}.${p[0]}`;}
 function daysUntil(d){if(!d)return null;const diff=(new Date(d)-new Date(TODAY))/86400000;return Math.round(diff);}
-function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],contact:'',phone:'',email:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',forecast:'',notes:'',checklist:[],activity:[],files:[],tasks:[]};}
+function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],contact:'',phone:'',email:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',forecast:'',notes:'',checklist:[],activity:[],files:[],tasks:[],order:Date.now()};}
 function openGoogleSearch(){
   const q=(document.getElementById('fCompany')?document.getElementById('fCompany').value:draftLead.company).trim();
   if(!q)return;
@@ -430,8 +444,8 @@ function renderBoard(){
   const fl=getFilteredLeads();
   const board=document.getElementById('board');
   const colsHtml=COLUMNS.map(col=>{
-    const items=fl.filter(l=>l.status===col.id);
-    const cardsHtml=items.length?items.map(cardHtml).join(''):`<div class="col-empty">Keine Leads</div>`;
+    const items=fl.filter(l=>l.status===col.id).sort((a,b)=>(a.order||0)-(b.order||0));
+    const cardsHtml=items.length?items.map((l,idx)=>cardHtml(l,idx===0,idx===items.length-1)).join(''):`<div class="col-empty">Keine Leads</div>`;
     const isEditing=editingColId===col.id;
     const isMenuOpen=colMenuOpenId===col.id;
     const menuHtml=isMenuOpen?`<div class="col-menu-popover" onclick="event.stopPropagation()">
@@ -471,7 +485,7 @@ function renderBoard(){
   board.innerHTML = colsHtml + addTileHtml;
 }
 
-function cardHtml(l){
+function cardHtml(l,isFirst,isLast){
   const labelsHtml=(l.labelIds||[]).map(id=>{const lb=labelById(id);return lb?`<span class="label-chip" style="background:${lb.color}">${lb.name}</span>`:'';}).join('');
   const membersHtml=(l.members||[]).slice(0,4).map(id=>{const a=agentById(id);return a?`<div class="member-av" style="background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}" title="${a.name}">${ini(a.name)}</div>`:'';}).join('');
   const checkTotal=(l.checklist||[]).length;
@@ -490,6 +504,10 @@ function cardHtml(l){
   if(l.forecast)metaBadges.push(`<span class="chip-badge chip-badge-money"><i class="ti ti-currency-euro" style="font-size:11px"></i>${fmtEur(l.forecast)}</span>`);
   const colColor=colById(l.status)?colById(l.status).color:'gray';
   return `<div class="card" style="border-top:3px solid ${COLOR_HEX[colColor]}" draggable="true" data-id="${l.id}" ondragstart="onDragStart(event,${l.id})" ondragend="onDragEnd(event)" onclick="openLeadModal(${l.id})">
+    <div class="card-reorder" onclick="event.stopPropagation()">
+      ${!isFirst?`<button onclick="event.stopPropagation();moveLeadUp(${l.id})" title="Nach oben"><i class="ti ti-chevron-up"></i></button>`:''}
+      ${!isLast?`<button onclick="event.stopPropagation();moveLeadDown(${l.id})" title="Nach unten"><i class="ti ti-chevron-down"></i></button>`:''}
+    </div>
     <div class="card-company">${l.company}</div>
     <div class="card-contact">${l.contact}${l.customerNumber?` · ${l.customerNumber}`:''}</div>
     <div class="card-labels-slot">${labelsHtml}</div>
@@ -514,11 +532,36 @@ function onDrop(e,colId){
   if(l&&l.status!==colId){
     const oldName=colById(l.status).name,newName=colById(colId).name;
     l.status=colId;
+    l.order=Date.now();
     l.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
     saveState();
     renderBoard();
   }
   dragCardId=null;
+}
+
+// Karten innerhalb derselben Liste nach oben/unten verschieben
+function moveLeadUp(id){
+  const l=leads.find(x=>x.id===id);
+  if(!l)return;
+  const sameCol=leads.filter(x=>x.status===l.status).sort((a,b)=>(a.order||0)-(b.order||0));
+  const idx=sameCol.findIndex(x=>x.id===id);
+  if(idx<=0)return;
+  const prev=sameCol[idx-1];
+  const tmp=l.order; l.order=prev.order; prev.order=tmp;
+  saveState();
+  renderBoard();
+}
+function moveLeadDown(id){
+  const l=leads.find(x=>x.id===id);
+  if(!l)return;
+  const sameCol=leads.filter(x=>x.status===l.status).sort((a,b)=>(a.order||0)-(b.order||0));
+  const idx=sameCol.findIndex(x=>x.id===id);
+  if(idx===-1||idx>=sameCol.length-1)return;
+  const next=sameCol[idx+1];
+  const tmp=l.order; l.order=next.order; next.order=tmp;
+  saveState();
+  renderBoard();
 }
 
 // ── SPALTEN (LISTEN): Hinzufügen, Löschen, Umbenennen, Farbe, Reihenfolge ──
