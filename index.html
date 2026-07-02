@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Toner-Kampagne · Kanban</title>
+<title>Toner-Kampagne · Kanban (DEV)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
@@ -23,6 +23,11 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
 body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font-size:14px;line-height:1.5;display:flex;flex-direction:column;overflow:hidden;}
+
+.staging-topbar{background:#BA7517;color:#fff;font-size:12px;font-weight:600;text-align:center;padding:6px 10px;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;}
+.staging-topbar a{color:#fff;text-decoration:underline;font-weight:700;}
+.staging-bottombar{background:#BA7517;color:#fff;font-size:12px;font-weight:600;text-align:center;padding:6px 10px;flex-shrink:0;}
+.staging-bottombar a{color:#fff;text-decoration:underline;font-weight:700;}
 
 /* TOPBAR */
 .topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:14px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;flex-wrap:wrap;gap:10px;}
@@ -50,6 +55,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .btn-primary:hover{background:var(--purple-dark);}
 .btn-danger{background:var(--red-bg);color:var(--red);border-color:transparent;}
 .btn-sm{padding:5px 10px;font-size:12px;}
+.me-select{font-size:12px;padding:6px 9px;}
 
 /* FILTER BAR */
 .filterbar{background:var(--bg);border-bottom:1px solid var(--border);padding:9px 22px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;}
@@ -61,7 +67,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 /* BOARD */
 .board-wrap{flex:1;overflow-x:auto;overflow-y:hidden;padding:16px 22px;}
 .board{display:flex;gap:12px;height:100%;min-width:max-content;}
-.col{width:220px;flex-shrink:0;display:flex;flex-direction:column;background:var(--bg2);border-radius:var(--r-lg);height:100%;}
+.col{width:230px;flex-shrink:0;display:flex;flex-direction:column;background:var(--bg2);border-radius:var(--r-lg);height:100%;}
 .col.drop-hover{outline:2px dashed var(--purple);outline-offset:-2px;}
 .col-hdr{padding:11px 12px 9px;display:flex;align-items:center;gap:7px;flex-shrink:0;}
 .col-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
@@ -76,12 +82,16 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 11px;margin-bottom:8px;cursor:grab;transition:box-shadow .12s,border-color .12s;}
 .card:hover{border-color:var(--border2);box-shadow:0 1px 4px rgba(0,0,0,.06);}
 .card.dragging{opacity:.4;}
+.card-labels{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;}
+.label-chip{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;color:#fff;}
 .card-company{font-size:13px;font-weight:600;margin-bottom:2px;}
 .card-contact{font-size:12px;color:var(--text2);margin-bottom:8px;}
+.card-badges-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+.mini-badge{font-size:10px;color:var(--text2);display:flex;align-items:center;gap:3px;}
 .card-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;}
-.card-agent{display:flex;align-items:center;gap:5px;}
-.card-av{width:18px;height:18px;border-radius:50%;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.card-agent-name{font-size:11px;color:var(--text2);}
+.member-stack{display:flex;}
+.member-av{width:19px;height:19px;border-radius:50%;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid var(--bg);margin-left:-6px;}
+.member-av:first-child{margin-left:0;}
 .due-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;display:flex;align-items:center;gap:3px;white-space:nowrap;}
 .due-ok{background:var(--gray-bg);color:var(--gray-dark);}
 .due-soon{background:var(--amber-bg);color:var(--amber-dark);}
@@ -90,30 +100,67 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(20,20,18,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;}
 .modal-overlay.hidden{display:none;}
-.modal{background:var(--bg);border-radius:var(--r-lg);width:100%;max-width:480px;max-height:88vh;overflow-y:auto;padding:22px 24px;}
-.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
-.modal-title{font-size:15px;font-weight:700;}
-.modal-close{cursor:pointer;color:var(--text3);font-size:18px;background:none;border:none;}
-.field-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.modal-lg{background:var(--bg);border-radius:var(--r-lg);width:100%;max-width:840px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;}
+.modal-topline{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.modal-title-input{font-size:17px;font-weight:700;border:none;background:transparent;flex:1;padding:4px 0;font-family:inherit;color:var(--text);}
+.modal-title-input:focus{outline:none;}
+.modal-close{cursor:pointer;color:var(--text3);font-size:18px;background:none;border:none;flex-shrink:0;margin-left:10px;}
+.modal-grid{display:grid;grid-template-columns:1.5fr 1fr;flex:1;overflow:hidden;}
+.modal-left{padding:18px 20px;overflow-y:auto;}
+.modal-right{background:var(--bg2);border-left:1px solid var(--border);padding:16px 18px;display:flex;flex-direction:column;overflow:hidden;}
+.field-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.field-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
 .field{margin-bottom:10px;}
-.modal-actions{display:flex;justify-content:space-between;gap:8px;margin-top:16px;}
-.status-select-wrap{display:flex;align-items:center;gap:8px;}
-.status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.section-block{margin-top:18px;}
+.section-hdr{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.pill-btn{font-size:11px;padding:4px 10px;border-radius:20px;border:1px dashed var(--border2);background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;}
+.pill-btn:hover{border-color:var(--purple);color:var(--text);}
+.label-row-editor,.member-row-editor{display:flex;flex-wrap:wrap;gap:6px;align-items:center;position:relative;}
+.member-chip{display:flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:3px 9px 3px 3px;font-size:12px;}
+.checklist-progress-track{height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:8px;}
+.checklist-progress-fill{height:100%;background:var(--teal);border-radius:3px;transition:width .15s;}
+.check-item-row{display:flex;align-items:center;gap:8px;padding:4px 0;}
+.check-item-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--teal);cursor:pointer;flex-shrink:0;}
+.check-item-text{font-size:13px;flex:1;}
+.check-item-text.done{text-decoration:line-through;color:var(--text3);}
+.check-item-del{cursor:pointer;color:var(--text3);font-size:14px;background:none;border:none;flex-shrink:0;}
+.check-item-del:hover{color:var(--red);}
+.add-check-row{display:flex;gap:6px;margin-top:6px;}
+.add-check-row input{flex:1;}
+.popover{position:absolute;top:100%;left:0;margin-top:6px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:0 6px 20px rgba(0,0,0,.14);padding:10px;z-index:200;min-width:220px;}
+.popover-item{display:flex;align-items:center;gap:8px;padding:6px 6px;border-radius:6px;cursor:pointer;font-size:13px;}
+.popover-item:hover{background:var(--bg2);}
+.popover-item input[type=checkbox]{accent-color:var(--purple);}
+.popover-divider{height:1px;background:var(--border);margin:8px 0;}
+.color-swatch-row{display:flex;gap:6px;margin:8px 0;flex-wrap:wrap;}
+.color-swatch{width:18px;height:18px;border-radius:4px;cursor:pointer;border:2px solid transparent;}
+.color-swatch.selected{border-color:var(--text);}
+.small-label{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;display:block;}
+.activity-feed{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;margin-top:12px;padding-right:2px;}
+.activity-feed::-webkit-scrollbar{width:4px;}
+.activity-feed::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+.comment-item{display:flex;gap:8px;}
+.comment-av{width:26px;height:26px;border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.comment-bubble{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:8px 10px;flex:1;min-width:0;}
+.comment-author{font-size:12px;font-weight:600;}
+.comment-date{font-size:10px;color:var(--text3);margin-left:6px;font-weight:400;}
+.comment-text{font-size:13px;margin-top:2px;word-wrap:break-word;}
+.activity-item{font-size:11px;color:var(--text3);padding-left:34px;font-style:italic;}
+.comment-input-row{display:flex;gap:6px;flex-shrink:0;}
+.comment-input-row textarea{min-height:44px;flex:1;}
+.modal-actions{display:flex;justify-content:space-between;gap:8px;padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0;}
+.right-hdr{font-size:12px;font-weight:600;color:var(--text2);flex-shrink:0;display:flex;align-items:center;gap:6px;}
 
-@media (max-width:640px){
+@media (max-width:720px){
   .tb-stats{display:none;}
-  .col{width:200px;}
+  .col{width:210px;}
+  .modal-grid{grid-template-columns:1fr;}
+  .modal-right{border-left:none;border-top:1px solid var(--border);}
 }
-
-.staging-topbar{background:#BA7517;color:#fff;font-size:12px;font-weight:600;text-align:center;padding:6px 10px;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;}
-.staging-topbar a{color:#fff;text-decoration:underline;font-weight:700;}
-.staging-bottombar{background:#BA7517;color:#fff;font-size:12px;font-weight:600;text-align:center;padding:6px 10px;flex-shrink:0;}
-.staging-bottombar a{color:#fff;text-decoration:underline;font-weight:700;}
 </style>
 </head>
 <body>
 <div class="staging-topbar"><i class="ti ti-alert-triangle"></i> STAGING – Diese Version ist nicht live &nbsp;·&nbsp; <a href="https://wiegand-sales.github.io/toner-kampagne-kanban/" target="_blank">&rarr; Live ansehen</a></div>
-
 
 <div class="topbar">
   <div class="tb-left">
@@ -125,9 +172,11 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     <div class="tb-stats" id="statsBar"></div>
   </div>
   <div class="tb-right">
-    <div class="search-box"><i class="ti ti-search"></i><input type="text" id="searchInput" placeholder="Firma oder Kontakt suchen" oninput="renderBoard()"></div>
+    <label style="margin:0;white-space:nowrap">Ich bin:</label>
+    <select id="currentUserSelect" class="me-select" onchange="currentUser=this.value"></select>
+    <div class="search-box"><i class="ti ti-search"></i><input type="text" id="searchInput" placeholder="Firma, Kontakt, Kd-Nr." oninput="renderBoard()"></div>
     <button class="btn" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</button>
-    <button class="btn btn-primary" onclick="openLeadModal()"><i class="ti ti-plus"></i> Neuer Lead</button>
+    <button class="btn btn-primary" onclick="openLeadModal(null)"><i class="ti ti-plus"></i> Neuer Lead</button>
   </div>
 </div>
 
@@ -140,47 +189,8 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
   <div class="board" id="board"></div>
 </div>
 
-<!-- LEAD MODAL -->
 <div class="modal-overlay hidden" id="leadModal">
-  <div class="modal">
-    <div class="modal-hdr">
-      <div class="modal-title" id="leadModalTitle">Neuer Lead</div>
-      <button class="modal-close" onclick="closeModal('leadModal')"><i class="ti ti-x"></i></button>
-    </div>
-    <input type="hidden" id="leadId">
-    <div class="field">
-      <label>Firmenname</label>
-      <input type="text" id="fCompany" style="width:100%">
-    </div>
-    <div class="field-2">
-      <div><label>Ansprechpartner</label><input type="text" id="fContact" style="width:100%"></div>
-      <div><label>Agent</label>
-        <select id="fAgent" style="width:100%"></select>
-      </div>
-    </div>
-    <div class="field-2">
-      <div><label>Telefonnummer</label><input type="tel" id="fPhone" style="width:100%"></div>
-      <div><label>E-Mail</label><input type="email" id="fEmail" style="width:100%"></div>
-    </div>
-    <div class="field-2">
-      <div><label>Status</label>
-        <div class="status-select-wrap">
-          <select id="fStatus" style="width:100%"></select>
-        </div>
-      </div>
-      <div><label>Follow-up-Datum</label><input type="date" id="fFollowup" style="width:100%"></div>
-    </div>
-    <div class="field">
-      <label>Notizen</label>
-      <textarea id="fNotes"></textarea>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-danger" id="deleteLeadBtn" onclick="deleteLead()" style="display:none"><i class="ti ti-trash"></i> Löschen</button>
-      <div style="flex:1"></div>
-      <button class="btn" onclick="closeModal('leadModal')">Abbrechen</button>
-      <button class="btn btn-primary" onclick="saveLead()"><i class="ti ti-check"></i> Speichern</button>
-    </div>
-  </div>
+  <div class="modal-lg" id="leadModalInner"></div>
 </div>
 
 <script>
@@ -205,39 +215,63 @@ const COLUMNS=[
 const COLOR_HEX={purple:'var(--purple)',teal:'var(--teal)',amber:'var(--amber)',gray:'var(--gray)',green:'var(--green)',red:'var(--red)'};
 const COLOR_BG={purple:'var(--purple-bg)',teal:'var(--teal-bg)',amber:'var(--amber-bg)',gray:'var(--gray-bg)',green:'var(--green-bg)',red:'var(--red-bg)'};
 const COLOR_TEXT={purple:'var(--purple-dark)',teal:'var(--teal-dark)',amber:'var(--amber-dark)',gray:'var(--gray-dark)',green:'var(--green-dark)',red:'var(--red-dark)'};
+const LABEL_PALETTE=['#534AB7','#1D9E75','#D85A30','#D4537E','#378ADD','#639922','#BA7517','#E24B4A','#5F5E5A'];
 const TODAY='2026-07-02';
 
-// ── STATE (in-memory, kein Backend) ──
+// ── STATE (in-memory, kein Backend – Vorstufe fuer Supabase) ──
+let LABELS=[
+  {id:'l1',name:'Heiß',color:'#D85A30'},
+  {id:'l2',name:'Kalt',color:'#378ADD'},
+  {id:'l3',name:'VIP',color:'#534AB7'},
+  {id:'l4',name:'Reklamation',color:'#E24B4A'},
+];
+let currentUser='a1';
+
+function nowISO(){return new Date().toISOString();}
+function fmtDateTime(iso){
+  const d=new Date(iso);
+  const p=n=>String(n).padStart(2,'0');
+  return `${p(d.getDate())}.${p(d.getMonth()+1)}.${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 let leads=[
-  {id:1,company:'Musterfirma GmbH',contact:'Max Mustermann',agent:'a1',phone:'+49 89 1234567',email:'max@musterfirma.de',status:'qualified',followup:'',notes:'Interessiert, ruft morgen zurück'},
-  {id:2,company:'Beispiel AG',contact:'Erika Beispiel',agent:'a2',phone:'+49 89 7654321',email:'erika@beispiel.de',status:'toner_shipped',followup:'2026-07-09',notes:''},
-  {id:3,company:'Test & Co KG',contact:'Peter Test',agent:'a3',phone:'+49 89 1112233',email:'peter@testco.de',status:'followup',followup:'2026-06-28',notes:'Follow-up-Anruf steht an'},
-  {id:4,company:'Nordbau Systeme',contact:'Anke Nord',agent:'a1',phone:'+49 40 998877',email:'anke@nordbau.de',status:'new',followup:'',notes:''},
-  {id:5,company:'Rheinland Druck GmbH',contact:'Tobias Rhein',agent:'a2',phone:'+49 221 445566',email:'t.rhein@rheinland-druck.de',status:'contact',followup:'',notes:'Zweiter Versuch am Mittwoch'},
-  {id:6,company:'Südwest Büroservice',contact:'Nina Süd',agent:'a3',phone:'+49 711 223344',email:'nina@suedwest-buero.de',status:'offer_build',followup:'',notes:'Sehr zufrieden mit Toner, will Preisliste'},
-  {id:7,company:'Alpin Office Solutions',contact:'Felix Alpin',agent:'a1',phone:'+49 89 5566778',email:'felix@alpin-office.de',status:'offer_sent',followup:'2026-07-05',notes:''},
-  {id:8,company:'Berlin Print Partner',contact:'Julia Berg',agent:'a2',phone:'+49 30 9988776',email:'julia@berlinprint.de',status:'won',followup:'',notes:'Rahmenvertrag unterschrieben'},
-  {id:9,company:'Kontor Nord',contact:'Simon Kontor',agent:'a3',phone:'+49 40 3322110',email:'simon@kontor-nord.de',status:'lost',followup:'',notes:'Bereits langfristiger Vertrag mit Wettbewerber'},
-  {id:10,company:'Meier Bürobedarf',contact:'Claudia Meier',agent:'a1',phone:'+49 221 887766',email:'c.meier@meier-buero.de',status:'toner_confirmed',followup:'',notes:''},
-  {id:11,company:'Franke Elektro GmbH',contact:'Robert Franke',agent:'a2',phone:'+49 69 556677',email:'r.franke@franke-elektro.de',status:'followup',followup:'2026-06-30',notes:'Toner kam gut an, wartet auf Rückruf'},
-  {id:12,company:'Vogel Consulting',contact:'Petra Vogel',agent:'a3',phone:'+49 211 998811',email:'petra@vogel-consulting.de',status:'new',followup:'',notes:''},
+  {id:1,company:'Musterfirma GmbH',customerNumber:'K-10001',contact:'Max Mustermann',phone:'+49 89 1234567',email:'max@musterfirma.de',status:'qualified',members:['a1'],labelIds:['l3'],firstContact:'',followup:'',notes:'Interessiert, ruft morgen zurück',checklist:[],activity:[{id:1,type:'activity',author:'a1',text:'Karte erstellt',date:'2026-06-20T09:00:00'}]},
+  {id:2,company:'Beispiel AG',customerNumber:'K-10002',contact:'Erika Beispiel',phone:'+49 89 7654321',email:'erika@beispiel.de',status:'toner_shipped',members:['a2'],labelIds:[],firstContact:'2026-06-25',followup:'2026-07-09',notes:'',checklist:[{id:1,text:'Versandbestätigung erhalten',done:true},{id:2,text:'Tracking-Nummer notiert',done:false}],activity:[{id:1,type:'activity',author:'a2',text:'Status geändert: Toner zugesagt → Toner unterwegs',date:'2026-06-27T11:20:00'}]},
+  {id:3,company:'Test & Co KG',customerNumber:'K-10003',contact:'Peter Test',phone:'+49 89 1112233',email:'peter@testco.de',status:'followup',members:['a3'],labelIds:['l1'],firstContact:'2026-06-20',followup:'2026-06-28',notes:'Follow-up-Anruf steht an',checklist:[],activity:[{id:1,type:'comment',author:'a3',text:'Toner kam gut an, wartet auf Rückmeldung vom Einkauf.',date:'2026-06-29T15:40:00'}]},
+  {id:4,company:'Nordbau Systeme',customerNumber:'K-10004',contact:'Anke Nord',phone:'+49 40 998877',email:'anke@nordbau.de',status:'new',members:[],labelIds:[],firstContact:'',followup:'',notes:'',checklist:[],activity:[]},
+  {id:5,company:'Rheinland Druck GmbH',customerNumber:'K-10005',contact:'Tobias Rhein',phone:'+49 221 445566',email:'t.rhein@rheinland-druck.de',status:'contact',members:['a2'],labelIds:['l2'],firstContact:'2026-06-30',followup:'',notes:'Zweiter Versuch am Mittwoch',checklist:[],activity:[]},
+  {id:6,company:'Südwest Büroservice',customerNumber:'K-10006',contact:'Nina Süd',phone:'+49 711 223344',email:'nina@suedwest-buero.de',status:'offer_build',members:['a3','a1'],labelIds:['l3'],firstContact:'2026-06-15',followup:'',notes:'Sehr zufrieden mit Toner, will Preisliste',checklist:[{id:1,text:'Preisliste erstellen',done:true},{id:2,text:'Rabattstaffel abstimmen',done:false},{id:3,text:'Angebot an Einkauf senden',done:false}],activity:[{id:1,type:'comment',author:'a3',text:'Sehr angetan vom Testprodukt, Budget ist vorhanden.',date:'2026-06-24T10:05:00'}]},
+  {id:7,company:'Alpin Office Solutions',customerNumber:'K-10007',contact:'Felix Alpin',phone:'+49 89 5566778',email:'felix@alpin-office.de',status:'offer_sent',members:['a1'],labelIds:[],firstContact:'2026-06-10',followup:'2026-07-05',notes:'',checklist:[],activity:[]},
+  {id:8,company:'Berlin Print Partner',customerNumber:'K-10008',contact:'Julia Berg',phone:'+49 30 9988776',email:'julia@berlinprint.de',status:'won',members:['a2'],labelIds:['l3'],firstContact:'2026-05-20',followup:'',notes:'Rahmenvertrag unterschrieben',checklist:[],activity:[{id:1,type:'activity',author:'a2',text:'Status geändert: Angebot raus → Gewonnen',date:'2026-06-18T09:30:00'}]},
+  {id:9,company:'Kontor Nord',customerNumber:'K-10009',contact:'Simon Kontor',phone:'+49 40 3322110',email:'simon@kontor-nord.de',status:'lost',members:['a3'],labelIds:['l4'],firstContact:'2026-05-18',followup:'',notes:'Bereits langfristiger Vertrag mit Wettbewerber',checklist:[],activity:[]},
+  {id:10,company:'Meier Bürobedarf',customerNumber:'K-10010',contact:'Claudia Meier',phone:'+49 221 887766',email:'c.meier@meier-buero.de',status:'toner_confirmed',members:['a1'],labelIds:[],firstContact:'2026-06-29',followup:'',notes:'',checklist:[],activity:[]},
+  {id:11,company:'Franke Elektro GmbH',customerNumber:'K-10011',contact:'Robert Franke',phone:'+49 69 556677',email:'r.franke@franke-elektro.de',status:'followup',members:['a2'],labelIds:['l1'],firstContact:'2026-06-18',followup:'2026-06-30',notes:'Toner kam gut an, wartet auf Rückruf',checklist:[],activity:[]},
+  {id:12,company:'Vogel Consulting',customerNumber:'K-10012',contact:'Petra Vogel',phone:'+49 211 998811',email:'petra@vogel-consulting.de',status:'new',members:[],labelIds:[],firstContact:'',followup:'',notes:'',checklist:[],activity:[]},
 ];
 let nextId=13;
+let nextLabelId=5;
 let activeAgentFilter='all';
 let dragCardId=null;
+
+let editingLeadId=null;
+let draftLead=null;
+let labelPopoverOpen=false;
+let memberPopoverOpen=false;
 
 // ── HELPERS ──
 function ini(n){return n.split(' ').map(x=>x[0]).join('').toUpperCase().slice(0,2);}
 function agentById(id){return AGENTS.find(a=>a.id===id);}
 function colById(id){return COLUMNS.find(c=>c.id===id);}
+function labelById(id){return LABELS.find(l=>l.id===id);}
 function fmtDate(d){if(!d)return'';const p=d.split('-');return`${p[2]}.${p[1]}.${p[0]}`;}
 function daysUntil(d){if(!d)return null;const diff=(new Date(d)-new Date(TODAY))/86400000;return Math.round(diff);}
+function blankLead(){return{id:null,company:'',customerNumber:'',contact:'',phone:'',email:'',status:'new',members:[],labelIds:[],firstContact:'',followup:'',notes:'',checklist:[],activity:[]};}
 
 function getFilteredLeads(){
   const q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
   return leads.filter(l=>{
-    if(activeAgentFilter!=='all'&&l.agent!==activeAgentFilter)return false;
-    if(q&&!(l.company.toLowerCase().includes(q)||l.contact.toLowerCase().includes(q)))return false;
+    if(activeAgentFilter!=='all'&&!l.members.includes(activeAgentFilter))return false;
+    if(q&&!(l.company.toLowerCase().includes(q)||l.contact.toLowerCase().includes(q)||(l.customerNumber||'').toLowerCase().includes(q)))return false;
     return true;
   });
 }
@@ -255,7 +289,7 @@ function renderStats(){
     <div class="tb-stat"><div class="tb-stat-val" style="color:var(--green)">${rate}%</div><div class="tb-stat-label">Gewonnen</div></div>`;
 }
 
-// ── RENDER: AGENT FILTER ──
+// ── RENDER: AGENT FILTER + USER SELECT ──
 function renderAgentChips(){
   const el=document.getElementById('agentChips');
   let html=`<span class="chip ${activeAgentFilter==='all'?'active':''}" onclick="setAgentFilter('all')">Alle</span>`;
@@ -263,6 +297,9 @@ function renderAgentChips(){
     html+=`<span class="chip ${activeAgentFilter===a.id?'active':''}" onclick="setAgentFilter('${a.id}')">${a.name}</span>`;
   });
   el.innerHTML=html;
+}
+function renderUserSelect(){
+  document.getElementById('currentUserSelect').innerHTML=AGENTS.map(a=>`<option value="${a.id}" ${a.id===currentUser?'selected':''}>${a.name}</option>`).join('');
 }
 function setAgentFilter(id){activeAgentFilter=id;renderAgentChips();renderBoard();}
 
@@ -286,22 +323,24 @@ function renderBoard(){
 }
 
 function cardHtml(l){
-  const a=agentById(l.agent);
+  const labelsHtml=(l.labelIds||[]).map(id=>{const lb=labelById(id);return lb?`<span class="label-chip" style="background:${lb.color}">${lb.name}</span>`:'';}).join('');
+  const membersHtml=(l.members||[]).slice(0,4).map(id=>{const a=agentById(id);return a?`<div class="member-av" style="background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}" title="${a.name}">${ini(a.name)}</div>`:'';}).join('');
+  const checkTotal=(l.checklist||[]).length;
+  const checkDone=(l.checklist||[]).filter(c=>c.done).length;
   let dueHtml='';
   if(l.followup){
     const d=daysUntil(l.followup);
     const cls=d<0?'due-overdue':(d<=2?'due-soon':'due-ok');
-    const label=d<0?`${Math.abs(d)}T überfällig`:(d===0?'heute':fmtDate(l.followup));
-    dueHtml=`<span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${label}</span>`;
+    const dlabel=d<0?`${Math.abs(d)}T überfällig`:(d===0?'heute':fmtDate(l.followup));
+    dueHtml=`<span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${dlabel}</span>`;
   }
   return `<div class="card" draggable="true" data-id="${l.id}" ondragstart="onDragStart(event,${l.id})" ondragend="onDragEnd(event)" onclick="openLeadModal(${l.id})">
+    ${labelsHtml?`<div class="card-labels">${labelsHtml}</div>`:''}
     <div class="card-company">${l.company}</div>
-    <div class="card-contact">${l.contact}</div>
+    <div class="card-contact">${l.contact}${l.customerNumber?` · ${l.customerNumber}`:''}</div>
+    ${checkTotal?`<div class="card-badges-row"><span class="mini-badge"><i class="ti ti-checklist" style="font-size:12px"></i>${checkDone}/${checkTotal}</span></div>`:''}
     <div class="card-foot">
-      <div class="card-agent">
-        <div class="card-av" style="background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</div>
-        <div class="card-agent-name">${a.name.split(' ')[0]}</div>
-      </div>
+      <div class="member-stack">${membersHtml}</div>
       ${dueHtml}
     </div>
   </div>`;
@@ -315,67 +354,248 @@ function onDragLeave(e){e.currentTarget.classList.remove('drop-hover');}
 function onDrop(e,colId){
   e.preventDefault();e.currentTarget.classList.remove('drop-hover');
   const l=leads.find(x=>x.id===dragCardId);
-  if(l){l.status=colId;renderBoard();}
+  if(l&&l.status!==colId){
+    const oldName=colById(l.status).name,newName=colById(colId).name;
+    l.status=colId;
+    l.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
+    renderBoard();
+  }
   dragCardId=null;
 }
 
 // ── LEAD MODAL ──
 function openLeadModal(id){
-  const isEdit=!!id;
-  document.getElementById('leadModalTitle').textContent=isEdit?'Lead bearbeiten':'Neuer Lead';
-  document.getElementById('deleteLeadBtn').style.display=isEdit?'flex':'none';
-  document.getElementById('fAgent').innerHTML=AGENTS.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
-  document.getElementById('fStatus').innerHTML=COLUMNS.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-  if(isEdit){
-    const l=leads.find(x=>x.id===id);
-    document.getElementById('leadId').value=l.id;
-    document.getElementById('fCompany').value=l.company;
-    document.getElementById('fContact').value=l.contact;
-    document.getElementById('fAgent').value=l.agent;
-    document.getElementById('fPhone').value=l.phone;
-    document.getElementById('fEmail').value=l.email;
-    document.getElementById('fStatus').value=l.status;
-    document.getElementById('fFollowup').value=l.followup;
-    document.getElementById('fNotes').value=l.notes;
-  }else{
-    document.getElementById('leadId').value='';
-    ['fCompany','fContact','fPhone','fEmail','fFollowup','fNotes'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('fStatus').value='new';
-  }
+  editingLeadId=id;
+  draftLead=id?JSON.parse(JSON.stringify(leads.find(x=>x.id===id))):blankLead();
+  labelPopoverOpen=false;memberPopoverOpen=false;
+  renderLeadModal();
   openModal('leadModal');
 }
+
+function renderLeadModal(){
+  const isEdit=!!editingLeadId;
+  const checkTotal=draftLead.checklist.length;
+  const checkDone=draftLead.checklist.filter(c=>c.done).length;
+  const pct=checkTotal?Math.round(checkDone/checkTotal*100):0;
+
+  const labelChips=draftLead.labelIds.map(id=>{const lb=labelById(id);return lb?`<span class="label-chip" style="background:${lb.color}">${lb.name}</span>`:'';}).join('');
+  const memberChips=draftLead.members.map(id=>{
+    const a=agentById(id);if(!a)return'';
+    return `<span class="member-chip"><span class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</span>${a.name}</span>`;
+  }).join('');
+
+  const labelPopoverHtml=labelPopoverOpen?`<div class="popover">
+    ${LABELS.map(lb=>`<div class="popover-item" onclick="toggleDraftLabel('${lb.id}')">
+      <input type="checkbox" ${draftLead.labelIds.includes(lb.id)?'checked':''} onclick="event.stopPropagation();toggleDraftLabel('${lb.id}')">
+      <span class="label-chip" style="background:${lb.color}">${lb.name}</span>
+    </div>`).join('')}
+    <div class="popover-divider"></div>
+    <span class="small-label">Neues Label</span>
+    <input type="text" id="newLabelName" placeholder="Name" style="width:100%;margin-bottom:6px">
+    <div class="color-swatch-row" id="newLabelColors">
+      ${LABEL_PALETTE.map((c,i)=>`<div class="color-swatch ${i===0?'selected':''}" style="background:${c}" data-color="${c}" onclick="selectLabelColor(this)"></div>`).join('')}
+    </div>
+    <button class="btn btn-sm btn-primary" style="width:100%;justify-content:center" onclick="createLabel()">Label erstellen</button>
+  </div>`:'';
+
+  const memberPopoverHtml=memberPopoverOpen?`<div class="popover">
+    ${AGENTS.map(a=>`<div class="popover-item" onclick="toggleDraftMember('${a.id}')">
+      <input type="checkbox" ${draftLead.members.includes(a.id)?'checked':''} onclick="event.stopPropagation();toggleDraftMember('${a.id}')">
+      <span class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</span>${a.name}
+    </div>`).join('')}
+  </div>`:'';
+
+  const checklistHtml=draftLead.checklist.map(c=>`<div class="check-item-row">
+    <input type="checkbox" ${c.done?'checked':''} onchange="toggleCheckItem(${c.id})">
+    <span class="check-item-text ${c.done?'done':''}">${c.text}</span>
+    <button class="check-item-del" onclick="deleteCheckItem(${c.id})"><i class="ti ti-x"></i></button>
+  </div>`).join('');
+
+  const feedItems=[...draftLead.activity].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const feedHtml=feedItems.map(item=>{
+    if(item.type==='comment'){
+      const a=agentById(item.author);
+      return `<div class="comment-item">
+        <div class="comment-av" style="background:${COLOR_BG[a?a.color:'gray']};color:${COLOR_TEXT[a?a.color:'gray']}">${a?ini(a.name):'?'}</div>
+        <div class="comment-bubble">
+          <span class="comment-author">${a?a.name:'Unbekannt'}</span><span class="comment-date">${fmtDateTime(item.date)}</span>
+          <div class="comment-text">${item.text}</div>
+        </div>
+      </div>`;
+    }
+    return `<div class="activity-item"><i class="ti ti-point-filled" style="font-size:8px"></i> ${item.text} · ${fmtDateTime(item.date)}</div>`;
+  }).join('')||`<div class="activity-item" style="padding-left:0">Noch keine Kommentare oder Aktivität.</div>`;
+
+  document.getElementById('leadModalInner').innerHTML=`
+    <div class="modal-topline">
+      <input type="text" class="modal-title-input" id="fCompany" placeholder="Firmenname" value="${draftLead.company}" oninput="draftLead.company=this.value">
+      <button class="modal-close" onclick="closeModal('leadModal')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-grid">
+      <div class="modal-left">
+        <div class="field-row-2">
+          <div><label>Kundennummer</label><input type="text" value="${draftLead.customerNumber}" oninput="draftLead.customerNumber=this.value" style="width:100%"></div>
+          <div><label>Status</label>
+            <select id="fStatus" style="width:100%" onchange="draftLead.status=this.value">
+              ${COLUMNS.map(c=>`<option value="${c.id}" ${draftLead.status===c.id?'selected':''}>${c.name}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="field-row-2">
+          <div><label>Ansprechpartner</label><input type="text" value="${draftLead.contact}" oninput="draftLead.contact=this.value" style="width:100%"></div>
+          <div><label>Telefonnummer</label><input type="tel" value="${draftLead.phone}" oninput="draftLead.phone=this.value" style="width:100%"></div>
+        </div>
+        <div class="field-row-2">
+          <div><label>E-Mail</label><input type="email" value="${draftLead.email}" oninput="draftLead.email=this.value" style="width:100%"></div>
+          <div></div>
+        </div>
+        <div class="field-row-2">
+          <div><label>Datum Erstkontakt</label><input type="date" value="${draftLead.firstContact}" onchange="draftLead.firstContact=this.value" style="width:100%"></div>
+          <div><label>Follow-up-Datum</label><input type="date" value="${draftLead.followup}" onchange="draftLead.followup=this.value" style="width:100%"></div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-hdr">Labels</div>
+          <div class="label-row-editor">
+            ${labelChips}
+            <button class="pill-btn" onclick="event.stopPropagation();toggleLabelPopover()"><i class="ti ti-plus"></i> Label</button>
+            ${labelPopoverHtml}
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-hdr">Mitglieder</div>
+          <div class="member-row-editor">
+            ${memberChips}
+            <button class="pill-btn" onclick="event.stopPropagation();toggleMemberPopover()"><i class="ti ti-plus"></i> Person</button>
+            ${memberPopoverHtml}
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-hdr">
+            <span>Checkliste ${checkTotal?`(${checkDone}/${checkTotal})`:''}</span>
+          </div>
+          ${checkTotal?`<div class="checklist-progress-track"><div class="checklist-progress-fill" style="width:${pct}%"></div></div>`:''}
+          ${checklistHtml}
+          <div class="add-check-row">
+            <input type="text" id="newCheckItemInput" placeholder="Element hinzufügen…" onkeydown="if(event.key==='Enter')addChecklistItem()">
+            <button class="btn btn-sm" onclick="addChecklistItem()"><i class="ti ti-plus"></i></button>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-hdr">Notiz</div>
+          <textarea placeholder="Interne Notiz…" oninput="draftLead.notes=this.value">${draftLead.notes}</textarea>
+        </div>
+      </div>
+
+      <div class="modal-right">
+        <div class="right-hdr"><i class="ti ti-message-circle"></i> Kommentare &amp; Aktivität</div>
+        <div class="comment-input-row" style="margin-top:10px">
+          <textarea id="commentInput" placeholder="Kommentar schreiben…"></textarea>
+        </div>
+        <button class="btn btn-sm btn-primary" style="width:100%;justify-content:center;margin-top:6px" onclick="addComment()"><i class="ti ti-send"></i> Kommentieren</button>
+        <div class="activity-feed">${feedHtml}</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      ${isEdit?`<button class="btn btn-danger" onclick="deleteLead()"><i class="ti ti-trash"></i> Löschen</button>`:'<div></div>'}
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="closeModal('leadModal')">Abbrechen</button>
+        <button class="btn btn-primary" onclick="saveLead()"><i class="ti ti-check"></i> Speichern</button>
+      </div>
+    </div>`;
+}
+
+// Labels
+function toggleLabelPopover(){labelPopoverOpen=!labelPopoverOpen;memberPopoverOpen=false;renderLeadModal();}
+function toggleDraftLabel(id){
+  const i=draftLead.labelIds.indexOf(id);
+  if(i>-1)draftLead.labelIds.splice(i,1);else draftLead.labelIds.push(id);
+  renderLeadModal();
+}
+function selectLabelColor(el){
+  document.querySelectorAll('#newLabelColors .color-swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function createLabel(){
+  const name=document.getElementById('newLabelName').value.trim();
+  if(!name)return;
+  const sel=document.querySelector('#newLabelColors .color-swatch.selected');
+  const color=sel?sel.dataset.color:LABEL_PALETTE[0];
+  const newLabel={id:'l'+(nextLabelId++),name,color};
+  LABELS.push(newLabel);
+  draftLead.labelIds.push(newLabel.id);
+  renderLeadModal();
+}
+
+// Members
+function toggleMemberPopover(){memberPopoverOpen=!memberPopoverOpen;labelPopoverOpen=false;renderLeadModal();}
+function toggleDraftMember(id){
+  const i=draftLead.members.indexOf(id);
+  if(i>-1)draftLead.members.splice(i,1);else draftLead.members.push(id);
+  renderLeadModal();
+}
+
+// Checklist
+function addChecklistItem(){
+  const inp=document.getElementById('newCheckItemInput');
+  const text=inp.value.trim();
+  if(!text)return;
+  draftLead.checklist.push({id:Date.now(),text,done:false});
+  renderLeadModal();
+}
+function toggleCheckItem(id){
+  const item=draftLead.checklist.find(c=>c.id===id);
+  if(item)item.done=!item.done;
+  renderLeadModal();
+}
+function deleteCheckItem(id){
+  draftLead.checklist=draftLead.checklist.filter(c=>c.id!==id);
+  renderLeadModal();
+}
+
+// Comments
+function addComment(){
+  const inp=document.getElementById('commentInput');
+  const text=inp.value.trim();
+  if(!text)return;
+  draftLead.activity.unshift({id:Date.now(),type:'comment',author:currentUser,text,date:nowISO()});
+  renderLeadModal();
+}
+
+// Save / Delete
 function saveLead(){
-  const id=document.getElementById('leadId').value;
-  const company=document.getElementById('fCompany').value.trim();
-  if(!company){document.getElementById('fCompany').focus();return;}
-  const data={
-    company,
-    contact:document.getElementById('fContact').value.trim(),
-    agent:document.getElementById('fAgent').value,
-    phone:document.getElementById('fPhone').value.trim(),
-    email:document.getElementById('fEmail').value.trim(),
-    status:document.getElementById('fStatus').value,
-    followup:document.getElementById('fFollowup').value,
-    notes:document.getElementById('fNotes').value.trim(),
-  };
-  if(id){
-    const l=leads.find(x=>x.id===parseInt(id));
-    Object.assign(l,data);
+  if(!draftLead.company.trim()){document.getElementById('fCompany').focus();return;}
+  if(editingLeadId){
+    const original=leads.find(x=>x.id===editingLeadId);
+    if(original.status!==draftLead.status){
+      draftLead.activity.unshift({id:Date.now()+1,type:'activity',author:currentUser,text:`Status geändert: ${colById(original.status).name} → ${colById(draftLead.status).name}`,date:nowISO()});
+    }
+    Object.assign(original,draftLead);
   }else{
-    leads.push({id:nextId++,...data});
+    draftLead.id=nextId++;
+    draftLead.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:'Lead erstellt',date:nowISO()});
+    leads.push(draftLead);
   }
   closeModal('leadModal');renderBoard();
 }
 function deleteLead(){
-  const id=parseInt(document.getElementById('leadId').value);
-  leads=leads.filter(x=>x.id!==id);
+  leads=leads.filter(x=>x.id!==editingLeadId);
   closeModal('leadModal');renderBoard();
 }
 
 // ── CSV EXPORT ──
 function exportCSV(){
-  const headers=['Firmenname','Ansprechpartner','Telefonnummer','E-Mail','Agent','Status','Follow-up-Datum','Notizen'];
-  const rows=leads.map(l=>[l.company,l.contact,l.phone,l.email,agentById(l.agent).name,colById(l.status).name,l.followup,l.notes]);
+  const headers=['Firmenname','Kundennummer','Ansprechpartner','Telefonnummer','E-Mail','Mitglieder','Status','Datum Erstkontakt','Follow-up-Datum','Labels','Notizen'];
+  const rows=leads.map(l=>[
+    l.company,l.customerNumber,l.contact,l.phone,l.email,
+    l.members.map(id=>agentById(id)?.name).filter(Boolean).join('; '),
+    colById(l.status).name,l.firstContact,l.followup,
+    l.labelIds.map(id=>labelById(id)?.name).filter(Boolean).join('; '),
+    l.notes
+  ]);
   const csv=[headers,...rows].map(r=>r.map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
@@ -387,11 +607,17 @@ function exportCSV(){
 // ── MODAL HELPERS ──
 function openModal(id){document.getElementById(id).classList.remove('hidden');}
 function closeModal(id){document.getElementById(id).classList.add('hidden');}
-document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)m.classList.add('hidden');});});
+document.getElementById('leadModal').addEventListener('click',e=>{if(e.target.id==='leadModal')closeModal('leadModal');});
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.label-row-editor')&&labelPopoverOpen){labelPopoverOpen=false;renderLeadModal();}
+  if(!e.target.closest('.member-row-editor')&&memberPopoverOpen){memberPopoverOpen=false;renderLeadModal();}
+});
 
+renderUserSelect();
 renderAgentChips();
 renderBoard();
 </script>
+
 <div class="staging-bottombar">DEV / STAGING — Keine Produktivumgebung — <a href="https://wiegand-sales.github.io/toner-kampagne-kanban/" target="_blank">&rarr; Live</a></div>
 </body>
 </html>
