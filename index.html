@@ -66,6 +66,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .winrate-callout{border-top:1px solid var(--border);margin-top:14px;padding-top:12px;text-align:center;}
 .winrate-val{font-size:28px;font-weight:700;color:var(--green-dark);}
 .winrate-label{font-size:11px;color:var(--text2);margin-top:2px;line-height:1.5;}
+.impact-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.impact-row:last-of-type{border-bottom:none;}
 .legend-item{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:5px;}
 .legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
 .agent-bar-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
@@ -862,6 +864,32 @@ function renderDashboard(){
       <span class="due-badge due-overdue"><i class="ti ti-clock" style="font-size:11px"></i>${Math.abs(daysUntil(l.followup))}T überfällig</span>
     </div>`).join(''):'<p style="font-size:12px;color:var(--text3)">Keine überfälligen Follow-ups.</p>';
 
+  // Verlust-Analyse: aus welcher Phase Leads verloren gehen
+  const lostLeads=dl.filter(l=>l.status==='lost');
+  const lossByStage={};
+  lostLeads.forEach(l=>{
+    const key=l.closedFromStage||'unknown';
+    lossByStage[key]=(lossByStage[key]||0)+1;
+  });
+  const lossEntries=Object.keys(lossByStage).map(k=>({
+    label:k==='unknown'?'Unbekannt (vor Erfassung verloren)':(colById(k)?colById(k).name:k),
+    count:lossByStage[k]
+  })).sort((a,b)=>b.count-a.count);
+  const lossMax=Math.max(1,...lossEntries.map(x=>x.count));
+  const lossHtml=lossEntries.length?lossEntries.map(x=>{
+    const pct=Math.max(8,Math.round(x.count/lossMax*100));
+    const ofLostPct=lostLeads.length?Math.round(x.count/lostLeads.length*100):0;
+    return `<div class="funnel-row">
+      <div class="funnel-label">${x.label}</div>
+      <div class="funnel-track"><div class="funnel-bar" style="width:${pct}%;background:var(--red)">${x.count} · ${ofLostPct}%</div></div>
+    </div>`;
+  }).join(''):'<p style="font-size:12px;color:var(--text3)">Noch keine verlorenen Leads.</p>';
+
+  // Finanzielle Auswirkung: Forecast gewonnen vs. verloren, Investition in verlorene Leads
+  const forecastWon=dl.filter(l=>l.status==='won').reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
+  const forecastLost=lostLeads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
+  const investLost=lostLeads.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.price)||0),0),0);
+
   document.getElementById('dashboardContent').innerHTML=`
     ${kpiHtml}
     <div class="dash-row-2-1">
@@ -874,6 +902,19 @@ function renderDashboard(){
         <div class="donut-wrap">${resultDonut}</div>
         <div class="chart-legend">${resultLegend}</div>
         ${winRateHtml}
+      </div>
+    </div>
+    <div class="dash-row-2-1">
+      <div class="info-section" style="border-color:${lostLeads.length?'var(--red)':'var(--border)'}">
+        <div class="section-hdr" style="margin-top:0"><i class="ti ti-trending-down" style="color:var(--red)"></i> Wo wir Kunden verlieren <span style="font-weight:400;color:var(--text3);font-size:11px">(Phase vor "Verloren")</span></div>
+        ${lossHtml}
+      </div>
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0"><i class="ti ti-coin" style="color:var(--purple)"></i> Finanzielle Auswirkung</div>
+        <div class="impact-row"><span>Forecast gewonnen</span><strong style="color:var(--green-dark)">${fmtEur(forecastWon)||'0 €'}</strong></div>
+        <div class="impact-row"><span>Forecast verloren</span><strong style="color:var(--red)">${fmtEur(forecastLost)||'0 €'}</strong></div>
+        <div class="impact-row"><span>Investition in verlorene Leads</span><strong style="color:var(--amber-dark)">${fmtEur(investLost)||'0 €'}</strong></div>
+        <p style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">Toner-Investition, die in Leads floss, die am Ende trotzdem abgesprungen sind.</p>
       </div>
     </div>
     <div class="dash-row-1-2">
@@ -1197,6 +1238,13 @@ function onCardDragOver(e){
 function onCardDragLeave(e){
   e.currentTarget.classList.remove('card-drop-top','card-drop-bottom');
 }
+// Erfasst automatisch, aus welcher Stufe ein Lead gewonnen/verloren wurde (fuer die Verlust-/Gewinn-Analyse)
+function trackClosedStage(lead,oldStatus,newStatus){
+  if((newStatus==='won'||newStatus==='lost')&&oldStatus!==newStatus){
+    lead.closedFromStage=oldStatus;
+    lead.closedAt=nowISO();
+  }
+}
 function onCardDrop(e,targetId){
   if(!dragCardId)return;
   e.preventDefault();
@@ -1211,6 +1259,7 @@ function onCardDrop(e,targetId){
   if(dragged.status!==target.status){
     const oldName=colById(dragged.status).name,newName=colById(target.status).name;
     dragged.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
+    trackClosedStage(dragged,dragged.status,target.status);
   }
   dragged.status=target.status;
   let colCards=leads.filter(x=>x.status===target.status&&x.id!==dragged.id).sort((a,b)=>(a.order||0)-(b.order||0));
@@ -1240,9 +1289,10 @@ function onDrop(e,colId){
   const l=leads.find(x=>x.id===dragCardId);
   if(l&&l.status!==colId){
     const oldName=colById(l.status).name,newName=colById(colId).name;
+    l.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
+    trackClosedStage(l,l.status,colId);
     l.status=colId;
     l.order=Date.now();
-    l.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
     saveState();
     renderBoard();
   }
@@ -1965,6 +2015,7 @@ function saveLead(){
     const original=leads.find(x=>x.id===editingLeadId);
     if(original.status!==draftLead.status){
       draftLead.activity.unshift({id:Date.now()+1,type:'activity',author:currentUser,text:`Status geändert: ${colById(original.status).name} → ${colById(draftLead.status).name}`,date:nowISO()});
+      trackClosedStage(draftLead,original.status,draftLead.status);
     }
     Object.assign(original,draftLead);
   }else{
