@@ -121,11 +121,17 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .task-row-lead{font-size:12px;color:var(--purple);font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0;}
 .task-row-lead:hover{text-decoration:underline;}
 .task-row-empty{font-size:12px;color:var(--text3);padding:6px 0;}
+.quick-reschedule{display:flex;gap:4px;flex-shrink:0;}
+.quick-reschedule button{font-size:10px;font-weight:600;padding:3px 6px;border-radius:5px;border:1px solid var(--border2);background:var(--bg);color:var(--text2);cursor:pointer;}
+.quick-reschedule button:hover{background:var(--purple);color:#fff;border-color:var(--purple);}
 .crrma-legend{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px;font-size:11px;color:var(--text2);}
 .crrma-legend-item{display:flex;align-items:center;gap:5px;}
 .crrma-dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
 .crrma-table{display:flex;flex-direction:column;}
-.crrma-row{display:grid;grid-template-columns:1.3fr 2fr 0.9fr 0.9fr 1fr 1fr 34px;gap:8px;align-items:center;padding:4px 0;}
+.crrma-row{display:grid;grid-template-columns:1.2fr 1.8fr 0.8fr 0.8fr 0.8fr 0.9fr 0.9fr 34px;gap:8px;align-items:center;padding:4px 0;}
+.crrma-margin{font-size:13px;font-weight:600;padding:6px 8px;}
+.crrma-sortable{cursor:pointer;user-select:none;}
+.crrma-sortable:hover{color:var(--purple);}
 .crrma-row.crrma-hdr{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.03em;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:4px;}
 .crrma-row input{width:100%;}
 .crrma-row input.crrma-good{background:var(--green-bg);color:var(--green-dark);font-weight:600;}
@@ -211,6 +217,11 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 
 /* CARD */
 .card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 11px;margin-bottom:8px;cursor:grab;transition:box-shadow .12s,border-color .12s;height:156px;display:flex;flex-direction:column;overflow:hidden;position:relative;}
+.card-selected{outline:2px solid var(--purple);border-color:var(--purple);}
+.card-bulk-checkbox{position:absolute;top:8px;right:8px;width:16px;height:16px;z-index:5;cursor:pointer;}
+.aging-badge{font-size:9px;font-weight:600;color:var(--amber-dark);background:var(--amber-bg);border-radius:8px;padding:1px 5px;white-space:nowrap;display:inline-flex;align-items:center;gap:2px;vertical-align:middle;}
+.bulk-action-bar{display:flex;align-items:center;gap:10px;background:var(--purple-bg);border-bottom:1px solid var(--border);padding:8px 22px;font-size:12px;font-weight:600;color:var(--purple-dark);}
+#bulkModeBtn.active{background:var(--purple);color:#fff;border-color:var(--purple);}
 .card-reorder{position:absolute;top:6px;right:6px;display:none;flex-direction:column;background:var(--bg);border:1px solid var(--border2);border-radius:5px;overflow:hidden;z-index:5;}
 .card:hover .card-reorder{display:flex;}
 .card-reorder button{background:none;border:none;padding:2px 4px;cursor:pointer;color:var(--text2);font-size:12px;line-height:1;display:flex;}
@@ -396,6 +407,17 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
       <div class="filterbar">
         <span class="filterbar-label">Mitarbeiter</span>
         <div id="agentChips"></div>
+      </div>
+      <div class="filterbar">
+        <span class="filterbar-label">Label</span>
+        <div id="labelChipsFilter"></div>
+        <button class="btn btn-sm" id="bulkModeBtn" onclick="toggleBulkMode()" style="margin-left:auto"><i class="ti ti-checkbox"></i> Mehrfachauswahl</button>
+      </div>
+      <div id="bulkActionBar" class="bulk-action-bar" style="display:none">
+        <span id="bulkCountLabel">0 ausgewählt</span>
+        <select id="bulkAgentSelect" style="width:180px"></select>
+        <button class="btn btn-sm btn-primary" onclick="applyBulkReassign()">Mitarbeiter zuweisen</button>
+        <button class="btn btn-sm" onclick="toggleBulkMode()">Fertig</button>
       </div>
       <div class="board-wrap">
         <div class="board" id="board"></div>
@@ -586,6 +608,7 @@ function normalizeLeads(){
     if(l.actual===undefined) l.actual='';
     if(l.competitor===undefined) l.competitor='';
     if(l.lossReason===undefined) l.lossReason='';
+    if(!l.statusSince) l.statusSince=l.firstContact||TODAY;
     if(!l.followupHistory){
       l.followupHistory = l.followup ? [{date:l.followup,setAt:l.firstContact?l.firstContact+'T00:00:00':nowISO()}] : [];
     }
@@ -598,6 +621,7 @@ function normalizeLeads(){
 }
 normalizeLeads();
 let activeAgentFilter='all';
+let activeLabelFilter='all';
 let activeTasksAgentFilter='all';
 let dragCardId=null;
 let dragColId=null;
@@ -721,6 +745,7 @@ function getFilteredLeads(){
   const q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
   return leads.filter(l=>{
     if(activeAgentFilter!=='all'&&!l.members.includes(activeAgentFilter))return false;
+    if(activeLabelFilter!=='all'&&!(l.labelIds||[]).includes(activeLabelFilter))return false;
     if(q&&!(l.company.toLowerCase().includes(q)||l.contact.toLowerCase().includes(q)||(l.customerNumber||'').toLowerCase().includes(q)))return false;
     return true;
   });
@@ -750,6 +775,17 @@ function renderAgentChips(){
   });
   el.innerHTML=html;
 }
+function renderLabelChips(){
+  const el=document.getElementById('labelChipsFilter');
+  if(!el)return;
+  let html=`<span class="chip ${activeLabelFilter==='all'?'active':''}" onclick="setLabelFilter('all')">Alle</span>`;
+  LABELS.forEach(lb=>{
+    const active=activeLabelFilter===lb.id;
+    html+=`<span class="chip ${active?'active':''}" style="${active?`background:${lb.color};border-color:${lb.color}`:`border-color:${lb.color};color:${lb.color}`}" onclick="setLabelFilter('${lb.id}')">${lb.name}</span>`;
+  });
+  el.innerHTML=html;
+}
+function setLabelFilter(id){activeLabelFilter=id;renderLabelChips();renderBoard();}
 function renderUserSelect(){
   document.getElementById('currentUserSelect').innerHTML=AGENTS.map(a=>`<option value="${a.id}" ${a.id===currentUser?'selected':''}>${a.name}</option>`).join('');
 }
@@ -764,7 +800,7 @@ function switchView(view){
     document.getElementById('nav'+v.charAt(0).toUpperCase()+v.slice(1)).classList.toggle('active',v===view);
   });
   if(view==='dashboard'){renderDashboardAgentChips();renderDashboardPeriodChips();renderDashboard();}
-  if(view==='board')renderBoard();
+  if(view==='board'){renderLabelChips();renderBoard();}
   if(view==='crrma')renderCrRma();
   if(view==='tasks'){renderTasksAgentChips();renderTasksView();}
   if(view==='settings')renderSettings();
@@ -1165,7 +1201,23 @@ function followupRowHtml(l){
     </div>
     <div class="member-stack">${membersHtml}</div>
     <span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${label}</span>
+    <div class="quick-reschedule" onclick="event.stopPropagation()">
+      <button onclick="quickReschedule(${l.id},1)" title="Auf morgen verschieben">+1T</button>
+      <button onclick="quickReschedule(${l.id},3)" title="Um 3 Tage verschieben">+3T</button>
+      <button onclick="quickReschedule(${l.id},7)" title="Um 7 Tage verschieben">+7T</button>
+    </div>
   </div>`;
+}
+function quickReschedule(leadId,days){
+  const l=leads.find(x=>x.id===leadId);
+  if(!l)return;
+  const base=new Date(TODAY);
+  base.setDate(base.getDate()+days);
+  const newDate=base.toISOString().slice(0,10);
+  l.followup=newDate;
+  l.followupHistory=[...(l.followupHistory||[]),{date:newDate,setAt:nowISO()}];
+  saveState();
+  renderTasksView();
 }
 function followupGroupHtml(title,items,colorVar,icon,accentClass){
   return `<div class="info-section followup-group ${accentClass}">
@@ -1232,19 +1284,39 @@ function crRmaCellClass(v){
   if(v>=2.5)return'crrma-warn';
   return'crrma-good';
 }
+let crrmaSortKey='sku';
+let crrmaSortDir=1;
+function setCrrmaSort(key){
+  if(crrmaSortKey===key)crrmaSortDir*=-1;else{crrmaSortKey=key;crrmaSortDir=1;}
+  renderCrRma();
+}
 function renderCrRma(){
   const q=(document.getElementById('crrmaSearch').value||'').toLowerCase().trim();
-  const filtered=ARTICLES.filter(a=>!q||a.sku.toLowerCase().includes(q)||a.title.toLowerCase().includes(q));
-  const rowsHtml=filtered.map(a=>`
+  let filtered=ARTICLES.filter(a=>!q||a.sku.toLowerCase().includes(q)||a.title.toLowerCase().includes(q));
+  filtered=[...filtered].sort((a,b)=>{
+    let va,vb;
+    if(crrmaSortKey==='margin'){va=(parseFloat(a.vk)||0)-(parseFloat(a.ek)||0);vb=(parseFloat(b.vk)||0)-(parseFloat(b.ek)||0);}
+    else if(['ek','vk','crRma','crRga'].includes(crrmaSortKey)){va=parseFloat(a[crrmaSortKey])||0;vb=parseFloat(b[crrmaSortKey])||0;}
+    else{va=(a[crrmaSortKey]||'').toLowerCase();vb=(b[crrmaSortKey]||'').toLowerCase();}
+    if(va<vb)return -1*crrmaSortDir;
+    if(va>vb)return 1*crrmaSortDir;
+    return 0;
+  });
+  const sortArrow=key=>crrmaSortKey===key?(crrmaSortDir===1?' ▲':' ▼'):'';
+  const rowsHtml=filtered.map(a=>{
+    const margin=(parseFloat(a.vk)||0)-(parseFloat(a.ek)||0);
+    return `
     <div class="crrma-row">
       <input type="text" value="${a.sku}" placeholder="SKU" oninput="updateArticleField(${a.id},'sku',this.value);saveState()">
       <input type="text" value="${a.title}" placeholder="Titel" oninput="updateArticleField(${a.id},'title',this.value);saveState()">
-      <input type="number" step="0.01" value="${a.ek}" placeholder="0.00" oninput="updateArticleField(${a.id},'ek',this.value);saveState()">
-      <input type="number" step="0.01" value="${a.vk}" placeholder="0.00" oninput="updateArticleField(${a.id},'vk',this.value);saveState()">
+      <input type="number" step="0.01" value="${a.ek}" placeholder="0.00" oninput="updateArticleField(${a.id},'ek',this.value);saveState();renderCrRma()">
+      <input type="number" step="0.01" value="${a.vk}" placeholder="0.00" oninput="updateArticleField(${a.id},'vk',this.value);saveState();renderCrRma()">
+      <div class="crrma-margin" style="color:${margin>=0?'var(--green-dark)':'var(--red)'}">${fmtEur(margin)||'0 €'}</div>
       <input type="number" step="0.1" class="${crRmaCellClass(a.crRma)}" value="${a.crRma}" placeholder="0.0" oninput="updateArticleField(${a.id},'crRma',this.value);saveState();this.className=crRmaCellClass(parseFloat(this.value))">
       <input type="number" step="0.1" class="${crRmaCellClass(a.crRga)}" value="${a.crRga}" placeholder="0.0" oninput="updateArticleField(${a.id},'crRga',this.value);saveState();this.className=crRmaCellClass(parseFloat(this.value))">
       <button class="check-item-del" onclick="deleteArticle(${a.id})" title="Löschen"><i class="ti ti-trash"></i></button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   document.getElementById('crrmaContent').innerHTML=`
     <div class="info-section">
@@ -1253,9 +1325,16 @@ function renderCrRma(){
         <span class="crrma-legend-item"><span class="crrma-dot crrma-warn"></span> 2,5–5% – beobachten</span>
         <span class="crrma-legend-item"><span class="crrma-dot crrma-bad"></span> ab 5% – hohe Reklamationsquote, mit Vorsicht verschicken</span>
       </div>
-      <div class="crrma-table">
+      <div class="crrma-table crrma-table-margin">
         <div class="crrma-row crrma-hdr">
-          <div>SKU</div><div>Titel</div><div>EK (€)</div><div>VK (€)</div><div>CR RMA (%)</div><div>CR RGA (%)</div><div></div>
+          <div class="crrma-sortable" onclick="setCrrmaSort('sku')">SKU${sortArrow('sku')}</div>
+          <div class="crrma-sortable" onclick="setCrrmaSort('title')">Titel${sortArrow('title')}</div>
+          <div class="crrma-sortable" onclick="setCrrmaSort('ek')">EK (€)${sortArrow('ek')}</div>
+          <div class="crrma-sortable" onclick="setCrrmaSort('vk')">VK (€)${sortArrow('vk')}</div>
+          <div class="crrma-sortable" onclick="setCrrmaSort('margin')">Marge${sortArrow('margin')}</div>
+          <div class="crrma-sortable" onclick="setCrrmaSort('crRma')">CR RMA (%)${sortArrow('crRma')}</div>
+          <div class="crrma-sortable" onclick="setCrrmaSort('crRga')">CR RGA (%)${sortArrow('crRga')}</div>
+          <div></div>
         </div>
         ${rowsHtml||'<p style="font-size:12px;color:var(--text3);padding:10px 0">Keine Artikel gefunden.</p>'}
       </div>
@@ -1267,6 +1346,25 @@ function renderSettings(){
   const usedAgentColors=AGENTS.map(a=>a.color);
   const allColorKeys=Object.keys(COLOR_HEX);
   const freeAgentColor=allColorKeys.find(c=>!usedAgentColors.includes(c))||allColorKeys[0];
+
+  // Systemweites Audit-Log: alle Aktivitaeten ueber alle Leads hinweg, neueste zuerst
+  const auditEntries=[];
+  leads.forEach(l=>{
+    (l.activity||[]).forEach(a=>{
+      auditEntries.push({lead:l,text:a.text,date:a.date,type:a.type,author:a.author});
+    });
+  });
+  auditEntries.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const auditHtml=auditEntries.slice(0,25).map(e=>{
+    const ag=agentById(e.author);
+    return `<div class="settings-row" style="align-items:flex-start">
+      <div style="flex:1;min-width:0">
+        <span style="font-weight:600;font-size:12px">${e.lead.company}</span>
+        <span style="font-size:12px;color:var(--text2)">${e.type==='comment'?'kommentierte':''}: ${e.text.length>90?e.text.slice(0,90)+'…':e.text}</span>
+      </div>
+      <span style="font-size:10px;color:var(--text3);flex-shrink:0;white-space:nowrap">${ag?ag.name:'?'} · ${fmtDateTime(e.date)}</span>
+    </div>`;
+  }).join('')||'<p style="font-size:12px;color:var(--text3)">Noch keine Aktivität erfasst.</p>';
 
   const agentsHtml=AGENTS.map(a=>{
     if(editingAgentId===a.id){
@@ -1347,7 +1445,13 @@ function renderSettings(){
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Datenspeicherung</div>
         <p style="font-size:12px;color:var(--text2);line-height:1.6">Alle Daten liegen aktuell lokal im Browser (localStorage) dieses Geräts. Eine Datenbank-Anbindung (Supabase) für Team-weiten Zugriff ist als nächster Schritt geplant.</p>
+        <button class="btn btn-sm" style="margin-top:8px" onclick="exportFullBackup()"><i class="ti ti-database-export"></i> Alle Daten als Backup exportieren (JSON)</button>
       </div>
+    </div>
+
+    <div class="info-section">
+      <div class="section-hdr" style="margin-top:0">System-Aktivität <span style="font-weight:400;color:var(--text3);font-size:11px">(letzte 25 Einträge über alle Leads)</span></div>
+      ${auditHtml}
     </div>`;
 }
 
@@ -1405,12 +1509,17 @@ function cardHtml(l,isFirst,isLast){
   if(openTasks)metaBadges.push(`<span class="chip-badge"><i class="ti ti-list-check" style="font-size:11px"></i>${openTasks}</span>`);
   if(l.forecast)metaBadges.push(`<span class="chip-badge chip-badge-money"><i class="ti ti-currency-euro" style="font-size:11px"></i>${fmtEur(l.forecast)}</span>`);
   const colColor=colById(l.status)?colById(l.status).color:'gray';
-  return `<div class="card" style="border-top:3px solid ${COLOR_HEX[colColor]}" draggable="true" data-id="${l.id}" ondragstart="onDragStart(event,${l.id})" ondragend="onDragEnd(event)" ondragover="onCardDragOver(event)" ondragleave="onCardDragLeave(event)" ondrop="onCardDrop(event,${l.id})" onclick="openLeadModal(${l.id})">
+  const agingDays=l.statusSince?Math.abs(daysUntil(l.statusSince)):null;
+  const agingHtml=(agingDays!==null&&agingDays>=7&&!isClosedLead(l))?`<span class="aging-badge" title="Seit ${agingDays} Tagen in dieser Liste"><i class="ti ti-hourglass" style="font-size:10px"></i>${agingDays}T</span>`:'';
+  const isSelected=bulkSelected.has(l.id);
+  const clickAction=bulkMode?`toggleBulkSelect(${l.id})`:`openLeadModal(${l.id})`;
+  return `<div class="card ${isSelected?'card-selected':''}" style="border-top:3px solid ${COLOR_HEX[colColor]}" draggable="${!bulkMode}" data-id="${l.id}" ondragstart="onDragStart(event,${l.id})" ondragend="onDragEnd(event)" ondragover="onCardDragOver(event)" ondragleave="onCardDragLeave(event)" ondrop="onCardDrop(event,${l.id})" onclick="${clickAction}">
+    ${bulkMode?`<input type="checkbox" class="card-bulk-checkbox" ${isSelected?'checked':''} onclick="event.stopPropagation();toggleBulkSelect(${l.id})">`:`
     <div class="card-reorder" onclick="event.stopPropagation()">
       ${!isFirst?`<button onclick="event.stopPropagation();moveLeadUp(${l.id})" title="Nach oben"><i class="ti ti-chevron-up"></i></button>`:''}
       ${!isLast?`<button onclick="event.stopPropagation();moveLeadDown(${l.id})" title="Nach unten"><i class="ti ti-chevron-down"></i></button>`:''}
-    </div>
-    <div class="card-company">${l.company}</div>
+    </div>`}
+    <div class="card-company">${l.company} ${agingHtml}</div>
     <div class="card-contact">${l.contact}${l.customerNumber?` · ${l.customerNumber}`:''}</div>
     <div class="card-labels-slot">${labelsHtml}</div>
     <div class="card-badges-row">${metaBadges.join('')}</div>
@@ -1421,6 +1530,41 @@ function cardHtml(l,isFirst,isLast){
       ${dueHtml}
     </div>
   </div>`;
+}
+// ── MEHRFACHAUSWAHL / BULK-ZUWEISUNG ──
+let bulkMode=false;
+let bulkSelected=new Set();
+function toggleBulkMode(){
+  bulkMode=!bulkMode;
+  bulkSelected=new Set();
+  document.getElementById('bulkActionBar').style.display=bulkMode?'flex':'none';
+  document.getElementById('bulkModeBtn').classList.toggle('active',bulkMode);
+  if(bulkMode){
+    document.getElementById('bulkAgentSelect').innerHTML=AGENTS.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  }
+  updateBulkCountLabel();
+  renderBoard();
+}
+function toggleBulkSelect(id){
+  if(bulkSelected.has(id))bulkSelected.delete(id);else bulkSelected.add(id);
+  updateBulkCountLabel();
+  renderBoard();
+}
+function updateBulkCountLabel(){
+  const el=document.getElementById('bulkCountLabel');
+  if(el)el.textContent=`${bulkSelected.size} ausgewählt`;
+}
+function applyBulkReassign(){
+  if(bulkSelected.size===0){alert('Bitte mindestens einen Lead auswählen.');return;}
+  const agentId=document.getElementById('bulkAgentSelect').value;
+  if(!agentId)return;
+  leads.forEach(l=>{
+    if(bulkSelected.has(l.id)&&!(l.members||[]).includes(agentId)){
+      l.members=[...(l.members||[]),agentId];
+    }
+  });
+  saveState();
+  toggleBulkMode();
 }
 
 // ── DRAG & DROP ──
@@ -1459,6 +1603,9 @@ function trackClosedStage(lead,oldStatus,newStatus){
     lead.closedAt=nowISO();
   }
 }
+function trackStatusSince(lead,oldStatus,newStatus){
+  if(oldStatus!==newStatus)lead.statusSince=TODAY;
+}
 function onCardDrop(e,targetId){
   if(!dragCardId)return;
   e.preventDefault();
@@ -1473,7 +1620,7 @@ function onCardDrop(e,targetId){
   if(dragged.status!==target.status){
     const oldName=colById(dragged.status).name,newName=colById(target.status).name;
     dragged.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
-    trackClosedStage(dragged,dragged.status,target.status);
+    trackClosedStage(dragged,dragged.status,target.status);trackStatusSince(dragged,dragged.status,target.status);
   }
   dragged.status=target.status;
   let colCards=leads.filter(x=>x.status===target.status&&x.id!==dragged.id).sort((a,b)=>(a.order||0)-(b.order||0));
@@ -1504,7 +1651,7 @@ function onDrop(e,colId){
   if(l&&l.status!==colId){
     const oldName=colById(l.status).name,newName=colById(colId).name;
     l.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
-    trackClosedStage(l,l.status,colId);
+    trackClosedStage(l,l.status,colId);trackStatusSince(l,l.status,colId);
     l.status=colId;
     l.order=Date.now();
     saveState();
@@ -2367,7 +2514,7 @@ function saveLead(){
     const original=leads.find(x=>x.id===editingLeadId);
     if(original.status!==draftLead.status){
       draftLead.activity.unshift({id:Date.now()+1,type:'activity',author:currentUser,text:`Status geändert: ${colById(original.status).name} → ${colById(draftLead.status).name}`,date:nowISO()});
-      trackClosedStage(draftLead,original.status,draftLead.status);
+      trackClosedStage(draftLead,original.status,draftLead.status);trackStatusSince(draftLead,original.status,draftLead.status);
     }
     if(original.followup!==draftLead.followup&&draftLead.followup){
       draftLead.followupHistory=[...(draftLead.followupHistory||[]),{date:draftLead.followup,setAt:nowISO()}];
@@ -2394,6 +2541,22 @@ function deleteLead(){
 }
 
 // ── CSV EXPORT ──
+function exportFullBackup(){
+  const backup={
+    exportedAt:nowISO(),
+    leads,COLUMNS,LABELS,AGENTS,ARTICLES,
+    nextId,nextLabelId,nextPrinterId,nextColId,nextAgentId,nextArticleId
+  };
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`salesos_backup_${TODAY}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 function exportCSV(){
   const headers=['Firmenname','Kundennummer','Art','Adresse','Anzahl Bestellungen','Umsatz (EUR)','Versand-Drucker','Versand-SKUs (Preis)','Investition gesamt (EUR)','Kundenbedarf Drucker & Anzahl','Ansprechpartner','Telefonnummer','E-Mail','Mitglieder','Status','Free Toner verschickt','Datum Erstkontakt','Follow-up-Datum','Forecast (EUR)','Labels','Notizen'];
   const rows=leads.map(l=>{
