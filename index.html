@@ -13,10 +13,10 @@
   --text:#1a1a18;--text2:#6b6b67;--text3:#9a9a96;
   --border:rgba(0,0,0,0.1);--border2:rgba(0,0,0,0.18);
   --purple:#206A72;--purple-bg:#E9F0F1;--purple-dark:#174C52;
-  --teal:#824A62;--teal-bg:#F3EDEF;--teal-dark:#5E3547;
+  --teal:#32A8B4;--teal-bg:#EBF6F8;--teal-dark:#247982;
   --amber:#D94109;--amber-bg:#FBECE6;--amber-dark:#9C2F06;
   --gray:#676660;--gray-bg:#E5E3D6;--gray-dark:#393936;
-  --green:#32A8B4;--green-bg:#EBF6F8;--green-dark:#247982;
+  --green:#7ED2DB;--green-bg:#F2FBFB;--green-dark:#5B979E;
   --red:#BD2D29;--red-bg:#F8EAEA;--red-dark:#88201E;
   --r-sm:6px;--r-md:8px;--r-lg:12px;
 }
@@ -446,13 +446,13 @@ let COLUMNS=[
 const COLOR_HEX={purple:'var(--purple)',teal:'var(--teal)',amber:'var(--amber)',gray:'var(--gray)',green:'var(--green)',red:'var(--red)'};
 const COLOR_BG={purple:'var(--purple-bg)',teal:'var(--teal-bg)',amber:'var(--amber-bg)',gray:'var(--gray-bg)',green:'var(--green-bg)',red:'var(--red-bg)'};
 const COLOR_TEXT={purple:'var(--purple-dark)',teal:'var(--teal-dark)',amber:'var(--amber-dark)',gray:'var(--gray-dark)',green:'var(--green-dark)',red:'var(--red-dark)'};
-const LABEL_PALETTE=['#206A72','#D94109','#BD2D29','#824A62','#32A8B4','#DF726E','#9E5976','#7ED2DB','#EFB8B7'];
+const LABEL_PALETTE=['#206A72','#32A8B4','#7ED2DB','#D94109','#ED8B4C','#F5C69A','#BD2D29','#676660','#0F3D42'];
 const TODAY='2026-07-02';
 
 // ── STATE (in-memory, kein Backend – Vorstufe fuer Supabase) ──
 let LABELS=[
   {id:'l1',name:'Heiß',color:'#D94109'},
-  {id:'l2',name:'Kalt',color:'#32A8B4'},
+  {id:'l2',name:'Kalt',color:'#7ED2DB'},
   {id:'l3',name:'VIP',color:'#206A72'},
   {id:'l4',name:'Reklamation',color:'#BD2D29'},
 ];
@@ -788,14 +788,14 @@ function renderDashboard(){
 
   // Ergebnis: Donut + Gewinnrate unter den abgeschlossenen Leads
   const resultDonut=svgDonut([
-    {value:won,color:'#3B6D11'},
-    {value:lost,color:'#A32D2D'},
-    {value:openCount,color:'#9a9a96'}
+    {value:won,color:'#206A72'},
+    {value:lost,color:'#BD2D29'},
+    {value:openCount,color:'#B8B6AC'}
   ],148,20,total,'Leads gesamt');
   const resultLegend=`
-    <span class="legend-item"><span class="legend-dot" style="background:#3B6D11"></span>Gewonnen (${won})</span>
-    <span class="legend-item"><span class="legend-dot" style="background:#A32D2D"></span>Verloren (${lost})</span>
-    <span class="legend-item"><span class="legend-dot" style="background:#9a9a96"></span>Offen (${openCount})</span>`;
+    <span class="legend-item"><span class="legend-dot" style="background:#206A72"></span>Gewonnen (${won})</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#BD2D29"></span>Verloren (${lost})</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#B8B6AC"></span>Offen (${openCount})</span>`;
   const winRateHtml=winRateClosed!==null
     ? `<div class="winrate-callout"><div class="winrate-val">${winRateClosed}%</div><div class="winrate-label">Gewinnrate unter den ${closedCount} abgeschlossenen Leads (${won} gewonnen / ${lost} verloren)</div></div>`
     : `<div class="winrate-callout"><div class="winrate-label">Noch keine abgeschlossenen Leads (gewonnen/verloren) – Gewinnrate noch nicht berechenbar.</div></div>`;
@@ -804,11 +804,11 @@ function renderDashboard(){
   const labelCounts=LABELS.map(lb=>({lb,count:dl.filter(l=>(l.labelIds||[]).includes(lb.id)).length})).filter(x=>x.count>0);
   const noLabelCount=dl.filter(l=>!(l.labelIds&&l.labelIds.length)).length;
   const labelDonut=svgDonut(
-    [...labelCounts.map(x=>({value:x.count,color:x.lb.color})),{value:noLabelCount,color:'#e8e6e0'}],
+    [...labelCounts.map(x=>({value:x.count,color:x.lb.color})),{value:noLabelCount,color:'#E5E3D6'}],
     148,20,total-noLabelCount>0?labelCounts.reduce((s,x)=>s+x.count,0):0,'mit Label'
   );
   const labelLegend=[...labelCounts.map(x=>`<span class="legend-item"><span class="legend-dot" style="background:${x.lb.color}"></span>${x.lb.name} (${x.count})</span>`),
-    noLabelCount?`<span class="legend-item"><span class="legend-dot" style="background:#e8e6e0"></span>Ohne Label (${noLabelCount})</span>`:''].join('');
+    noLabelCount?`<span class="legend-item"><span class="legend-dot" style="background:#E5E3D6"></span>Ohne Label (${noLabelCount})</span>`:''].join('');
 
   // Forecast je Agent (Balken)
   const agentPool=activeDashboardAgentFilter==='all'?AGENTS:AGENTS.filter(a=>a.id===activeDashboardAgentFilter);
