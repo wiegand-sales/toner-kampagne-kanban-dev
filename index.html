@@ -12,12 +12,12 @@
   --bg:#fff;--bg2:#f7f7f5;--bg3:#f0efec;
   --text:#1a1a18;--text2:#6b6b67;--text3:#9a9a96;
   --border:rgba(0,0,0,0.1);--border2:rgba(0,0,0,0.18);
-  --purple:#534AB7;--purple-bg:#EEEDFE;--purple-dark:#3C3489;
-  --teal:#1D9E75;--teal-bg:#E1F5EE;--teal-dark:#085041;
-  --amber:#BA7517;--amber-bg:#FAEEDA;--amber-dark:#633806;
-  --gray:#5F5E5A;--gray-bg:#F1EFE8;--gray-dark:#2C2C2A;
-  --green:#3B6D11;--green-bg:#EAF3DE;--green-dark:#173404;
-  --red:#A32D2D;--red-bg:#FCEBEB;--red-dark:#501313;
+  --purple:#206A72;--purple-bg:#E9F0F1;--purple-dark:#174C52;
+  --teal:#824A62;--teal-bg:#F3EDEF;--teal-dark:#5E3547;
+  --amber:#D94109;--amber-bg:#FBECE6;--amber-dark:#9C2F06;
+  --gray:#676660;--gray-bg:#E5E3D6;--gray-dark:#393936;
+  --green:#32A8B4;--green-bg:#EBF6F8;--green-dark:#247982;
+  --red:#BD2D29;--red-bg:#F8EAEA;--red-dark:#88201E;
   --r-sm:6px;--r-md:8px;--r-lg:12px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -108,9 +108,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .crrma-dot.crrma-warn{background:var(--amber);}
 .crrma-dot.crrma-bad{background:var(--red);}
 
-.staging-topbar{background:#BA7517;color:#fff;font-size:12px;font-weight:600;text-align:center;padding:6px 10px;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;}
+.staging-topbar{background:#D94109;color:#fff;font-size:12px;font-weight:600;text-align:center;padding:6px 10px;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;}
 .staging-topbar a{color:#fff;text-decoration:underline;font-weight:700;}
-.staging-bottombar{background:#BA7517;color:#fff;font-size:12px;font-weight:600;text-align:center;padding:6px 10px;flex-shrink:0;}
+.staging-bottombar{background:#D94109;color:#fff;font-size:12px;font-weight:600;text-align:center;padding:6px 10px;flex-shrink:0;}
 .staging-bottombar a{color:#fff;text-decoration:underline;font-weight:700;}
 
 /* TOPBAR */
@@ -296,9 +296,9 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
   <div class="sidebar">
     <div class="sidebar-project">
       <svg width="28" height="28" viewBox="0 0 32 32" style="flex-shrink:0">
-        <rect width="32" height="32" rx="8" fill="#534AB7"/>
-        <circle cx="16" cy="16" r="10" fill="none" stroke="#EEEDFE" stroke-width="4" stroke-dasharray="5 5.9" stroke-linecap="round"/>
-        <circle cx="16" cy="16" r="10" fill="none" stroke="#BA7517" stroke-width="4" stroke-dasharray="5 57.8" stroke-dashoffset="-18" stroke-linecap="round"/>
+        <rect width="32" height="32" rx="8" fill="#206A72"/>
+        <circle cx="16" cy="16" r="10" fill="none" stroke="#E9F0F1" stroke-width="4" stroke-dasharray="5 5.9" stroke-linecap="round"/>
+        <circle cx="16" cy="16" r="10" fill="none" stroke="#D94109" stroke-width="4" stroke-dasharray="5 57.8" stroke-dashoffset="-18" stroke-linecap="round"/>
       </svg>
       <div>
         <div class="sidebar-project-name">SalesOS</div>
@@ -327,9 +327,9 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
       <div class="topbar">
         <div class="tb-left">
           <svg width="28" height="28" viewBox="0 0 32 32" style="flex-shrink:0">
-            <rect width="32" height="32" rx="8" fill="#BA7517"/>
-            <circle cx="16" cy="16" r="9" fill="none" stroke="#FAEEDA" stroke-width="3"/>
-            <path d="M11,16 L14,19.5 L21,12.5" fill="none" stroke="#FAEEDA" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect width="32" height="32" rx="8" fill="#D94109"/>
+            <circle cx="16" cy="16" r="9" fill="none" stroke="#FBECE6" stroke-width="3"/>
+            <path d="M11,16 L14,19.5 L21,12.5" fill="none" stroke="#FBECE6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <div>
             <div class="tb-title">Projekt: Toner</div>
@@ -410,15 +410,15 @@ let COLUMNS=[
 const COLOR_HEX={purple:'var(--purple)',teal:'var(--teal)',amber:'var(--amber)',gray:'var(--gray)',green:'var(--green)',red:'var(--red)'};
 const COLOR_BG={purple:'var(--purple-bg)',teal:'var(--teal-bg)',amber:'var(--amber-bg)',gray:'var(--gray-bg)',green:'var(--green-bg)',red:'var(--red-bg)'};
 const COLOR_TEXT={purple:'var(--purple-dark)',teal:'var(--teal-dark)',amber:'var(--amber-dark)',gray:'var(--gray-dark)',green:'var(--green-dark)',red:'var(--red-dark)'};
-const LABEL_PALETTE=['#534AB7','#1D9E75','#D85A30','#D4537E','#378ADD','#639922','#BA7517','#E24B4A','#5F5E5A'];
+const LABEL_PALETTE=['#206A72','#D94109','#BD2D29','#824A62','#32A8B4','#DF726E','#9E5976','#7ED2DB','#EFB8B7'];
 const TODAY='2026-07-02';
 
 // ── STATE (in-memory, kein Backend – Vorstufe fuer Supabase) ──
 let LABELS=[
-  {id:'l1',name:'Heiß',color:'#D85A30'},
-  {id:'l2',name:'Kalt',color:'#378ADD'},
-  {id:'l3',name:'VIP',color:'#534AB7'},
-  {id:'l4',name:'Reklamation',color:'#E24B4A'},
+  {id:'l1',name:'Heiß',color:'#D94109'},
+  {id:'l2',name:'Kalt',color:'#32A8B4'},
+  {id:'l3',name:'VIP',color:'#206A72'},
+  {id:'l4',name:'Reklamation',color:'#BD2D29'},
 ];
 let currentUser='a1';
 let nextColId=1;
@@ -865,8 +865,8 @@ function followupRowHtml(l){
   </div>`;
 }
 function followupGroupHtml(title,items,colorVar,icon){
-  return `<div class="task-group">
-    <div class="task-group-hdr"><i class="ti ti-${icon}" style="color:${colorVar};font-size:15px"></i>${title} <span class="task-group-count">${items.length} Lead${items.length===1?'':'s'}</span></div>
+  return `<div class="info-section">
+    <div class="section-hdr" style="margin-top:0"><i class="ti ti-${icon}" style="color:${colorVar};font-size:16px;margin-right:2px"></i>${title} <span class="task-group-count">${items.length} Lead${items.length===1?'':'s'}</span></div>
     ${items.length?items.map(followupRowHtml).join(''):'<div class="task-row-empty">Keine Leads in diesem Zeitraum.</div>'}
   </div>`;
 }
@@ -880,13 +880,15 @@ function renderTasksView(){
     <div class="dash-kpi-row">
       <div class="dash-kpi followup-kpi-overdue"><i class="ti ti-alert-triangle dash-kpi-icon" style="color:var(--red)"></i><div class="dash-kpi-label">Überfällig</div><div class="dash-kpi-val" style="color:var(--red)">${buckets.overdue.length}</div></div>
       <div class="dash-kpi followup-kpi-today"><i class="ti ti-sun dash-kpi-icon" style="color:var(--amber-dark)"></i><div class="dash-kpi-label">Heute</div><div class="dash-kpi-val" style="color:var(--amber-dark)">${buckets.today.length}</div></div>
-      <div class="dash-kpi followup-kpi-week"><i class="ti ti-calendar-week dash-kpi-icon" style="color:var(--teal-dark)"></i><div class="dash-kpi-label">Diese Woche</div><div class="dash-kpi-val" style="color:var(--teal-dark)">${buckets.week.length}</div></div>
+      <div class="dash-kpi followup-kpi-week"><i class="ti ti-calendar-week dash-kpi-icon" style="color:var(--green-dark)"></i><div class="dash-kpi-label">Diese Woche</div><div class="dash-kpi-val" style="color:var(--green-dark)">${buckets.week.length}</div></div>
       <div class="dash-kpi followup-kpi-nextweek"><i class="ti ti-calendar-plus dash-kpi-icon" style="color:var(--purple)"></i><div class="dash-kpi-label">Nächste Woche</div><div class="dash-kpi-val" style="color:var(--purple)">${buckets.nextweek.length}</div></div>
     </div>
-    ${followupGroupHtml('Überfällig',buckets.overdue,'var(--red)','alert-triangle')}
-    ${followupGroupHtml('Heute',buckets.today,'var(--amber-dark)','sun')}
-    ${followupGroupHtml('Diese Woche',buckets.week,'var(--teal-dark)','calendar-week')}
-    ${followupGroupHtml('Nächste Woche',buckets.nextweek,'var(--purple)','calendar-plus')}`;
+    <div class="dash-grid">
+      ${followupGroupHtml('Überfällig',buckets.overdue,'var(--red)','alert-triangle')}
+      ${followupGroupHtml('Heute',buckets.today,'var(--amber-dark)','sun')}
+      ${followupGroupHtml('Diese Woche',buckets.week,'var(--green-dark)','calendar-week')}
+      ${followupGroupHtml('Nächste Woche',buckets.nextweek,'var(--purple)','calendar-plus')}
+    </div>`;
   document.getElementById('tasksViewContent').innerHTML=html;
 }
 // ── CR RMA: Artikel-Stammdaten ──
