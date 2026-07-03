@@ -62,6 +62,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .funnel-track{background:var(--bg3);border-radius:5px;height:20px;overflow:hidden;flex:1;}
 .funnel-bar{height:100%;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;color:#fff;font-size:11px;font-weight:700;transition:width .2s;min-width:22px;}
 .funnel-conv{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:2px;width:46px;flex-shrink:0;justify-content:flex-end;}
+.movements-strip{display:flex;flex-wrap:wrap;gap:18px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);}
+.movements-item{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;}
+.movements-item strong{font-size:14px;color:var(--text);}
+.movements-details{margin-top:10px;}
+.movements-details summary{font-size:11px;color:var(--purple);cursor:pointer;font-weight:600;list-style:none;}
+.movements-details summary::-webkit-details-marker{display:none;}
+.movements-details summary:before{content:"▸ ";}
+.movements-details[open] summary:before{content:"▾ ";}
 .donut-wrap{display:flex;justify-content:center;padding:6px 0 10px;}
 .chart-legend{display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:center;}
 .winrate-callout{border-top:1px solid var(--border);margin-top:14px;padding-top:12px;text-align:center;}
@@ -787,6 +795,31 @@ function renderBoard(){
 
 // ── DASHBOARD ──
 let activeDashboardAgentFilter='all';
+// Erfasst echte Bewegungen (Statuswechsel) aus dem Aktivitaets-Protokoll der letzten X Tage
+function getRecentMovements(dl,days){
+  const cutoff=new Date(TODAY);
+  cutoff.setDate(cutoff.getDate()-days);
+  let total=0,toWon=0,toLost=0;
+  const rows=[];
+  dl.forEach(l=>{
+    (l.activity||[]).forEach(a=>{
+      if(a.type==='activity'&&a.text&&a.text.indexOf('Status geändert:')===0){
+        const d=new Date(a.date);
+        if(d>=cutoff&&d<=new Date(TODAY+'T23:59:59')){
+          total++;
+          const targetName=(a.text.split('→')[1]||'').trim();
+          const col=COLUMNS.find(c=>c.name===targetName);
+          if(col&&col.outcome==='won')toWon++;
+          else if(col&&col.outcome==='lost')toLost++;
+          rows.push({lead:l,text:a.text,date:a.date});
+        }
+      }
+    });
+  });
+  rows.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  return {total,toWon,toLost,forward:total-toWon-toLost,rows};
+}
+
 function renderDashboardAgentChips(){
   const el=document.getElementById('dashAgentChips');
   let html=`<span class="chip ${activeDashboardAgentFilter==='all'?'active':''}" onclick="setDashboardAgentFilter('all')">Alle</span>`;
@@ -921,12 +954,31 @@ function renderDashboard(){
   const forecastLost=lostLeads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
   const investLost=lostLeads.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.price)||0),0),0);
   const netEffect=forecastWon-investLost;
+  const movements=getRecentMovements(dl,7);
+  const movementsRowsHtml=movements.rows.length?movements.rows.slice(0,8).map(r=>`
+    <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${r.lead.id})},50)">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.lead.company}</div>
+        <div style="font-size:11px;color:var(--text2)">${r.text.replace('Status geändert: ','')}</div>
+      </div>
+      <span style="font-size:11px;color:var(--text3);flex-shrink:0">${fmtDate(r.date.slice(0,10))}</span>
+    </div>`).join(''):'<p style="font-size:12px;color:var(--text3)">Keine Bewegungen in den letzten 7 Tagen.</p>';
 
   document.getElementById('dashboardContent').innerHTML=`
     ${kpiHtml}
     <div class="info-section">
       <div class="section-hdr" style="margin-top:0">Pipeline-Trichter <span style="font-weight:400;color:var(--text3);font-size:11px">(Anzahl · Anteil an allen Leads, Pfeil = Konversion zur nächsten Stufe)</span></div>
       <div class="funnel-wrap">${funnelHtml}</div>
+      <div class="movements-strip">
+        <div class="movements-item"><i class="ti ti-arrows-shuffle" style="color:var(--purple)"></i><strong>${movements.total}</strong> Bewegungen (7 Tage)</div>
+        <div class="movements-item"><i class="ti ti-arrow-forward-up" style="color:var(--text2)"></i><strong>${movements.forward}</strong> vorwärts</div>
+        <div class="movements-item"><i class="ti ti-trophy" style="color:var(--green-dark)"></i><strong>${movements.toWon}</strong> gewonnen</div>
+        <div class="movements-item"><i class="ti ti-x" style="color:var(--red)"></i><strong>${movements.toLost}</strong> verloren</div>
+      </div>
+      <details class="movements-details">
+        <summary>Einzelne Bewegungen anzeigen</summary>
+        <div style="margin-top:8px">${movementsRowsHtml}</div>
+      </details>
     </div>
     <div class="dash-row-1-1">
       <div class="info-section">
