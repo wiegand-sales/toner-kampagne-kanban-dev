@@ -56,14 +56,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .dash-row-2-1{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;}
 .dash-row-1-2{display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:16px;}
 .dash-row-1-1{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
-.funnel-wrap{display:flex;flex-direction:column;gap:10px;padding-top:4px;}
-.funnel-row{cursor:pointer;}
-.funnel-label{font-size:12px;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:6px;}
-.funnel-track{background:var(--bg3);border-radius:6px;height:28px;overflow:hidden;}
-.funnel-bar{height:100%;border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:#fff;font-size:12px;font-weight:700;transition:width .2s;min-width:26px;}
+.funnel-wrap{display:flex;flex-direction:column;gap:5px;padding-top:2px;}
+.funnel-row{cursor:pointer;display:flex;align-items:center;gap:10px;}
+.funnel-label{font-size:11px;font-weight:500;display:flex;align-items:center;gap:6px;width:172px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.funnel-track{background:var(--bg3);border-radius:5px;height:20px;overflow:hidden;flex:1;}
+.funnel-bar{height:100%;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;color:#fff;font-size:11px;font-weight:700;transition:width .2s;min-width:22px;}
+.funnel-conv{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:2px;width:46px;flex-shrink:0;justify-content:flex-end;}
 .donut-wrap{display:flex;justify-content:center;padding:6px 0 10px;}
 .chart-legend{display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:center;}
-.funnel-conv{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;padding-left:2px;margin:-3px 0 -1px;}
 .winrate-callout{border-top:1px solid var(--border);margin-top:14px;padding-top:12px;text-align:center;}
 .winrate-val{font-size:28px;font-weight:700;color:var(--green-dark);}
 .winrate-label{font-size:11px;color:var(--text2);margin-top:2px;line-height:1.5;}
@@ -772,17 +772,19 @@ function renderDashboard(){
   funnelCounts.forEach((x,i)=>{
     const barPct=Math.max(8,Math.round(x.count/funnelMax*100));
     const ofTotalPct=total?Math.round(x.count/total*100):0;
+    let convHtml='<div class="funnel-conv"></div>';
+    if(i<funnelCounts.length-1){
+      const next=funnelCounts[i+1];
+      const convPct=x.count?Math.round(next.count/x.count*100):0;
+      convHtml=`<div class="funnel-conv" title="Konversion zur nächsten Stufe"><i class="ti ti-arrow-right" style="font-size:11px"></i>${convPct}%</div>`;
+    }
     funnelHtml+=`<div class="funnel-row" onclick="switchView('board')" title="${x.c.name}">
       <div class="funnel-label"><span class="col-dot" style="background:${COLOR_HEX[x.c.color]}"></span>${x.c.name}</div>
       <div class="funnel-track">
         <div class="funnel-bar" style="width:${barPct}%;background:${COLOR_HEX[x.c.color]}">${x.count} · ${ofTotalPct}%</div>
       </div>
+      ${convHtml}
     </div>`;
-    if(i<funnelCounts.length-1){
-      const next=funnelCounts[i+1];
-      const convPct=x.count?Math.round(next.count/x.count*100):0;
-      funnelHtml+=`<div class="funnel-conv"><i class="ti ti-arrow-down" style="font-size:12px"></i>${convPct}% weiter</div>`;
-    }
   });
 
   // Forecast je Mitarbeiter (Balken)
