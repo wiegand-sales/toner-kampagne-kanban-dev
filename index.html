@@ -55,6 +55,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .dash-kpi-val{font-size:22px;font-weight:700;}
 .dash-row-2-1{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;}
 .dash-row-1-2{display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:16px;}
+.dash-row-1-1{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
 .funnel-wrap{display:flex;flex-direction:column;gap:10px;padding-top:4px;}
 .funnel-row{cursor:pointer;}
 .funnel-label{font-size:12px;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:6px;}
@@ -746,21 +747,20 @@ function setDashboardAgentFilter(id){
 function renderDashboard(){
   const dl=activeDashboardAgentFilter==='all'?leads:leads.filter(l=>(l.members||[]).includes(activeDashboardAgentFilter));
   const total=dl.length;
+  const contacted=dl.filter(l=>l.status!=='open').length;
   const overdue=dl.filter(l=>l.followup&&daysUntil(l.followup)<0).length;
   const won=dl.filter(l=>l.status==='won').length;
   const lost=dl.filter(l=>l.status==='lost').length;
-  const openCount=total-won-lost;
   const closedCount=won+lost;
-  const rate=total?Math.round(won/total*100):0;
   const winRateClosed=closedCount?Math.round(won/closedCount*100):null;
   const forecastSum=dl.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
   const investSum=dl.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.price)||0),0),0);
 
   const kpiHtml=`
     <div class="dash-kpi-row">
-      <div class="dash-kpi"><i class="ti ti-users dash-kpi-icon"></i><div class="dash-kpi-label">Leads gesamt</div><div class="dash-kpi-val">${total}</div></div>
+      <div class="dash-kpi"><i class="ti ti-phone-outgoing dash-kpi-icon"></i><div class="dash-kpi-label">Kontaktierte Leads</div><div class="dash-kpi-val">${contacted}<span style="font-size:13px;font-weight:500;color:var(--text3)"> / ${total}</span></div></div>
       <div class="dash-kpi"><i class="ti ti-alert-triangle dash-kpi-icon" style="color:${overdue?'var(--red)':'var(--text3)'}"></i><div class="dash-kpi-label">Follow-up überfällig</div><div class="dash-kpi-val" style="color:${overdue?'var(--red)':'var(--text)'}">${overdue}</div></div>
-      <div class="dash-kpi"><i class="ti ti-trophy dash-kpi-icon" style="color:var(--green)"></i><div class="dash-kpi-label">Gewonnen-Quote</div><div class="dash-kpi-val" style="color:var(--green)">${rate}%</div></div>
+      <div class="dash-kpi"><i class="ti ti-trophy dash-kpi-icon" style="color:var(--green)"></i><div class="dash-kpi-label">Gewinnrate (abgeschlossen)</div><div class="dash-kpi-val" style="color:var(--green)">${winRateClosed!==null?winRateClosed+'%':'–'}</div></div>
       <div class="dash-kpi"><i class="ti ti-chart-line dash-kpi-icon" style="color:var(--purple)"></i><div class="dash-kpi-label">Forecast gesamt</div><div class="dash-kpi-val" style="color:var(--purple)">${fmtEur(forecastSum)||'0 €'}</div></div>
       <div class="dash-kpi"><i class="ti ti-truck-delivery dash-kpi-icon" style="color:var(--amber-dark)"></i><div class="dash-kpi-label">Investition (Versand)</div><div class="dash-kpi-val" style="color:var(--amber-dark)">${fmtEur(investSum)||'0 €'}</div></div>
     </div>`;
@@ -768,7 +768,6 @@ function renderDashboard(){
   // Funnel mit Prozentwerten und Konversionsrate zwischen den Stufen
   const funnelCounts=COLUMNS.map(c=>({c,count:dl.filter(l=>l.status===c.id).length}));
   const funnelMax=Math.max(1,...funnelCounts.map(x=>x.count));
-  const firstCount=funnelCounts.length?funnelCounts[0].count:0;
   let funnelHtml='';
   funnelCounts.forEach((x,i)=>{
     const barPct=Math.max(8,Math.round(x.count/funnelMax*100));
@@ -786,31 +785,7 @@ function renderDashboard(){
     }
   });
 
-  // Ergebnis: Donut + Gewinnrate unter den abgeschlossenen Leads
-  const resultDonut=svgDonut([
-    {value:won,color:'#206A72'},
-    {value:lost,color:'#BD2D29'},
-    {value:openCount,color:'#B8B6AC'}
-  ],148,20,total,'Leads gesamt');
-  const resultLegend=`
-    <span class="legend-item"><span class="legend-dot" style="background:#206A72"></span>Gewonnen (${won})</span>
-    <span class="legend-item"><span class="legend-dot" style="background:#BD2D29"></span>Verloren (${lost})</span>
-    <span class="legend-item"><span class="legend-dot" style="background:#B8B6AC"></span>Offen (${openCount})</span>`;
-  const winRateHtml=winRateClosed!==null
-    ? `<div class="winrate-callout"><div class="winrate-val">${winRateClosed}%</div><div class="winrate-label">Gewinnrate unter den ${closedCount} abgeschlossenen Leads (${won} gewonnen / ${lost} verloren)</div></div>`
-    : `<div class="winrate-callout"><div class="winrate-label">Noch keine abgeschlossenen Leads (gewonnen/verloren) – Gewinnrate noch nicht berechenbar.</div></div>`;
-
-  // Donut: Labels
-  const labelCounts=LABELS.map(lb=>({lb,count:dl.filter(l=>(l.labelIds||[]).includes(lb.id)).length})).filter(x=>x.count>0);
-  const noLabelCount=dl.filter(l=>!(l.labelIds&&l.labelIds.length)).length;
-  const labelDonut=svgDonut(
-    [...labelCounts.map(x=>({value:x.count,color:x.lb.color})),{value:noLabelCount,color:'#E5E3D6'}],
-    148,20,total-noLabelCount>0?labelCounts.reduce((s,x)=>s+x.count,0):0,'mit Label'
-  );
-  const labelLegend=[...labelCounts.map(x=>`<span class="legend-item"><span class="legend-dot" style="background:${x.lb.color}"></span>${x.lb.name} (${x.count})</span>`),
-    noLabelCount?`<span class="legend-item"><span class="legend-dot" style="background:#E5E3D6"></span>Ohne Label (${noLabelCount})</span>`:''].join('');
-
-  // Forecast je Agent (Balken)
+  // Forecast je Mitarbeiter (Balken)
   const agentPool=activeDashboardAgentFilter==='all'?AGENTS:AGENTS.filter(a=>a.id===activeDashboardAgentFilter);
   const agentData=agentPool.map(a=>{
     const agentLeads=dl.filter(l=>(l.members||[]).includes(a.id));
@@ -883,48 +858,35 @@ function renderDashboard(){
     </div>`;
   }).join(''):'<p style="font-size:12px;color:var(--text3)">Noch keine verlorenen Leads.</p>';
 
-  // Finanzielle Auswirkung: Forecast gewonnen vs. verloren, Investition in verlorene Leads
+  // Finanzielle Auswirkung: Forecast gewonnen vs. verloren, Investition gesamt vs. in verlorene Leads, Netto-Effekt
   const forecastWon=dl.filter(l=>l.status==='won').reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
   const forecastLost=lostLeads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
   const investLost=lostLeads.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.price)||0),0),0);
+  const netEffect=forecastWon-investLost;
 
   document.getElementById('dashboardContent').innerHTML=`
     ${kpiHtml}
-    <div class="dash-row-2-1">
-      <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Pipeline-Trichter <span style="font-weight:400;color:var(--text3);font-size:11px">(Anzahl · Anteil an allen Leads, Pfeil = Konversion zur nächsten Stufe)</span></div>
-        <div class="funnel-wrap">${funnelHtml}</div>
-      </div>
-      <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Ergebnis</div>
-        <div class="donut-wrap">${resultDonut}</div>
-        <div class="chart-legend">${resultLegend}</div>
-        ${winRateHtml}
-      </div>
+    <div class="info-section">
+      <div class="section-hdr" style="margin-top:0">Pipeline-Trichter <span style="font-weight:400;color:var(--text3);font-size:11px">(Anzahl · Anteil an allen Leads, Pfeil = Konversion zur nächsten Stufe)</span></div>
+      <div class="funnel-wrap">${funnelHtml}</div>
     </div>
-    <div class="dash-row-2-1">
-      <div class="info-section" style="border-color:${lostLeads.length?'var(--red)':'var(--border)'}">
-        <div class="section-hdr" style="margin-top:0"><i class="ti ti-trending-down" style="color:var(--red)"></i> Wo wir Kunden verlieren <span style="font-weight:400;color:var(--text3);font-size:11px">(Phase vor "Verloren")</span></div>
-        ${lossHtml}
-      </div>
+    <div class="dash-row-1-1">
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0"><i class="ti ti-coin" style="color:var(--purple)"></i> Finanzielle Auswirkung</div>
         <div class="impact-row"><span>Forecast gewonnen</span><strong style="color:var(--green-dark)">${fmtEur(forecastWon)||'0 €'}</strong></div>
         <div class="impact-row"><span>Forecast verloren</span><strong style="color:var(--red)">${fmtEur(forecastLost)||'0 €'}</strong></div>
         <div class="impact-row"><span>Investition in verlorene Leads</span><strong style="color:var(--amber-dark)">${fmtEur(investLost)||'0 €'}</strong></div>
-        <p style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">Toner-Investition, die in Leads floss, die am Ende trotzdem abgesprungen sind.</p>
+        <div class="impact-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:12px"><span>Netto-Effekt (gewonnen − verlorene Investition)</span><strong style="color:${netEffect>=0?'var(--green-dark)':'var(--red)'}">${fmtEur(netEffect)||'0 €'}</strong></div>
+        <p style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">Toner-Investition in Leads, die am Ende trotzdem abgesprungen sind, gegen den Forecast-Wert der gewonnenen Leads gerechnet.</p>
+      </div>
+      <div class="info-section" style="border-color:${lostLeads.length?'var(--red)':'var(--border)'}">
+        <div class="section-hdr" style="margin-top:0"><i class="ti ti-trending-down" style="color:var(--red)"></i> Wo wir Kunden verlieren <span style="font-weight:400;color:var(--text3);font-size:11px">(Phase vor "Verloren")</span></div>
+        ${lossHtml}
       </div>
     </div>
-    <div class="dash-row-1-2">
-      <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Labels-Verteilung</div>
-        <div class="donut-wrap">${labelDonut}</div>
-        <div class="chart-legend">${labelLegend}</div>
-      </div>
-      <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Forecast je Mitarbeiter</div>
-        ${agentBarHtml}
-      </div>
+    <div class="info-section">
+      <div class="section-hdr" style="margin-top:0">Forecast je Mitarbeiter</div>
+      ${agentBarHtml}
     </div>
     <div class="info-section" style="border-color:${riskLeads.length?'var(--red)':'var(--border)'}">
       <div class="section-hdr" style="margin-top:0"><i class="ti ti-shield-exclamation" style="color:${riskLeads.length?'var(--red)':'var(--text2)'}"></i> RMA-Risiko-Check <span style="font-weight:400;color:var(--text3);font-size:11px">(aktive Leads mit SKU ≥5% Reklamationsquote)</span></div>
