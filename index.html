@@ -175,7 +175,11 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .me-select{font-size:12px;padding:6px 9px;}
 
 /* FILTER BAR */
-.filterbar{background:var(--bg);border-bottom:1px solid var(--border);padding:9px 22px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;}
+.filterbar{background:var(--bg);border-bottom:1px solid var(--border);padding:9px 22px;display:flex;gap:20px;align-items:center;flex-wrap:wrap;flex-shrink:0;}
+.filterbar>div:not(.filter-group){display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.filter-group{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.filter-group>div{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.filter-divider{width:1px;height:18px;background:var(--border2);flex-shrink:0;}
 .chip{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);color:var(--text2);background:var(--bg);transition:all .12s;}
 .chip:hover{border-color:var(--purple);color:var(--text);}
 .chip.active{background:var(--purple);color:#fff;border-color:var(--purple);}
@@ -374,12 +378,9 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         </div>
       </div>
       <div class="filterbar">
-        <span class="filterbar-label">Mitarbeiter</span>
-        <div id="dashAgentChips"></div>
-      </div>
-      <div class="filterbar">
-        <span class="filterbar-label">Zeitraum</span>
-        <div id="dashPeriodChips"></div>
+        <div class="filter-group"><span class="filterbar-label">Mitarbeiter</span><div id="dashAgentChips"></div></div>
+        <div class="filter-divider"></div>
+        <div class="filter-group"><span class="filterbar-label">Zeitraum</span><div id="dashPeriodChips"></div></div>
       </div>
       <div class="view-scroll" id="dashboardContent"></div>
     </div>
@@ -405,12 +406,9 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         </div>
       </div>
       <div class="filterbar">
-        <span class="filterbar-label">Mitarbeiter</span>
-        <div id="agentChips"></div>
-      </div>
-      <div class="filterbar">
-        <span class="filterbar-label">Label</span>
-        <div id="labelChipsFilter"></div>
+        <div class="filter-group"><span class="filterbar-label">Mitarbeiter</span><div id="agentChips"></div></div>
+        <div class="filter-divider"></div>
+        <div class="filter-group"><span class="filterbar-label">Label</span><div id="labelChipsFilter"></div></div>
         <button class="btn btn-sm" id="bulkModeBtn" onclick="toggleBulkMode()" style="margin-left:auto"><i class="ti ti-checkbox"></i> Mehrfachauswahl</button>
       </div>
       <div id="bulkActionBar" class="bulk-action-bar" style="display:none">
