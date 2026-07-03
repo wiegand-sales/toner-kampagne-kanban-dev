@@ -55,7 +55,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .dash-kpi-val{font-size:22px;font-weight:700;}
 .dash-row-2-1{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;}
 .dash-row-1-2{display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:16px;}
-.dash-row-1-1{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.dash-row-1-1{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:stretch;}
 .funnel-wrap{display:flex;flex-direction:column;gap:5px;padding-top:2px;}
 .funnel-row{cursor:pointer;display:flex;align-items:center;gap:10px;}
 .funnel-label{font-size:11px;font-weight:500;display:flex;align-items:center;gap:6px;width:172px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -176,6 +176,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .col-menu-item:hover{background:var(--bg2);}
 .col-menu-item.danger{color:var(--red);}
 .col-color-row{display:flex;gap:6px;padding:6px 8px;flex-wrap:wrap;}
+.col-type-select{width:100%;margin:4px 0;font-size:12px;}
 .col-color-dot{width:16px;height:16px;border-radius:50%;cursor:pointer;border:2px solid transparent;}
 .col-color-dot.selected{border-color:var(--text);}
 .col-name-input{font-size:12px;font-weight:600;border:1px solid var(--purple);border-radius:4px;padding:2px 6px;width:100%;background:var(--bg);font-family:inherit;}
@@ -441,8 +442,8 @@ let COLUMNS=[
   {id:'fu_feedback',name:'FollowUp: Feedback',color:'amber'},
   {id:'am_offer',name:'AM: Angebot',color:'amber'},
   {id:'fu_offer',name:'FollowUp: Angebot',color:'amber'},
-  {id:'won',name:'Gewonnen',color:'green'},
-  {id:'lost',name:'Verloren',color:'red'},
+  {id:'won',name:'Gewonnen',color:'green',outcome:'won'},
+  {id:'lost',name:'Verloren',color:'red',outcome:'lost'},
 ];
 const COLOR_HEX={purple:'var(--purple)',teal:'var(--teal)',amber:'var(--amber)',gray:'var(--gray)',green:'var(--green)',red:'var(--red)'};
 const COLOR_BG={purple:'var(--purple-bg)',teal:'var(--teal-bg)',amber:'var(--amber-bg)',gray:'var(--gray-bg)',green:'var(--green-bg)',red:'var(--red-bg)'};
@@ -500,6 +501,7 @@ function loadState(){
     if(data.nextColId)nextColId=data.nextColId;
     if(data.nextAgentId)nextAgentId=data.nextAgentId;
     if(data.nextArticleId)nextArticleId=data.nextArticleId;
+    normalizeColumns();
     normalizeLeads();
     saveState();
     return true;
@@ -581,6 +583,21 @@ let rightTab='comments';
 function ini(n){return n.split(' ').map(x=>x[0]).join('').toUpperCase().slice(0,2);}
 function agentById(id){return AGENTS.find(a=>a.id===id);}
 function colById(id){return COLUMNS.find(c=>c.id===id);}
+function isWon(l){const c=colById(l.status);return !!c&&c.outcome==='won';}
+function isLost(l){const c=colById(l.status);return !!c&&c.outcome==='lost';}
+function isClosedLead(l){return isWon(l)||isLost(l);}
+// Erkennt Gewonnen/Verloren-Spalten auch dann zuverlaessig, wenn die interne ID
+// nicht (mehr) "won"/"lost" lautet - z.B. weil die Spalte ueber "Liste hinzufuegen"
+// neu angelegt wurde. Fallback: Name der Spalte ("Gewonnen"/"Verloren").
+function normalizeColumns(){
+  COLUMNS.forEach(c=>{
+    if(c.outcome)return;
+    const n=(c.name||'').trim().toLowerCase();
+    if(n==='gewonnen')c.outcome='won';
+    else if(n==='verloren')c.outcome='lost';
+  });
+}
+normalizeColumns();
 function labelById(id){return LABELS.find(l=>l.id===id);}
 function fmtDate(d){if(!d)return'';const p=d.split('-');return`${p[2]}.${p[1]}.${p[0]}`;}
 function daysUntil(d){if(!d)return null;const diff=(new Date(d)-new Date(TODAY))/86400000;return Math.round(diff);}
@@ -643,7 +660,7 @@ function getFilteredLeads(){
 function renderStats(){
   const fl=getFilteredLeads();
   const total=fl.length;
-  const won=fl.filter(l=>l.status==='won').length;
+  const won=fl.filter(l=>isWon(l)).length;
   const overdue=fl.filter(l=>l.followup&&daysUntil(l.followup)<0).length;
   const rate=total?Math.round(won/total*100):0;
   const forecastSum=fl.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
@@ -697,6 +714,14 @@ function renderBoard(){
       <div class="col-color-row">
         ${Object.keys(COLOR_HEX).map(c=>`<div class="col-color-dot ${col.color===c?'selected':''}" style="background:${COLOR_HEX[c]}" onclick="setColumnColor('${col.id}','${c}')"></div>`).join('')}
       </div>
+      <div class="popover-divider"></div>
+      <span class="small-label">Typ (für Auswertungen)</span>
+      <select class="col-type-select" onchange="setColumnOutcome('${col.id}',this.value)" onclick="event.stopPropagation()">
+        <option value="" ${!col.outcome?'selected':''}>Normal</option>
+        <option value="won" ${col.outcome==='won'?'selected':''}>Gewonnen</option>
+        <option value="lost" ${col.outcome==='lost'?'selected':''}>Verloren</option>
+      </select>
+      <div class="popover-divider"></div>
       <div class="col-menu-item danger" onclick="deleteColumn('${col.id}')"><i class="ti ti-trash"></i> Liste löschen</div>
     </div>`:'';
     const nameHtml=isEditing
@@ -749,8 +774,8 @@ function renderDashboard(){
   const total=dl.length;
   const contacted=dl.filter(l=>l.status!=='open').length;
   const overdue=dl.filter(l=>l.followup&&daysUntil(l.followup)<0).length;
-  const won=dl.filter(l=>l.status==='won').length;
-  const lost=dl.filter(l=>l.status==='lost').length;
+  const won=dl.filter(l=>isWon(l)).length;
+  const lost=dl.filter(l=>isLost(l)).length;
   const closedCount=won+lost;
   const winRateClosed=closedCount?Math.round(won/closedCount*100):null;
   const forecastSum=dl.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
@@ -791,7 +816,7 @@ function renderDashboard(){
   const agentPool=activeDashboardAgentFilter==='all'?AGENTS:AGENTS.filter(a=>a.id===activeDashboardAgentFilter);
   const agentData=agentPool.map(a=>{
     const agentLeads=dl.filter(l=>(l.members||[]).includes(a.id));
-    return {a,count:agentLeads.length,won:agentLeads.filter(l=>l.status==='won').length,forecast:agentLeads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0)};
+    return {a,count:agentLeads.length,won:agentLeads.filter(l=>isWon(l)).length,forecast:agentLeads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0)};
   });
   const agentMax=Math.max(1,...agentData.map(x=>x.forecast));
   const agentBarHtml=agentData.map(x=>`
@@ -805,7 +830,7 @@ function renderDashboard(){
     </div>`).join('');
 
   // RMA-Risiko: aktive Leads, deren Versand-SKU eine hohe Reklamationsquote hat
-  const riskLeads=dl.filter(l=>l.status!=='won'&&l.status!=='lost').map(l=>{
+  const riskLeads=dl.filter(l=>!isClosedLead(l)).map(l=>{
     const skuHit=l.shipPrinter.skus.map(s=>s.sku).filter(Boolean).map(sku=>ARTICLES.find(a=>a.sku===sku)).find(a=>a&&a.crRma>=5);
     return skuHit?{lead:l,article:skuHit}:null;
   }).filter(Boolean);
@@ -818,7 +843,7 @@ function renderDashboard(){
       <span class="due-badge due-overdue">${x.article.crRma}% RMA</span>
     </div>`).join(''):'<p style="font-size:12px;color:var(--text3)">Keine aktiven Leads mit riskanter SKU. Alles im grünen Bereich.</p>';
 
-  const topForecast=[...dl].filter(l=>l.status!=='won'&&l.status!=='lost'&&l.forecast)
+  const topForecast=[...dl].filter(l=>!isClosedLead(l)&&l.forecast)
     .sort((a,b)=>(parseFloat(b.forecast)||0)-(parseFloat(a.forecast)||0)).slice(0,5);
   const topForecastHtml=topForecast.length?topForecast.map(l=>`
     <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${l.id})},50)">
@@ -840,7 +865,7 @@ function renderDashboard(){
     </div>`).join(''):'<p style="font-size:12px;color:var(--text3)">Keine überfälligen Follow-ups.</p>';
 
   // Verlust-Analyse: aus welcher Phase Leads verloren gehen
-  const lostLeads=dl.filter(l=>l.status==='lost');
+  const lostLeads=dl.filter(l=>isLost(l));
   const lossByStage={};
   lostLeads.forEach(l=>{
     const key=l.closedFromStage||'unknown';
@@ -861,7 +886,7 @@ function renderDashboard(){
   }).join(''):'<p style="font-size:12px;color:var(--text3)">Noch keine verlorenen Leads.</p>';
 
   // Finanzielle Auswirkung: Forecast gewonnen vs. verloren, Investition gesamt vs. in verlorene Leads, Netto-Effekt
-  const forecastWon=dl.filter(l=>l.status==='won').reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
+  const forecastWon=dl.filter(l=>isWon(l)).reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
   const forecastLost=lostLeads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
   const investLost=lostLeads.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.price)||0),0),0);
   const netEffect=forecastWon-investLost;
@@ -1202,7 +1227,8 @@ function onCardDragLeave(e){
 }
 // Erfasst automatisch, aus welcher Stufe ein Lead gewonnen/verloren wurde (fuer die Verlust-/Gewinn-Analyse)
 function trackClosedStage(lead,oldStatus,newStatus){
-  if((newStatus==='won'||newStatus==='lost')&&oldStatus!==newStatus){
+  const newCol=colById(newStatus);
+  if(newCol&&(newCol.outcome==='won'||newCol.outcome==='lost')&&oldStatus!==newStatus){
     lead.closedFromStage=oldStatus;
     lead.closedAt=nowISO();
   }
@@ -1314,6 +1340,12 @@ function setColumnColor(id,color){
   colMenuOpenId=null;
   saveState();
   renderBoard();
+}
+function setColumnOutcome(id,val){
+  const col=COLUMNS.find(c=>c.id===id);
+  if(col)col.outcome=val||undefined;
+  saveState();
+  renderDashboard();
 }
 function deleteColumn(id){
   if(COLUMNS.length<=1){
