@@ -365,7 +365,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         </div>
       </div>
       <div class="filterbar">
-        <span class="filterbar-label">Agent</span>
+        <span class="filterbar-label">Mitarbeiter</span>
         <div id="agentChips"></div>
       </div>
       <div class="board-wrap">
@@ -398,7 +398,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         </div>
       </div>
       <div class="filterbar">
-        <span class="filterbar-label">Agent</span>
+        <span class="filterbar-label">Mitarbeiter</span>
         <div id="tasksAgentChips"></div>
       </div>
       <div class="view-scroll" id="tasksViewContent"></div>
@@ -410,7 +410,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
           <div class="page-icon-badge" style="background:var(--gray)"><i class="ti ti-settings"></i></div>
           <div>
             <div class="page-hdr-title">Einstellungen</div>
-            <div class="page-hdr-sub">Agents, Labels und Listen für dieses Projekt verwalten</div>
+            <div class="page-hdr-sub">Mitarbeiter, Labels und Listen für dieses Projekt verwalten</div>
           </div>
         </div>
       </div>
@@ -883,7 +883,7 @@ function renderDashboard(){
         <div class="chart-legend">${labelLegend}</div>
       </div>
       <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Forecast je Agent</div>
+        <div class="section-hdr" style="margin-top:0">Forecast je Mitarbeiter</div>
         ${agentBarHtml}
       </div>
     </div>
@@ -1079,11 +1079,11 @@ function renderSettings(){
   document.getElementById('settingsContent').innerHTML=`
     <div class="dash-grid">
       <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Agents</div>
+        <div class="section-hdr" style="margin-top:0">Mitarbeiter</div>
         <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Verantwortlich für Leads, wählbar als Mitglieder auf Karten.</p>
         ${agentsHtml}
         <div class="add-check-row" style="margin-top:10px">
-          <input type="text" id="newAgentName" placeholder="Name neuer Agent…" onkeydown="if(event.key==='Enter')createAgent()">
+          <input type="text" id="newAgentName" placeholder="Name neuer Mitarbeiter…" onkeydown="if(event.key==='Enter')createAgent()">
           <button class="btn btn-sm btn-primary" onclick="createAgent()"><i class="ti ti-plus"></i></button>
         </div>
       </div>
@@ -1117,7 +1117,7 @@ function confirmEditAgent(id){
 }
 function deleteAgent(id){
   const a=agentById(id);
-  if(!confirm(`Agent "${a?a.name:''}" wirklich entfernen? Wird von allen Leads als Mitglied entfernt.`))return;
+  if(!confirm(`Mitarbeiter "${a?a.name:''}" wirklich entfernen? Wird von allen Leads als Mitglied entfernt.`))return;
   AGENTS=AGENTS.filter(x=>x.id!==id);
   leads.forEach(l=>{l.members=(l.members||[]).filter(m=>m!==id);});
   saveState();renderSettings();
