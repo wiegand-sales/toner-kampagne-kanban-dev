@@ -31,6 +31,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .sidebar-project{display:flex;align-items:center;gap:9px;padding:6px 8px 16px;border-bottom:1px solid var(--border);margin-bottom:14px;}
 .sidebar-project-name{font-size:14px;font-weight:700;}
 .sidebar-project-sub{font-size:11px;color:var(--text3);}
+.sidebar-user-row{padding:6px 8px 14px;margin-bottom:8px;border-bottom:1px solid var(--border);}
+.sidebar-user-row label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
 .sidebar-nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r-md);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;margin-bottom:2px;}
 .sidebar-nav-item i{font-size:17px;flex-shrink:0;}
 .sidebar-nav-item:hover{background:var(--bg2);color:var(--text);}
@@ -41,7 +43,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .view{display:none;flex-direction:column;flex:1;overflow:hidden;}
 .view.active{display:flex;}
 .view-scroll{flex:1;overflow-y:auto;padding:22px;}
-.page-hdr{padding:18px 22px;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0;}
+.page-hdr{padding:18px 22px;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:26px;}
+.page-hdr-left{display:flex;align-items:center;gap:12px;}
+.page-icon-badge{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;flex-shrink:0;}
 .page-hdr-title{font-size:18px;font-weight:700;}
 .page-hdr-sub{font-size:12px;color:var(--text2);margin-top:2px;}
 .dash-kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;}
@@ -119,11 +123,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .staging-bottombar a{color:#fff;text-decoration:underline;font-weight:700;}
 
 /* TOPBAR */
-.topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:14px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;flex-wrap:wrap;gap:10px;}
+.topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:18px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;flex-wrap:wrap;gap:10px;}
 .tb-left{display:flex;align-items:center;gap:10px;}
 .tb-dot{width:9px;height:9px;border-radius:50%;background:var(--purple);}
-.tb-title{font-size:16px;font-weight:700;}
-.tb-sub{font-size:12px;color:var(--text2);}
+.tb-title{font-size:18px;font-weight:700;}
+.tb-sub{font-size:12px;color:var(--text2);margin-top:2px;}
 .tb-stats{display:flex;gap:18px;margin-left:14px;}
 .tb-stat{text-align:center;}
 .tb-stat-val{font-size:16px;font-weight:700;}
@@ -310,6 +314,10 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         <div class="sidebar-project-sub">FlowBoard</div>
       </div>
     </div>
+    <div class="sidebar-user-row">
+      <label>Ich bin</label>
+      <select id="currentUserSelect" class="me-select" onchange="currentUser=this.value" style="width:100%"></select>
+    </div>
     <div class="sidebar-nav-item" id="navDashboard" onclick="switchView('dashboard')"><i class="ti ti-layout-dashboard"></i> SFP: Toner</div>
     <div class="sidebar-nav-item" id="navBoard" onclick="switchView('board')"><i class="ti ti-layout-kanban"></i> Board</div>
     <div class="sidebar-nav-item" id="navCrrma" onclick="switchView('crrma')"><i class="ti ti-report-money"></i> CR RMA</div>
@@ -317,13 +325,17 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     <div class="sidebar-nav-item" id="navSettings" onclick="switchView('settings')"><i class="ti ti-settings"></i> Einstellungen</div>
     <div class="sidebar-footer">Weitere Projekte folgen hier bald.</div>
   </div>
-
   <div class="main-area">
 
     <div class="view" id="viewDashboard">
       <div class="page-hdr">
-        <div class="page-hdr-title">SFP</div>
-        <div class="page-hdr-sub">Überblick über Projekt: Toner</div>
+        <div class="page-hdr-left">
+          <div class="page-icon-badge" style="background:var(--purple)"><i class="ti ti-layout-dashboard"></i></div>
+          <div>
+            <div class="page-hdr-title">SFP</div>
+            <div class="page-hdr-sub">Überblick über Projekt: Toner</div>
+          </div>
+        </div>
       </div>
       <div class="filterbar">
         <span class="filterbar-label">Mitarbeiter</span>
@@ -347,8 +359,6 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
           <div class="tb-stats" id="statsBar"></div>
         </div>
         <div class="tb-right">
-          <label style="margin:0;white-space:nowrap">Ich bin:</label>
-          <select id="currentUserSelect" class="me-select" onchange="currentUser=this.value"></select>
           <div class="search-box"><i class="ti ti-search"></i><input type="text" id="searchInput" placeholder="Firma, Kontakt, Kd-Nr." oninput="renderBoard()"></div>
           <button class="btn" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</button>
           <button class="btn btn-primary" onclick="openLeadModal(null)"><i class="ti ti-plus"></i> Neuer Lead</button>
@@ -364,10 +374,13 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     </div>
 
     <div class="view" id="viewCrrma">
-      <div class="page-hdr" style="display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div class="page-hdr-title">CR RMA</div>
-          <div class="page-hdr-sub">Artikel-Stammdaten mit Reklamationsquoten (RMA/RGA) je SKU</div>
+      <div class="page-hdr">
+        <div class="page-hdr-left">
+          <div class="page-icon-badge" style="background:var(--green)"><i class="ti ti-report-money"></i></div>
+          <div>
+            <div class="page-hdr-title">CR RMA</div>
+            <div class="page-hdr-sub">Artikel-Stammdaten mit Reklamationsquoten (RMA/RGA) je SKU</div>
+          </div>
         </div>
         <div class="search-box"><i class="ti ti-search"></i><input type="text" id="crrmaSearch" placeholder="SKU oder Titel suchen…" oninput="renderCrRma()"></div>
       </div>
@@ -376,8 +389,13 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 
     <div class="view" id="viewTasks">
       <div class="page-hdr">
-        <div class="page-hdr-title">Aufgaben</div>
-        <div class="page-hdr-sub">Leads mit Follow-up-Datum, gruppiert nach Fälligkeit</div>
+        <div class="page-hdr-left">
+          <div class="page-icon-badge" style="background:var(--amber)"><i class="ti ti-list-check"></i></div>
+          <div>
+            <div class="page-hdr-title">Aufgaben</div>
+            <div class="page-hdr-sub">Leads mit Follow-up-Datum, gruppiert nach Fälligkeit</div>
+          </div>
+        </div>
       </div>
       <div class="filterbar">
         <span class="filterbar-label">Agent</span>
@@ -388,8 +406,13 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 
     <div class="view" id="viewSettings">
       <div class="page-hdr">
-        <div class="page-hdr-title">Einstellungen</div>
-        <div class="page-hdr-sub">Agents, Labels und Listen für dieses Projekt verwalten</div>
+        <div class="page-hdr-left">
+          <div class="page-icon-badge" style="background:var(--gray)"><i class="ti ti-settings"></i></div>
+          <div>
+            <div class="page-hdr-title">Einstellungen</div>
+            <div class="page-hdr-sub">Agents, Labels und Listen für dieses Projekt verwalten</div>
+          </div>
+        </div>
       </div>
       <div class="view-scroll" id="settingsContent"></div>
     </div>
