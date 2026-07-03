@@ -250,6 +250,12 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .label-row-editor,.member-row-editor{display:flex;flex-wrap:wrap;gap:6px;align-items:center;position:relative;}
 .member-chip{display:flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:3px 9px 3px 3px;font-size:12px;}
 .checklist-progress-track{height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:8px;}
+.lead-timeline{display:flex;align-items:flex-start;overflow-x:auto;padding:8px 2px 4px;}
+.timeline-point{display:flex;flex-direction:column;align-items:center;flex-shrink:0;min-width:64px;}
+.timeline-dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--bg);box-shadow:0 0 0 1px var(--border2);flex-shrink:0;}
+.timeline-label{font-size:10px;font-weight:600;color:var(--text2);text-align:center;margin-top:6px;line-height:1.4;white-space:nowrap;}
+.timeline-label span{display:block;font-size:10px;font-weight:400;color:var(--text3);}
+.timeline-line{height:2px;background:var(--border2);flex:1;margin-top:5px;min-width:20px;}
 .checklist-progress-fill{height:100%;background:var(--teal);border-radius:3px;transition:width .15s;}
 .check-item-row{display:flex;align-items:center;gap:8px;padding:4px 0;}
 .check-item-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--teal);cursor:pointer;flex-shrink:0;}
@@ -556,6 +562,9 @@ function normalizeLeads(){
     if(l.revenue===undefined) l.revenue='';
     if(!l.files) l.files=[];
     if(!l.tasks) l.tasks=[];
+    if(!l.followupHistory){
+      l.followupHistory = l.followup ? [{date:l.followup,setAt:l.firstContact?l.firstContact+'T00:00:00':nowISO()}] : [];
+    }
     if(!l.checklist) l.checklist=[];
     if(!l.activity) l.activity=[];
     if(!l.members) l.members=[];
@@ -601,7 +610,29 @@ normalizeColumns();
 function labelById(id){return LABELS.find(l=>l.id===id);}
 function fmtDate(d){if(!d)return'';const p=d.split('-');return`${p[2]}.${p[1]}.${p[0]}`;}
 function daysUntil(d){if(!d)return null;const diff=(new Date(d)-new Date(TODAY))/86400000;return Math.round(diff);}
-function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],contact:'',phone:'',email:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',forecast:'',notes:'',checklist:[],activity:[],files:[],tasks:[],order:Date.now()};}
+function renderFollowupTimeline(lead){
+  if(!lead.firstContact){
+    return '<p style="font-size:11px;color:var(--text3)">Noch kein Datum Erstkontakt gesetzt – der Zeitstrahl startet, sobald das erfasst ist.</p>';
+  }
+  const points=[{label:'Erstkontakt',date:lead.firstContact,color:'var(--gray)'}];
+  (lead.followupHistory||[]).forEach((h,i)=>{
+    points.push({label:(lead.followupHistory.length>1?'Follow-up '+(i+1):'Follow-up'),date:h.date,color:'var(--amber)'});
+  });
+  const daysSince=Math.abs(daysUntil(lead.firstContact));
+  points.push({label:'Heute',date:null,color:'var(--purple)',sub:daysSince+' Tag'+(daysSince===1?'':'e')});
+
+  let html='<div class="lead-timeline">';
+  points.forEach((p,i)=>{
+    html+=`<div class="timeline-point">
+      <div class="timeline-dot" style="background:${p.color}"></div>
+      <div class="timeline-label">${p.label}<br><span>${p.date?fmtDate(p.date):p.sub}</span></div>
+    </div>`;
+    if(i<points.length-1)html+='<div class="timeline-line"></div>';
+  });
+  html+='</div>';
+  return html;
+}
+function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],contact:'',phone:'',email:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',followupHistory:[],forecast:'',notes:'',checklist:[],activity:[],files:[],tasks:[],order:Date.now()};}
 function openGoogleSearch(){
   const q=(document.getElementById('fCompany')?document.getElementById('fCompany').value:draftLead.company).trim();
   if(!q)return;
@@ -1734,6 +1765,11 @@ function renderLeadModal(){
             <div><label>Follow-up-Datum</label><input type="date" value="${draftLead.followup}" onchange="draftLead.followup=this.value" style="width:100%"></div>
           </div>
 
+          <div style="margin-top:4px">
+            <span class="small-label">Zeitstrahl</span>
+            ${renderFollowupTimeline(draftLead)}
+          </div>
+
           <div class="label-row-editor" style="margin-top:10px">
             <span class="small-label" style="width:100%;margin-bottom:0">Labels</span>
           </div>
@@ -2011,9 +2047,15 @@ function saveLead(){
       draftLead.activity.unshift({id:Date.now()+1,type:'activity',author:currentUser,text:`Status geändert: ${colById(original.status).name} → ${colById(draftLead.status).name}`,date:nowISO()});
       trackClosedStage(draftLead,original.status,draftLead.status);
     }
+    if(original.followup!==draftLead.followup&&draftLead.followup){
+      draftLead.followupHistory=[...(draftLead.followupHistory||[]),{date:draftLead.followup,setAt:nowISO()}];
+    }
     Object.assign(original,draftLead);
   }else{
     draftLead.id=nextId++;
+    if(draftLead.followup){
+      draftLead.followupHistory=[{date:draftLead.followup,setAt:nowISO()}];
+    }
     draftLead.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:'Lead erstellt',date:nowISO()});
     leads.push(draftLead);
   }
