@@ -362,6 +362,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     <div class="sidebar-nav-item" id="navBoard" onclick="switchView('board')"><i class="ti ti-layout-kanban"></i> Board</div>
     <div class="sidebar-nav-item" id="navCrrma" onclick="switchView('crrma')"><i class="ti ti-report-money"></i> CR RMA</div>
     <div class="sidebar-nav-item" id="navTasks" onclick="switchView('tasks')"><i class="ti ti-list-check"></i> Aufgaben</div>
+    <div class="sidebar-nav-item" id="navActivities" onclick="switchView('activities')"><i class="ti ti-history"></i> Aktivitäten</div>
     <div class="sidebar-nav-item" id="navSettings" onclick="switchView('settings')"><i class="ti ti-settings"></i> Einstellungen</div>
     <div class="sidebar-footer">Weitere Projekte folgen hier bald.</div>
   </div>
@@ -451,6 +452,20 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         <div id="tasksAgentChips"></div>
       </div>
       <div class="view-scroll" id="tasksViewContent"></div>
+    </div>
+
+    <div class="view" id="viewActivities">
+      <div class="page-hdr">
+        <div class="page-hdr-left">
+          <div class="page-icon-badge" style="background:var(--teal)"><i class="ti ti-history"></i></div>
+          <div>
+            <div class="page-hdr-title">Aktivitäten</div>
+            <div class="page-hdr-sub">Vollständiges Protokoll aller Änderungen, durchsuchbar nach Kunde</div>
+          </div>
+        </div>
+        <div class="search-box"><i class="ti ti-search"></i><input type="text" id="activitySearch" placeholder="Firma oder Kundennummer suchen…" oninput="renderActivities()"></div>
+      </div>
+      <div class="view-scroll" id="activitiesContent"></div>
     </div>
 
     <div class="view" id="viewSettings">
@@ -793,7 +808,7 @@ function setAgentFilter(id){activeAgentFilter=id;renderAgentChips();renderBoard(
 // ── NAVIGATION ──
 function switchView(view){
   currentView=view;
-  ['dashboard','board','crrma','tasks','settings'].forEach(v=>{
+  ['dashboard','board','crrma','tasks','activities','settings'].forEach(v=>{
     document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.toggle('active',v===view);
     document.getElementById('nav'+v.charAt(0).toUpperCase()+v.slice(1)).classList.toggle('active',v===view);
   });
@@ -801,6 +816,7 @@ function switchView(view){
   if(view==='board'){renderLabelChips();renderBoard();}
   if(view==='crrma')renderCrRma();
   if(view==='tasks'){renderTasksAgentChips();renderTasksView();}
+  if(view==='activities')renderActivities();
   if(view==='settings')renderSettings();
 }
 
@@ -1350,29 +1366,62 @@ function renderCrRma(){
     </div>`;
 }
 
+// ── AKTIVITÄTEN: vollständiges, durchsuchbares Protokoll ──
+function renderActivities(){
+  const q=(document.getElementById('activitySearch').value||'').toLowerCase().trim();
+  const matchingLeads=q?leads.filter(l=>l.company.toLowerCase().includes(q)||(l.customerNumber||'').toLowerCase().includes(q)):[];
+
+  // Kunden-Übersichtskarten bei Treffer: zeigt u.a. wie oft das Follow-up-Datum geändert wurde
+  let leadCardsHtml='';
+  if(q){
+    if(matchingLeads.length){
+      leadCardsHtml=matchingLeads.map(l=>{
+        const fuChanges=(l.followupHistory||[]).length;
+        const statusChanges=(l.activity||[]).filter(a=>a.type==='activity'&&a.text.indexOf('Status geändert:')===0).length;
+        return `<div class="info-section" style="cursor:pointer" onclick="switchView('board');setTimeout(function(){openLeadModal(${l.id})},50)">
+          <div class="section-hdr" style="margin-top:0">${l.company} <span style="font-weight:400;color:var(--text3);font-size:11px">${l.customerNumber||''}</span></div>
+          <div class="impact-row"><span>Follow-up-Datum geändert</span><strong style="color:var(--purple)">${fuChanges}×</strong></div>
+          <div class="impact-row"><span>Statuswechsel</span><strong style="color:var(--teal-dark)">${statusChanges}×</strong></div>
+          <div class="impact-row"><span>Aktueller Status</span><strong>${colById(l.status)?colById(l.status).name:'–'}</strong></div>
+        </div>`;
+      }).join('');
+    }else{
+      leadCardsHtml='<div class="info-section"><p style="font-size:12px;color:var(--text3)">Kein Kunde mit diesem Namen oder dieser Kundennummer gefunden.</p></div>';
+    }
+  }
+
+  // Vollständiges Protokoll (gefiltert, falls Suche aktiv; sonst alle)
+  const relevantLeads=q?matchingLeads:leads;
+  const entries=[];
+  relevantLeads.forEach(l=>{
+    (l.activity||[]).forEach(a=>{
+      entries.push({lead:l,text:a.text,date:a.date,type:a.type,author:a.author});
+    });
+  });
+  entries.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const protocolHtml=entries.length?entries.map(e=>{
+    const ag=agentById(e.author);
+    return `<div class="dash-lead-row" style="align-items:flex-start" onclick="switchView('board');setTimeout(function(){openLeadModal(${e.lead.id})},50)">
+      <div style="flex:1;min-width:0">
+        <span style="font-weight:600;font-size:13px">${e.lead.company}</span>
+        <span style="font-size:12px;color:var(--text2)"> ${e.type==='comment'?'– Kommentar: ':'– '}${e.text}</span>
+      </div>
+      <span style="font-size:11px;color:var(--text3);flex-shrink:0;white-space:nowrap">${ag?ag.name:'?'} · ${fmtDateTime(e.date)}</span>
+    </div>`;
+  }).join(''):'<p style="font-size:12px;color:var(--text3)">Keine Einträge gefunden.</p>';
+
+  document.getElementById('activitiesContent').innerHTML=`
+    ${q?`<div class="dash-grid" style="margin-bottom:16px">${leadCardsHtml}</div>`:''}
+    <div class="info-section">
+      <div class="section-hdr" style="margin-top:0">Protokoll ${q?`für "${q}"`:'(alle Kunden)'} <span style="font-weight:400;color:var(--text3);font-size:11px">${entries.length} Einträge</span></div>
+      ${protocolHtml}
+    </div>`;
+}
+
 function renderSettings(){
   const usedAgentColors=AGENTS.map(a=>a.color);
   const allColorKeys=Object.keys(COLOR_HEX);
   const freeAgentColor=allColorKeys.find(c=>!usedAgentColors.includes(c))||allColorKeys[0];
-
-  // Systemweites Audit-Log: alle Aktivitaeten ueber alle Leads hinweg, neueste zuerst
-  const auditEntries=[];
-  leads.forEach(l=>{
-    (l.activity||[]).forEach(a=>{
-      auditEntries.push({lead:l,text:a.text,date:a.date,type:a.type,author:a.author});
-    });
-  });
-  auditEntries.sort((a,b)=>new Date(b.date)-new Date(a.date));
-  const auditHtml=auditEntries.slice(0,25).map(e=>{
-    const ag=agentById(e.author);
-    return `<div class="settings-row" style="align-items:flex-start">
-      <div style="flex:1;min-width:0">
-        <span style="font-weight:600;font-size:12px">${e.lead.company}</span>
-        <span style="font-size:12px;color:var(--text2)">${e.type==='comment'?'kommentierte':''}: ${e.text.length>90?e.text.slice(0,90)+'…':e.text}</span>
-      </div>
-      <span style="font-size:10px;color:var(--text3);flex-shrink:0;white-space:nowrap">${ag?ag.name:'?'} · ${fmtDateTime(e.date)}</span>
-    </div>`;
-  }).join('')||'<p style="font-size:12px;color:var(--text3)">Noch keine Aktivität erfasst.</p>';
 
   const agentsHtml=AGENTS.map(a=>{
     if(editingAgentId===a.id){
@@ -1455,11 +1504,6 @@ function renderSettings(){
         <p style="font-size:12px;color:var(--text2);line-height:1.6">Alle Daten liegen aktuell lokal im Browser (localStorage) dieses Geräts. Eine Datenbank-Anbindung (Supabase) für Team-weiten Zugriff ist als nächster Schritt geplant.</p>
         <button class="btn btn-sm" style="margin-top:8px" onclick="exportFullBackup()"><i class="ti ti-database-export"></i> Alle Daten als Backup exportieren (JSON)</button>
       </div>
-    </div>
-
-    <div class="info-section">
-      <div class="section-hdr" style="margin-top:0">System-Aktivität <span style="font-weight:400;color:var(--text3);font-size:11px">(letzte 25 Einträge über alle Leads)</span></div>
-      ${auditHtml}
     </div>`;
 }
 
