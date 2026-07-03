@@ -129,7 +129,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .crrma-dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
 .crrma-table{display:flex;flex-direction:column;}
 .crrma-row{display:grid;grid-template-columns:1.2fr 1.8fr 0.8fr 0.8fr 0.8fr 0.9fr 0.9fr 34px;gap:8px;align-items:center;padding:4px 0;}
-.crrma-margin{font-size:13px;font-weight:600;padding:6px 8px;}
+.crrma-margin-input{font-size:13px;font-weight:600;width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-family:inherit;}
 .crrma-sortable{cursor:pointer;user-select:none;}
 .crrma-sortable:hover{color:var(--purple);}
 .crrma-row.crrma-hdr{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.03em;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:4px;}
@@ -1262,6 +1262,16 @@ function updateArticleField(id,field,val){
   if(!a)return;
   a[field]=(field==='sku'||field==='title')?val:(val===''?'':parseFloat(val));
 }
+function updateArticleMargin(id,val){
+  const a=ARTICLES.find(x=>x.id===id);
+  if(!a)return;
+  const ek=parseFloat(a.ek)||0;
+  const margin=parseFloat(val);
+  if(isNaN(margin))return;
+  a.vk=Math.round((ek+margin)*100)/100;
+  saveState();
+  renderCrRma();
+}
 function deleteArticle(id){
   const a=ARTICLES.find(x=>x.id===id);
   if(!confirm(`Artikel "${a?a.sku:''}" wirklich löschen?`))return;
@@ -1307,9 +1317,9 @@ function renderCrRma(){
     <div class="crrma-row">
       <input type="text" value="${a.sku}" placeholder="SKU" oninput="updateArticleField(${a.id},'sku',this.value);saveState()">
       <input type="text" value="${a.title}" placeholder="Titel" oninput="updateArticleField(${a.id},'title',this.value);saveState()">
-      <input type="number" step="0.01" value="${a.ek}" placeholder="0.00" oninput="updateArticleField(${a.id},'ek',this.value);saveState();renderCrRma()">
-      <input type="number" step="0.01" value="${a.vk}" placeholder="0.00" oninput="updateArticleField(${a.id},'vk',this.value);saveState();renderCrRma()">
-      <div class="crrma-margin" style="color:${margin>=0?'var(--green-dark)':'var(--red)'}">${fmtEur(margin)||'0 €'}</div>
+      <input type="number" step="0.01" value="${a.ek}" placeholder="0.00" onchange="updateArticleField(${a.id},'ek',this.value);saveState();renderCrRma()">
+      <input type="number" step="0.01" value="${a.vk}" placeholder="0.00" onchange="updateArticleField(${a.id},'vk',this.value);saveState();renderCrRma()">
+      <input type="number" step="0.01" class="crrma-margin-input" style="color:${margin>=0?'var(--green-dark)':'var(--red)'}" value="${margin.toFixed(2)}" title="Marge ändern → VK wird automatisch neu berechnet (EK bleibt fix)" onchange="updateArticleMargin(${a.id},this.value)">
       <input type="number" step="0.1" class="${crRmaCellClass(a.crRma)}" value="${a.crRma}" placeholder="0.0" oninput="updateArticleField(${a.id},'crRma',this.value);saveState();this.className=crRmaCellClass(parseFloat(this.value))">
       <input type="number" step="0.1" class="${crRmaCellClass(a.crRga)}" value="${a.crRga}" placeholder="0.0" oninput="updateArticleField(${a.id},'crRga',this.value);saveState();this.className=crRmaCellClass(parseFloat(this.value))">
       <button class="check-item-del" onclick="deleteArticle(${a.id})" title="Löschen"><i class="ti ti-trash"></i></button>
