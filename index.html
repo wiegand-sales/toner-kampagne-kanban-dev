@@ -313,6 +313,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .comment-bubble{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-md);padding:8px 10px;flex:1;min-width:0;}
 .comment-author{font-size:12px;font-weight:600;}
 .comment-date{font-size:10px;color:var(--text3);margin-left:6px;font-weight:400;}
+.backdated-tag{font-size:9px;color:var(--amber-dark);background:var(--amber-bg);border-radius:8px;padding:1px 6px;margin-left:6px;display:inline-flex;align-items:center;gap:3px;font-weight:600;}
 .comment-text{font-size:13px;margin-top:2px;word-wrap:break-word;}
 .activity-bubble{background:var(--bg2);}
 .activity-text{font-size:12px;margin-top:2px;color:var(--text2);font-style:italic;word-wrap:break-word;}
@@ -537,12 +538,30 @@ let ARTICLES=[
   {id:8,sku:'TN-1011-CMYK',title:'HP Color Toner Farbset',ek:19.90,vk:42.90,crRma:3.9,crRga:1.6},
 ];
 
+// ── PROJEKT-RAHMEN: Zeitrahmen, Budget, Meilensteine, Risiken ──
+let PROJECT={
+  startDate:'2026-06-01',
+  endDate:'2026-12-31',
+  budget:10000,
+  milestones:[
+    {id:1,name:'500 Leads vorqualifiziert',targetDate:'2026-07-31',done:false},
+    {id:2,name:'100 Toner-Muster verschickt',targetDate:'2026-08-31',done:false},
+    {id:3,name:'50 Abschlüsse erreicht',targetDate:'2026-10-31',done:false},
+  ],
+  risks:[
+    {id:1,text:'Lieferant liefert Toner nicht rechtzeitig',severity:'high',open:true},
+    {id:2,text:'Team-Kapazität reicht bei Urlaubszeit nicht aus',severity:'medium',open:true},
+  ]
+};
+let nextMilestoneId=4;
+let nextRiskId=3;
+
 // ── PERSISTENZ (localStorage – Zwischenlösung bis Supabase angebunden ist) ──
 const STORAGE_KEY='toner_kanban_state_v1';
 function saveState(){
   try{
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      leads, COLUMNS, LABELS, AGENTS, ARTICLES, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId, nextArticleId
+      leads, COLUMNS, LABELS, AGENTS, ARTICLES, PROJECT, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId, nextArticleId, nextMilestoneId, nextRiskId
     }));
   }catch(e){ console.warn('Speichern fehlgeschlagen:', e); }
 }
@@ -556,12 +575,15 @@ function loadState(){
     if(data.LABELS)LABELS=data.LABELS;
     if(data.AGENTS)AGENTS=data.AGENTS;
     if(data.ARTICLES)ARTICLES=data.ARTICLES;
+    if(data.PROJECT)PROJECT=Object.assign({milestones:[],risks:[]},data.PROJECT);
     if(data.nextId)nextId=data.nextId;
     if(data.nextLabelId)nextLabelId=data.nextLabelId;
     if(data.nextPrinterId)nextPrinterId=data.nextPrinterId;
     if(data.nextColId)nextColId=data.nextColId;
     if(data.nextAgentId)nextAgentId=data.nextAgentId;
     if(data.nextArticleId)nextArticleId=data.nextArticleId;
+    if(data.nextMilestoneId)nextMilestoneId=data.nextMilestoneId;
+    if(data.nextRiskId)nextRiskId=data.nextRiskId;
     normalizeColumns();
     normalizeAgents();
     normalizeLeads();
@@ -1480,6 +1502,27 @@ function renderSettings(){
     </div>`;
   }).join(''):'<p style="font-size:12px;color:var(--text3)">Noch keine Labels angelegt.</p>';
 
+  const milestonesHtml=PROJECT.milestones.map(m=>{
+    const d=daysUntil(m.targetDate);
+    const overdue=!m.done&&d<0;
+    return `<div class="settings-row">
+      <input type="checkbox" ${m.done?'checked':''} onchange="toggleMilestone(${m.id})" style="width:16px;height:16px">
+      <div style="flex:1;font-size:13px;${m.done?'text-decoration:line-through;color:var(--text3)':''}">${m.name}</div>
+      <span class="due-badge ${m.done?'due-ok':(overdue?'due-overdue':'due-ok')}">${fmtDate(m.targetDate)}</span>
+      <button class="check-item-del" onclick="deleteMilestone(${m.id})"><i class="ti ti-trash"></i></button>
+    </div>`;
+  }).join('')||'<p style="font-size:12px;color:var(--text3)">Noch keine Meilensteine.</p>';
+
+  const riskSeverityLabel={high:'Hoch',medium:'Mittel',low:'Niedrig'};
+  const riskSeverityColor={high:'var(--red)',medium:'var(--amber-dark)',low:'var(--text3)'};
+  const risksHtml=PROJECT.risks.map(r=>`
+    <div class="settings-row">
+      <span class="due-badge" style="background:${riskSeverityColor[r.severity]}22;color:${riskSeverityColor[r.severity]}">${riskSeverityLabel[r.severity]}</span>
+      <div style="flex:1;font-size:13px;${!r.open?'text-decoration:line-through;color:var(--text3)':''}">${r.text}</div>
+      <input type="checkbox" ${!r.open?'checked':''} onchange="toggleRisk(${r.id})" title="Erledigt/behoben" style="width:16px;height:16px">
+      <button class="check-item-del" onclick="deleteRisk(${r.id})"><i class="ti ti-trash"></i></button>
+    </div>`).join('')||'<p style="font-size:12px;color:var(--text3)">Keine Risiken erfasst.</p>';
+
   document.getElementById('settingsContent').innerHTML=`
     <div class="dash-grid">
       <div class="info-section">
@@ -1509,6 +1552,41 @@ function renderSettings(){
         <div class="section-hdr" style="margin-top:0">Datenspeicherung</div>
         <p style="font-size:12px;color:var(--text2);line-height:1.6">Alle Daten liegen aktuell lokal im Browser (localStorage) dieses Geräts. Eine Datenbank-Anbindung (Supabase) für Team-weiten Zugriff ist als nächster Schritt geplant.</p>
         <button class="btn btn-sm" style="margin-top:8px" onclick="exportFullBackup()"><i class="ti ti-database-export"></i> Alle Daten als Backup exportieren (JSON)</button>
+      </div>
+    </div>
+
+    <div class="dash-row-1-1">
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Projekt-Zeitrahmen &amp; Budget</div>
+        <div class="field-row-2">
+          <div><label>Projektstart</label><input type="date" value="${PROJECT.startDate}" onchange="setProjectField('startDate',this.value)" style="width:100%"></div>
+          <div><label>Projektende</label><input type="date" value="${PROJECT.endDate}" onchange="setProjectField('endDate',this.value)" style="width:100%"></div>
+        </div>
+        <div class="field"><label>Gesamtbudget (EUR)</label><input type="number" min="0" step="100" value="${PROJECT.budget}" onchange="setProjectField('budget',parseFloat(this.value)||0)" style="width:100%"></div>
+        <p style="font-size:11px;color:var(--text3);margin-top:6px">Budget-Auslastung (Toner-Investition gesamt) siehst du im Dashboard.</p>
+      </div>
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Meilensteine</div>
+        ${milestonesHtml}
+        <div class="add-check-row" style="margin-top:10px;flex-wrap:wrap;gap:6px">
+          <input type="text" id="newMilestoneName" placeholder="Meilenstein…" style="flex:1;min-width:140px">
+          <input type="date" id="newMilestoneDate" style="width:150px">
+          <button class="btn btn-sm btn-primary" onclick="createMilestone()"><i class="ti ti-plus"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="section-hdr" style="margin-top:0">Projekt-Risiken <span style="font-weight:400;color:var(--text3);font-size:11px">(allgemein, nicht an einen einzelnen Lead gebunden)</span></div>
+      ${risksHtml}
+      <div class="add-check-row" style="margin-top:10px;flex-wrap:wrap;gap:6px">
+        <input type="text" id="newRiskText" placeholder="Risiko beschreiben…" style="flex:1;min-width:180px">
+        <select id="newRiskSeverity" style="width:110px">
+          <option value="high">Hoch</option>
+          <option value="medium" selected>Mittel</option>
+          <option value="low">Niedrig</option>
+        </select>
+        <button class="btn btn-sm btn-primary" onclick="createRisk()"><i class="ti ti-plus"></i></button>
       </div>
     </div>`;
 }
@@ -2011,7 +2089,7 @@ function renderLeadModal(){
       return `<div class="comment-item">
         <div class="comment-av" style="background:${COLOR_BG[a?a.color:'gray']};color:${COLOR_TEXT[a?a.color:'gray']}">${a?ini(a.name):'?'}</div>
         <div class="comment-bubble">
-          <span class="comment-author">${a?a.name:'Unbekannt'}</span><span class="comment-date">${fmtDateTime(item.date)}</span>
+          <span class="comment-author">${a?a.name:'Unbekannt'}</span><span class="comment-date">${fmtDateTime(item.date)}</span>${item.backdated?'<span class="backdated-tag" title="Nachträglich mit vergangenem Datum erfasst"><i class="ti ti-history" style="font-size:10px"></i> nacherfasst</span>':''}
           <div class="comment-text">${item.text}</div>
         </div>
       </div>`;
@@ -2137,6 +2215,10 @@ function renderLeadModal(){
         <div class="section-hdr" style="margin-top:0">Neuer Kommentar</div>
         <div class="field" style="margin-bottom:10px">
           <textarea id="commentInput" placeholder="Kommentar schreiben… (Strg+Enter zum Senden)" onkeydown="if((event.key==='Enter')&&(event.ctrlKey||event.metaKey))addComment()"></textarea>
+        </div>
+        <div class="field" style="margin-bottom:10px">
+          <label style="font-size:11px;color:var(--text3)">Datum <span style="font-weight:400">(leer lassen = jetzt; sonst Nacherfassung eines vergangenen Ereignisses)</span></label>
+          <input type="date" id="commentDateInput" max="${TODAY}" style="width:180px">
         </div>
         <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="addComment()"><i class="ti ti-send"></i> Kommentieren</button>
       </div>
@@ -2544,7 +2626,10 @@ function addComment(){
   const inp=document.getElementById('commentInput');
   const text=inp.value.trim();
   if(!text)return;
-  draftLead.activity.unshift({id:Date.now(),type:'comment',author:currentUser,text,date:nowISO()});
+  const dateInp=document.getElementById('commentDateInput');
+  const customDate=dateInp&&dateInp.value?dateInp.value:null;
+  const date=customDate?customDate+'T'+(new Date().toTimeString().slice(0,8)):nowISO();
+  draftLead.activity.unshift({id:Date.now(),type:'comment',author:currentUser,text,date,backdated:!!customDate});
   autoPersistIfEditing();
   renderLeadModal();
 }
@@ -2657,11 +2742,58 @@ function deleteLead(){
 }
 
 // ── CSV EXPORT ──
+// ── PROJEKT-RAHMEN CRUD ──
+function setProjectField(field,val){
+  PROJECT[field]=val;
+  saveState();
+  if(currentView==='dashboard')renderDashboard();
+}
+function createMilestone(){
+  const nameEl=document.getElementById('newMilestoneName');
+  const dateEl=document.getElementById('newMilestoneDate');
+  const name=nameEl.value.trim();
+  if(!name||!dateEl.value)return;
+  PROJECT.milestones.push({id:nextMilestoneId++,name,targetDate:dateEl.value,done:false});
+  saveState();
+  renderSettings();
+}
+function toggleMilestone(id){
+  const m=PROJECT.milestones.find(x=>x.id===id);
+  if(m)m.done=!m.done;
+  saveState();
+  renderSettings();
+}
+function deleteMilestone(id){
+  PROJECT.milestones=PROJECT.milestones.filter(x=>x.id!==id);
+  saveState();
+  renderSettings();
+}
+function createRisk(){
+  const textEl=document.getElementById('newRiskText');
+  const sevEl=document.getElementById('newRiskSeverity');
+  const text=textEl.value.trim();
+  if(!text)return;
+  PROJECT.risks.push({id:nextRiskId++,text,severity:sevEl.value,open:true});
+  saveState();
+  renderSettings();
+}
+function toggleRisk(id){
+  const r=PROJECT.risks.find(x=>x.id===id);
+  if(r)r.open=!r.open;
+  saveState();
+  renderSettings();
+}
+function deleteRisk(id){
+  PROJECT.risks=PROJECT.risks.filter(x=>x.id!==id);
+  saveState();
+  renderSettings();
+}
+
 function exportFullBackup(){
   const backup={
     exportedAt:nowISO(),
-    leads,COLUMNS,LABELS,AGENTS,ARTICLES,
-    nextId,nextLabelId,nextPrinterId,nextColId,nextAgentId,nextArticleId
+    leads,COLUMNS,LABELS,AGENTS,ARTICLES,PROJECT,
+    nextId,nextLabelId,nextPrinterId,nextColId,nextAgentId,nextArticleId,nextMilestoneId,nextRiskId
   };
   const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
