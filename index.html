@@ -58,6 +58,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .funnel-bar{height:100%;border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:#fff;font-size:12px;font-weight:700;transition:width .2s;min-width:26px;}
 .donut-wrap{display:flex;justify-content:center;padding:6px 0 10px;}
 .chart-legend{display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:center;}
+.funnel-conv{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px;padding-left:2px;margin:-3px 0 -1px;}
+.winrate-callout{border-top:1px solid var(--border);margin-top:14px;padding-top:12px;text-align:center;}
+.winrate-val{font-size:28px;font-weight:700;color:var(--green-dark);}
+.winrate-label{font-size:11px;color:var(--text2);margin-top:2px;line-height:1.5;}
 .legend-item{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:5px;}
 .legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
 .agent-bar-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
@@ -320,6 +324,10 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
       <div class="page-hdr">
         <div class="page-hdr-title">SFP</div>
         <div class="page-hdr-sub">Überblick über Projekt: Toner</div>
+      </div>
+      <div class="filterbar">
+        <span class="filterbar-label">Mitarbeiter</span>
+        <div id="dashAgentChips"></div>
       </div>
       <div class="view-scroll" id="dashboardContent"></div>
     </div>
@@ -644,7 +652,7 @@ function switchView(view){
     document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.toggle('active',v===view);
     document.getElementById('nav'+v.charAt(0).toUpperCase()+v.slice(1)).classList.toggle('active',v===view);
   });
-  if(view==='dashboard')renderDashboard();
+  if(view==='dashboard'){renderDashboardAgentChips();renderDashboard();}
   if(view==='board')renderBoard();
   if(view==='crrma')renderCrRma();
   if(view==='tasks'){renderTasksAgentChips();renderTasksView();}
@@ -698,15 +706,32 @@ function renderBoard(){
 }
 
 // ── DASHBOARD ──
+let activeDashboardAgentFilter='all';
+function renderDashboardAgentChips(){
+  const el=document.getElementById('dashAgentChips');
+  let html=`<span class="chip ${activeDashboardAgentFilter==='all'?'active':''}" onclick="setDashboardAgentFilter('all')">Alle</span>`;
+  AGENTS.forEach(a=>{
+    html+=`<span class="chip ${activeDashboardAgentFilter===a.id?'active':''}" onclick="setDashboardAgentFilter('${a.id}')">${a.name}</span>`;
+  });
+  el.innerHTML=html;
+}
+function setDashboardAgentFilter(id){
+  activeDashboardAgentFilter=id;
+  renderDashboardAgentChips();
+  renderDashboard();
+}
 function renderDashboard(){
-  const total=leads.length;
-  const overdue=leads.filter(l=>l.followup&&daysUntil(l.followup)<0).length;
-  const won=leads.filter(l=>l.status==='won').length;
-  const lost=leads.filter(l=>l.status==='lost').length;
+  const dl=activeDashboardAgentFilter==='all'?leads:leads.filter(l=>(l.members||[]).includes(activeDashboardAgentFilter));
+  const total=dl.length;
+  const overdue=dl.filter(l=>l.followup&&daysUntil(l.followup)<0).length;
+  const won=dl.filter(l=>l.status==='won').length;
+  const lost=dl.filter(l=>l.status==='lost').length;
   const openCount=total-won-lost;
+  const closedCount=won+lost;
   const rate=total?Math.round(won/total*100):0;
-  const forecastSum=leads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
-  const investSum=leads.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.price)||0),0),0);
+  const winRateClosed=closedCount?Math.round(won/closedCount*100):null;
+  const forecastSum=dl.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
+  const investSum=dl.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.price)||0),0),0);
 
   const kpiHtml=`
     <div class="dash-kpi-row">
@@ -717,43 +742,55 @@ function renderDashboard(){
       <div class="dash-kpi"><i class="ti ti-truck-delivery dash-kpi-icon" style="color:var(--amber-dark)"></i><div class="dash-kpi-label">Investition (Versand)</div><div class="dash-kpi-val" style="color:var(--amber-dark)">${fmtEur(investSum)||'0 €'}</div></div>
     </div>`;
 
-  // Funnel
-  const funnelMax=Math.max(1,...COLUMNS.map(c=>leads.filter(l=>l.status===c.id).length));
-  const funnelHtml=COLUMNS.map(c=>{
-    const count=leads.filter(l=>l.status===c.id).length;
-    const pct=Math.max(8,Math.round(count/funnelMax*100));
-    return `<div class="funnel-row" onclick="switchView('board')" title="${c.name}">
-      <div class="funnel-label"><span class="col-dot" style="background:${COLOR_HEX[c.color]}"></span>${c.name}</div>
+  // Funnel mit Prozentwerten und Konversionsrate zwischen den Stufen
+  const funnelCounts=COLUMNS.map(c=>({c,count:dl.filter(l=>l.status===c.id).length}));
+  const funnelMax=Math.max(1,...funnelCounts.map(x=>x.count));
+  const firstCount=funnelCounts.length?funnelCounts[0].count:0;
+  let funnelHtml='';
+  funnelCounts.forEach((x,i)=>{
+    const barPct=Math.max(8,Math.round(x.count/funnelMax*100));
+    const ofTotalPct=total?Math.round(x.count/total*100):0;
+    funnelHtml+=`<div class="funnel-row" onclick="switchView('board')" title="${x.c.name}">
+      <div class="funnel-label"><span class="col-dot" style="background:${COLOR_HEX[x.c.color]}"></span>${x.c.name}</div>
       <div class="funnel-track">
-        <div class="funnel-bar" style="width:${pct}%;background:${COLOR_HEX[c.color]}">${count}</div>
+        <div class="funnel-bar" style="width:${barPct}%;background:${COLOR_HEX[x.c.color]}">${x.count} · ${ofTotalPct}%</div>
       </div>
     </div>`;
-  }).join('');
+    if(i<funnelCounts.length-1){
+      const next=funnelCounts[i+1];
+      const convPct=x.count?Math.round(next.count/x.count*100):0;
+      funnelHtml+=`<div class="funnel-conv"><i class="ti ti-arrow-down" style="font-size:12px"></i>${convPct}% weiter</div>`;
+    }
+  });
 
-  // Donut: Ergebnis
+  // Ergebnis: Donut + Gewinnrate unter den abgeschlossenen Leads
   const resultDonut=svgDonut([
     {value:won,color:'#3B6D11'},
     {value:lost,color:'#A32D2D'},
     {value:openCount,color:'#9a9a96'}
   ],148,20,total,'Leads gesamt');
+  const resultLegend=`
+    <span class="legend-item"><span class="legend-dot" style="background:#3B6D11"></span>Gewonnen (${won})</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#A32D2D"></span>Verloren (${lost})</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#9a9a96"></span>Offen (${openCount})</span>`;
+  const winRateHtml=winRateClosed!==null
+    ? `<div class="winrate-callout"><div class="winrate-val">${winRateClosed}%</div><div class="winrate-label">Gewinnrate unter den ${closedCount} abgeschlossenen Leads (${won} gewonnen / ${lost} verloren)</div></div>`
+    : `<div class="winrate-callout"><div class="winrate-label">Noch keine abgeschlossenen Leads (gewonnen/verloren) – Gewinnrate noch nicht berechenbar.</div></div>`;
 
   // Donut: Labels
-  const labelCounts=LABELS.map(lb=>({lb,count:leads.filter(l=>(l.labelIds||[]).includes(lb.id)).length})).filter(x=>x.count>0);
-  const noLabelCount=leads.filter(l=>!(l.labelIds&&l.labelIds.length)).length;
+  const labelCounts=LABELS.map(lb=>({lb,count:dl.filter(l=>(l.labelIds||[]).includes(lb.id)).length})).filter(x=>x.count>0);
+  const noLabelCount=dl.filter(l=>!(l.labelIds&&l.labelIds.length)).length;
   const labelDonut=svgDonut(
     [...labelCounts.map(x=>({value:x.count,color:x.lb.color})),{value:noLabelCount,color:'#e8e6e0'}],
     148,20,total-noLabelCount>0?labelCounts.reduce((s,x)=>s+x.count,0):0,'mit Label'
   );
   const labelLegend=[...labelCounts.map(x=>`<span class="legend-item"><span class="legend-dot" style="background:${x.lb.color}"></span>${x.lb.name} (${x.count})</span>`),
     noLabelCount?`<span class="legend-item"><span class="legend-dot" style="background:#e8e6e0"></span>Ohne Label (${noLabelCount})</span>`:''].join('');
-  const resultLegend=`
-    <span class="legend-item"><span class="legend-dot" style="background:#3B6D11"></span>Gewonnen (${won})</span>
-    <span class="legend-item"><span class="legend-dot" style="background:#A32D2D"></span>Verloren (${lost})</span>
-    <span class="legend-item"><span class="legend-dot" style="background:#9a9a96"></span>Offen (${openCount})</span>`;
 
   // Forecast je Agent (Balken)
-  const agentData=AGENTS.map(a=>{
-    const agentLeads=leads.filter(l=>(l.members||[]).includes(a.id));
+  const agentPool=activeDashboardAgentFilter==='all'?AGENTS:AGENTS.filter(a=>a.id===activeDashboardAgentFilter);
+  const agentData=agentPool.map(a=>{
+    const agentLeads=dl.filter(l=>(l.members||[]).includes(a.id));
     return {a,count:agentLeads.length,won:agentLeads.filter(l=>l.status==='won').length,forecast:agentLeads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0)};
   });
   const agentMax=Math.max(1,...agentData.map(x=>x.forecast));
@@ -768,7 +805,7 @@ function renderDashboard(){
     </div>`).join('');
 
   // RMA-Risiko: aktive Leads, deren Versand-SKU eine hohe Reklamationsquote hat
-  const riskLeads=leads.filter(l=>l.status!=='won'&&l.status!=='lost').map(l=>{
+  const riskLeads=dl.filter(l=>l.status!=='won'&&l.status!=='lost').map(l=>{
     const skuHit=l.shipPrinter.skus.map(s=>s.sku).filter(Boolean).map(sku=>ARTICLES.find(a=>a.sku===sku)).find(a=>a&&a.crRma>=5);
     return skuHit?{lead:l,article:skuHit}:null;
   }).filter(Boolean);
@@ -781,7 +818,7 @@ function renderDashboard(){
       <span class="due-badge due-overdue">${x.article.crRma}% RMA</span>
     </div>`).join(''):'<p style="font-size:12px;color:var(--text3)">Keine aktiven Leads mit riskanter SKU. Alles im grünen Bereich.</p>';
 
-  const topForecast=[...leads].filter(l=>l.status!=='won'&&l.status!=='lost'&&l.forecast)
+  const topForecast=[...dl].filter(l=>l.status!=='won'&&l.status!=='lost'&&l.forecast)
     .sort((a,b)=>(parseFloat(b.forecast)||0)-(parseFloat(a.forecast)||0)).slice(0,5);
   const topForecastHtml=topForecast.length?topForecast.map(l=>`
     <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${l.id})},50)">
@@ -792,7 +829,7 @@ function renderDashboard(){
       <div style="font-weight:600;font-size:13px;color:var(--green-dark)">${fmtEur(l.forecast)}</div>
     </div>`).join(''):'<p style="font-size:12px;color:var(--text3)">Keine offenen Leads mit Forecast.</p>';
 
-  const overdueLeads=leads.filter(l=>l.followup&&daysUntil(l.followup)<0).sort((a,b)=>daysUntil(a.followup)-daysUntil(b.followup));
+  const overdueLeads=dl.filter(l=>l.followup&&daysUntil(l.followup)<0).sort((a,b)=>daysUntil(a.followup)-daysUntil(b.followup));
   const overdueHtml=overdueLeads.length?overdueLeads.map(l=>`
     <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${l.id})},50)">
       <div style="flex:1;min-width:0">
@@ -806,13 +843,14 @@ function renderDashboard(){
     ${kpiHtml}
     <div class="dash-row-2-1">
       <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Pipeline-Trichter</div>
+        <div class="section-hdr" style="margin-top:0">Pipeline-Trichter <span style="font-weight:400;color:var(--text3);font-size:11px">(Anzahl · Anteil an allen Leads, Pfeil = Konversion zur nächsten Stufe)</span></div>
         <div class="funnel-wrap">${funnelHtml}</div>
       </div>
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Ergebnis</div>
         <div class="donut-wrap">${resultDonut}</div>
         <div class="chart-legend">${resultLegend}</div>
+        ${winRateHtml}
       </div>
     </div>
     <div class="dash-row-1-2">
