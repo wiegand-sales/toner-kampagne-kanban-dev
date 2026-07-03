@@ -64,6 +64,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .funnel-bar{height:100%;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;color:#fff;font-size:11px;font-weight:700;transition:width .2s;min-width:22px;}
 .funnel-conv{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:2px;width:46px;flex-shrink:0;justify-content:flex-end;}
 .movements-strip{display:flex;flex-wrap:wrap;gap:18px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);}
+.project-status-row{display:flex;gap:24px;flex-wrap:wrap;align-items:stretch;}
+.project-status-badge{color:#fff;font-size:12px;font-weight:700;padding:8px 14px;border-radius:8px;display:flex;align-items:center;gap:6px;white-space:nowrap;align-self:center;}
+.project-status-item{display:flex;flex-direction:column;min-width:150px;flex:1;}
+.project-status-item span:first-child{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;}
+.project-status-item strong{font-size:14px;margin-top:1px;}
+.project-status-sub{font-size:10px;color:var(--text3);margin-top:3px;}
 .movements-item{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;}
 .movements-item strong{font-size:14px;color:var(--text);}
 .movements-details{margin-top:10px;}
@@ -985,6 +991,65 @@ function renderDashboard(){
     .filter(d=>d>=0);
   const avgCycle=cycleDays.length?Math.round(cycleDays.reduce((a,b)=>a+b,0)/cycleDays.length):null;
 
+  // Projekt-Status: Zeitrahmen, Budget, Ampel
+  const projStart=new Date(PROJECT.startDate),projEnd=new Date(PROJECT.endDate),today=new Date(TODAY);
+  const daysTotal=Math.max(1,Math.round((projEnd-projStart)/86400000));
+  const daysElapsed=Math.max(0,Math.round((today-projStart)/86400000));
+  const timeProgress=Math.min(100,Math.round(daysElapsed/daysTotal*100));
+  const daysRemaining=Math.round((projEnd-today)/86400000);
+  const allInvestSum=leads.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.price)||0),0),0);
+  const budgetProgress=PROJECT.budget?Math.round(allInvestSum/PROJECT.budget*100):0;
+  const overdueMilestones=PROJECT.milestones.filter(m=>!m.done&&daysUntil(m.targetDate)<0);
+  const doneMilestones=PROJECT.milestones.filter(m=>m.done).length;
+  const milestoneProgress=PROJECT.milestones.length?Math.round(doneMilestones/PROJECT.milestones.length*100):null;
+  let projStatus={color:'var(--green)',bg:'var(--green-bg)',label:'Im Plan'};
+  if(today>projEnd){projStatus={color:'var(--red)',bg:'var(--red-bg)',label:'Zeitrahmen überschritten'};}
+  else if(overdueMilestones.length){projStatus={color:'var(--red)',bg:'var(--red-bg)',label:overdueMilestones.length+' Meilenstein(e) überfällig'};}
+  else if(milestoneProgress!==null&&timeProgress>75&&milestoneProgress<60){projStatus={color:'var(--amber)',bg:'var(--amber-bg)',label:'Hinter Zeitplan'};}
+  const openRisks=PROJECT.risks.filter(r=>r.open);
+
+  // Kapazitätsübersicht: offene Leads je Mitarbeiter, ueberlastet-Erkennung
+  const capData=AGENTS.map(a=>({a,openCount:leads.filter(l=>!isClosedLead(l)&&(l.members||[]).includes(a.id)).length}));
+  const capAvg=capData.length?capData.reduce((s,x)=>s+x.openCount,0)/capData.length:0;
+  const capMax=Math.max(1,...capData.map(x=>x.openCount));
+  const capHtml=capData.map(x=>{
+    const overloaded=capAvg>0&&x.openCount>capAvg*1.5&&x.openCount>=3;
+    return `<div class="funnel-row">
+      <div class="funnel-label"><div class="member-av" style="position:static;margin:0;width:20px;height:20px;font-size:9px;background:${COLOR_BG[x.a.color]};color:${COLOR_TEXT[x.a.color]}">${ini(x.a.name)}</div>${x.a.name}${overloaded?' <span class="due-badge due-overdue" style="margin-left:4px">überlastet</span>':''}</div>
+      <div class="funnel-track"><div class="funnel-bar" style="width:${Math.max(8,Math.round(x.openCount/capMax*100))}%;background:${overloaded?'var(--red)':COLOR_HEX[x.a.color]}">${x.openCount} offen</div></div>
+    </div>`;
+  }).join('')||'<p style="font-size:12px;color:var(--text3)">Keine Mitarbeiter erfasst.</p>';
+
+  // Trend der letzten 6 Wochen: Bewegungen und Gewinne je Woche
+  const weekBuckets=[];
+  for(let i=5;i>=0;i--){
+    const wEnd=new Date(TODAY);wEnd.setDate(wEnd.getDate()-i*7);
+    const wStart=new Date(wEnd);wStart.setDate(wStart.getDate()-6);
+    weekBuckets.push({start:wStart,end:wEnd,total:0,won:0});
+  }
+  leads.forEach(l=>{
+    (l.activity||[]).forEach(a=>{
+      if(a.type==='activity'&&a.text&&a.text.indexOf('Status geändert:')===0){
+        const d=new Date(a.date);
+        const bucket=weekBuckets.find(b=>d>=b.start&&d<=new Date(b.end.getTime()+86400000-1));
+        if(bucket){
+          bucket.total++;
+          const targetName=(a.text.split('→')[1]||'').trim();
+          const col=COLUMNS.find(c=>c.name===targetName);
+          if(col&&col.outcome==='won')bucket.won++;
+        }
+      }
+    });
+  });
+  const trendMax=Math.max(1,...weekBuckets.map(b=>b.total));
+  const trendHtml=weekBuckets.map(b=>{
+    const label=`${b.start.getDate()}.${b.start.getMonth()+1}.`;
+    return `<div class="funnel-row">
+      <div class="funnel-label">${label}</div>
+      <div class="funnel-track"><div class="funnel-bar" style="width:${Math.max(6,Math.round(b.total/trendMax*100))}%;background:var(--purple)">${b.total} · ${b.won} gew.</div></div>
+    </div>`;
+  }).join('');
+
   const kpiHtml=`
     <div class="dash-kpi-row">
       <div class="dash-kpi"><i class="ti ti-phone-outgoing dash-kpi-icon"></i><div class="dash-kpi-label">Kontaktierte Leads</div><div class="dash-kpi-val">${contacted}<span style="font-size:13px;font-weight:500;color:var(--text3)"> / ${total}</span></div></div>
@@ -1142,6 +1207,15 @@ function renderDashboard(){
     </div>`).join(''):`<p style="font-size:12px;color:var(--text3)">Keine Bewegungen im gewählten Zeitraum (${movementDays} Tage).</p>`;
 
   document.getElementById('dashboardContent').innerHTML=`
+    <div class="info-section" style="border-color:${projStatus.color};background:${projStatus.bg}">
+      <div class="project-status-row">
+        <div class="project-status-badge" style="background:${projStatus.color}"><i class="ti ti-flag-3"></i> ${projStatus.label}</div>
+        <div class="project-status-item"><span>Zeitrahmen</span><strong>${fmtDate(PROJECT.startDate)} – ${fmtDate(PROJECT.endDate)}</strong><div class="funnel-track" style="height:8px;margin-top:4px"><div class="funnel-bar" style="width:${timeProgress}%;background:var(--purple);font-size:0"></div></div><span class="project-status-sub">${daysRemaining>=0?daysRemaining+' Tage verbleibend':Math.abs(daysRemaining)+' Tage überzogen'} (${timeProgress}%)</span></div>
+        <div class="project-status-item"><span>Budget</span><strong>${fmtEur(allInvestSum)} / ${fmtEur(PROJECT.budget)}</strong><div class="funnel-track" style="height:8px;margin-top:4px"><div class="funnel-bar" style="width:${Math.min(100,budgetProgress)}%;background:${budgetProgress>=100?'var(--red)':'var(--amber)'};font-size:0"></div></div><span class="project-status-sub">${budgetProgress}% verbraucht</span></div>
+        <div class="project-status-item"><span>Meilensteine</span><strong>${doneMilestones} / ${PROJECT.milestones.length}</strong><div class="funnel-track" style="height:8px;margin-top:4px"><div class="funnel-bar" style="width:${milestoneProgress||0}%;background:var(--green-dark);font-size:0"></div></div><span class="project-status-sub">${overdueMilestones.length?overdueMilestones.length+' überfällig':'im Plan'}</span></div>
+        <div class="project-status-item"><span>Offene Risiken</span><strong style="color:${openRisks.length?'var(--red)':'var(--green-dark)'}">${openRisks.length}</strong><span class="project-status-sub">${openRisks.length?openRisks[0].text.slice(0,40)+(openRisks[0].text.length>40?'…':''):'keine offenen Risiken'}</span></div>
+      </div>
+    </div>
     ${kpiHtml}
     <div class="info-section">
       <div class="section-hdr" style="margin-top:0">Pipeline-Trichter <span style="font-weight:400;color:var(--text3);font-size:11px">(Anzahl · Anteil an allen Leads, Pfeil = Konversion zur nächsten Stufe)</span></div>
@@ -1185,6 +1259,16 @@ function renderDashboard(){
     <div class="info-section">
       <div class="section-hdr" style="margin-top:0">Forecast je Mitarbeiter</div>
       ${agentBarHtml}
+    </div>
+    <div class="dash-row-1-1">
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-users-group" style="color:var(--purple)"></i> Kapazitätsübersicht</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(offene Leads je Mitarbeiter)</span></div>
+        <div class="funnel-wrap">${capHtml}</div>
+      </div>
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-chart-bar" style="color:var(--purple)"></i> Trend (letzte 6 Wochen)</span> <span style="font-weight:400;color:var(--text3);font-size:11px">Bewegungen · davon gewonnen</span></div>
+        <div class="funnel-wrap">${trendHtml}</div>
+      </div>
     </div>
     <div class="info-section" style="border-color:${riskLeads.length?'var(--red)':'var(--border)'}">
       <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-shield-exclamation" style="color:${riskLeads.length?'var(--red)':'var(--text2)'}"></i> RMA-Risiko-Check</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(aktive Leads mit SKU ≥5% Reklamationsquote)</span></div>
