@@ -371,6 +371,10 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         <div class="page-hdr-title">Aufgaben</div>
         <div class="page-hdr-sub">Leads mit Follow-up-Datum, gruppiert nach Fälligkeit</div>
       </div>
+      <div class="filterbar">
+        <span class="filterbar-label">Agent</span>
+        <div id="tasksAgentChips"></div>
+      </div>
       <div class="view-scroll" id="tasksViewContent"></div>
     </div>
 
@@ -527,6 +531,7 @@ function normalizeLeads(){
 }
 normalizeLeads();
 let activeAgentFilter='all';
+let activeTasksAgentFilter='all';
 let dragCardId=null;
 let dragColId=null;
 let colMenuOpenId=null;
@@ -642,7 +647,7 @@ function switchView(view){
   if(view==='dashboard')renderDashboard();
   if(view==='board')renderBoard();
   if(view==='crrma')renderCrRma();
-  if(view==='tasks')renderTasksView();
+  if(view==='tasks'){renderTasksAgentChips();renderTasksView();}
   if(view==='settings')renderSettings();
 }
 
@@ -871,8 +876,22 @@ function followupGroupHtml(title,items,colorVar,icon,accentClass){
     ${items.length?items.map(followupRowHtml).join(''):'<div class="task-row-empty">Keine Leads in diesem Zeitraum.</div>'}
   </div>`;
 }
+function renderTasksAgentChips(){
+  const el=document.getElementById('tasksAgentChips');
+  let html=`<span class="chip ${activeTasksAgentFilter==='all'?'active':''}" onclick="setTasksAgentFilter('all')">Alle</span>`;
+  AGENTS.forEach(a=>{
+    html+=`<span class="chip ${activeTasksAgentFilter===a.id?'active':''}" onclick="setTasksAgentFilter('${a.id}')">${a.name}</span>`;
+  });
+  el.innerHTML=html;
+}
+function setTasksAgentFilter(id){
+  activeTasksAgentFilter=id;
+  renderTasksAgentChips();
+  renderTasksView();
+}
 function renderTasksView(){
-  const withFollowup=leads.filter(l=>l.followup);
+  let withFollowup=leads.filter(l=>l.followup);
+  if(activeTasksAgentFilter!=='all')withFollowup=withFollowup.filter(l=>(l.members||[]).includes(activeTasksAgentFilter));
   const buckets={overdue:[],today:[],week:[],nextweek:[]};
   withFollowup.forEach(l=>{const b=followupBucket(l);if(b)buckets[b].push(l);});
   ['overdue','today','week','nextweek'].forEach(k=>buckets[k].sort((a,b)=>a.followup.localeCompare(b.followup)));
