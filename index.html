@@ -69,6 +69,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .followup-kpi-today{border-left:3px solid var(--amber);}
 .followup-kpi-week{border-left:3px solid var(--teal);}
 .followup-kpi-nextweek{border-left:3px solid var(--purple);}
+.followup-group{border-left-width:4px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:16px;}
 .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 .dash-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
 .dash-bar-label{width:130px;flex-shrink:0;font-size:12px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -864,8 +865,8 @@ function followupRowHtml(l){
     <span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${label}</span>
   </div>`;
 }
-function followupGroupHtml(title,items,colorVar,icon){
-  return `<div class="info-section">
+function followupGroupHtml(title,items,colorVar,icon,accentClass){
+  return `<div class="info-section followup-group ${accentClass}">
     <div class="section-hdr" style="margin-top:0"><i class="ti ti-${icon}" style="color:${colorVar};font-size:16px;margin-right:2px"></i>${title} <span class="task-group-count">${items.length} Lead${items.length===1?'':'s'}</span></div>
     ${items.length?items.map(followupRowHtml).join(''):'<div class="task-row-empty">Keine Leads in diesem Zeitraum.</div>'}
   </div>`;
@@ -877,18 +878,16 @@ function renderTasksView(){
   ['overdue','today','week','nextweek'].forEach(k=>buckets[k].sort((a,b)=>a.followup.localeCompare(b.followup)));
 
   const html=`
-    <div class="dash-kpi-row">
+    <div class="dash-kpi-row" style="grid-template-columns:repeat(4,1fr)">
       <div class="dash-kpi followup-kpi-overdue"><i class="ti ti-alert-triangle dash-kpi-icon" style="color:var(--red)"></i><div class="dash-kpi-label">Überfällig</div><div class="dash-kpi-val" style="color:var(--red)">${buckets.overdue.length}</div></div>
       <div class="dash-kpi followup-kpi-today"><i class="ti ti-sun dash-kpi-icon" style="color:var(--amber-dark)"></i><div class="dash-kpi-label">Heute</div><div class="dash-kpi-val" style="color:var(--amber-dark)">${buckets.today.length}</div></div>
       <div class="dash-kpi followup-kpi-week"><i class="ti ti-calendar-week dash-kpi-icon" style="color:var(--green-dark)"></i><div class="dash-kpi-label">Diese Woche</div><div class="dash-kpi-val" style="color:var(--green-dark)">${buckets.week.length}</div></div>
       <div class="dash-kpi followup-kpi-nextweek"><i class="ti ti-calendar-plus dash-kpi-icon" style="color:var(--purple)"></i><div class="dash-kpi-label">Nächste Woche</div><div class="dash-kpi-val" style="color:var(--purple)">${buckets.nextweek.length}</div></div>
     </div>
-    <div class="dash-grid">
-      ${followupGroupHtml('Überfällig',buckets.overdue,'var(--red)','alert-triangle')}
-      ${followupGroupHtml('Heute',buckets.today,'var(--amber-dark)','sun')}
-      ${followupGroupHtml('Diese Woche',buckets.week,'var(--green-dark)','calendar-week')}
-      ${followupGroupHtml('Nächste Woche',buckets.nextweek,'var(--purple)','calendar-plus')}
-    </div>`;
+    ${followupGroupHtml('Überfällig',buckets.overdue,'var(--red)','alert-triangle','followup-kpi-overdue')}
+    ${followupGroupHtml('Heute',buckets.today,'var(--amber-dark)','sun','followup-kpi-today')}
+    ${followupGroupHtml('Diese Woche',buckets.week,'var(--green-dark)','calendar-week','followup-kpi-week')}
+    ${followupGroupHtml('Nächste Woche',buckets.nextweek,'var(--purple)','calendar-plus','followup-kpi-nextweek')}`;
   document.getElementById('tasksViewContent').innerHTML=html;
 }
 // ── CR RMA: Artikel-Stammdaten ──
