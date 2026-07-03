@@ -648,6 +648,11 @@ let labelPopoverOpen=false;
 let memberPopoverOpen=false;
 let editingLabelId=null;
 let rightTab='comments';
+let activityFeedFilter='all';
+function toggleActivityFeedFilter(){
+  activityFeedFilter=activityFeedFilter==='all'?'comments':'all';
+  renderLeadModal();
+}
 
 // ── HELPERS ──
 function ini(n){return n.split(' ').map(x=>x[0]).join('').toUpperCase().slice(0,2);}
@@ -1876,7 +1881,7 @@ function autoPersistIfEditing(){
 function openLeadModal(id){
   editingLeadId=id;
   draftLead=id?JSON.parse(JSON.stringify(leads.find(x=>x.id===id))):blankLead();
-  labelPopoverOpen=false;memberPopoverOpen=false;
+  labelPopoverOpen=false;memberPopoverOpen=false;activityFeedFilter='all';
   recomputeForecast();
   recomputeActual();
   renderLeadModal();
@@ -1997,7 +2002,8 @@ function renderLeadModal(){
       </div>
     </div>`).join('');
 
-  const feedItems=[...draftLead.activity].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const feedItemsRaw=[...draftLead.activity].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const feedItems=activityFeedFilter==='comments'?feedItemsRaw.filter(i=>i.type==='comment'):feedItemsRaw;
   const feedHtml=feedItems.map(item=>{
     if(item.type==='comment'){
       const a=agentById(item.author);
@@ -2010,7 +2016,7 @@ function renderLeadModal(){
       </div>`;
     }
     return `<div class="activity-item"><i class="ti ti-point-filled" style="font-size:8px"></i> ${item.text} · ${fmtDateTime(item.date)}</div>`;
-  }).join('')||`<div class="activity-item" style="padding-left:0">Noch keine Kommentare oder Aktivität.</div>`;
+  }).join('')||`<div class="activity-item" style="padding-left:0">${activityFeedFilter==='comments'?'Noch keine Kommentare.':'Noch keine Kommentare oder Aktivität.'}</div>`;
 
   const filesHtml=(draftLead.files||[]).map(f=>`<div class="file-row">
       <a href="${f.dataUrl}" download="${f.name}"><i class="ti ti-file"></i>${f.name} <span style="color:var(--text3)">(${formatBytes(f.size)})</span></a>
@@ -2128,7 +2134,12 @@ function renderLeadModal(){
         <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="addComment()"><i class="ti ti-send"></i> Kommentieren</button>
       </div>
       <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Verlauf</div>
+        <div class="section-hdr" style="margin-top:0;display:flex;align-items:center;justify-content:space-between">
+          <span>Verlauf</span>
+          <button class="btn btn-sm ${activityFeedFilter==='comments'?'active':''}" onclick="toggleActivityFeedFilter()">
+            <i class="ti ti-${activityFeedFilter==='comments'?'message':'filter'}"></i> ${activityFeedFilter==='comments'?'Nur Kommentare':'Alle anzeigen'}
+          </button>
+        </div>
         <div class="activity-feed" style="margin-top:0">${feedHtml}</div>
       </div>
     </div>`;
@@ -2429,7 +2440,10 @@ function deleteChecklist(){
 function toggleLabelPopover(){labelPopoverOpen=!labelPopoverOpen;memberPopoverOpen=false;renderLeadModal();}
 function toggleDraftLabel(id){
   const i=draftLead.labelIds.indexOf(id);
+  const lb=labelById(id);
+  const added=i===-1;
   if(i>-1)draftLead.labelIds.splice(i,1);else draftLead.labelIds.push(id);
+  draftLead.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Label "${lb?lb.name:''}" ${added?'hinzugefügt':'entfernt'}`,date:nowISO()});
   autoPersistIfEditing();
   renderLeadModal();
 }
@@ -2487,7 +2501,10 @@ function createLabel(){
 function toggleMemberPopover(){memberPopoverOpen=!memberPopoverOpen;labelPopoverOpen=false;renderLeadModal();}
 function toggleDraftMember(id){
   const i=draftLead.members.indexOf(id);
+  const ag=agentById(id);
+  const added=i===-1;
   if(i>-1)draftLead.members.splice(i,1);else draftLead.members.push(id);
+  draftLead.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Mitglied "${ag?ag.name:''}" ${added?'hinzugefügt':'entfernt'}`,date:nowISO()});
   autoPersistIfEditing();
   renderLeadModal();
 }
@@ -2554,6 +2571,40 @@ function checkDuplicateLead(){
     el.innerHTML='';
   }
 }
+// Vergleicht Original und Entwurf und protokolliert JEDE relevante Änderung als Aktivitäts-Eintrag
+const TRACKED_FIELDS=[
+  ['company','Firmenname'],['customerNumber','Kundennummer'],['art','Art'],
+  ['contact','Ansprechpartner'],['phone','Telefonnummer'],['email','E-Mail'],
+  ['address','Adresse'],['orderCount','Anzahl Bestellungen'],['revenue','Umsatz (EUR)'],
+  ['competitor','Wettbewerber'],['notes','Notiz'],['tonerSent','Free Toner verschickt'],
+  ['firstContact','Datum Erstkontakt'],['lossReason','Verlust-Grund']
+];
+function trunc(v){v=(v===undefined||v===null)?'':String(v);return v.length>50?v.slice(0,50)+'…':v;}
+function logFieldChanges(original,draft){
+  const entries=[];
+  TRACKED_FIELDS.forEach(([field,label])=>{
+    const ov=original[field],nv=draft[field];
+    if((ov||'')!==(nv||'')){
+      entries.push(`${label} geändert: "${trunc(ov)||'–'}" → "${trunc(nv)||'–'}"`);
+    }
+  });
+  if(JSON.stringify(original.members||[])!==JSON.stringify(draft.members||[])){
+    entries.push('Mitglieder aktualisiert');
+  }
+  if(JSON.stringify(original.labelIds||[])!==JSON.stringify(draft.labelIds||[])){
+    entries.push('Labels aktualisiert');
+  }
+  if(JSON.stringify(original.shipPrinter)!==JSON.stringify(draft.shipPrinter)){
+    entries.push('Drucker & Patronen (Versand) aktualisiert');
+  }
+  if(JSON.stringify(original.demandPrinters||[])!==JSON.stringify(draft.demandPrinters||[])){
+    entries.push('Kundenbedarf (Forecast) aktualisiert');
+  }
+  if(JSON.stringify(original.actualPrinters||[])!==JSON.stringify(draft.actualPrinters||[])){
+    entries.push('Tatsächlicher Bedarf aktualisiert');
+  }
+  return entries;
+}
 function saveLead(){
   if(!draftLead.company.trim()){
     showModalError('Bitte zuerst einen Firmennamen eingeben (oben im Fenster) – erst dann lässt sich der Lead speichern.');
@@ -2570,7 +2621,11 @@ function saveLead(){
     }
     if(original.followup!==draftLead.followup&&draftLead.followup){
       draftLead.followupHistory=[...(draftLead.followupHistory||[]),{date:draftLead.followup,setAt:nowISO()}];
+      draftLead.activity.unshift({id:Date.now()+2,type:'activity',author:currentUser,text:`Follow-up-Datum geändert: "${fmtDate(original.followup)||'–'}" → "${fmtDate(draftLead.followup)}"`,date:nowISO()});
     }
+    logFieldChanges(original,draftLead).forEach((text,i)=>{
+      draftLead.activity.unshift({id:Date.now()+10+i,type:'activity',author:currentUser,text,date:nowISO()});
+    });
     Object.assign(original,draftLead);
   }else{
     draftLead.id=nextId++;
