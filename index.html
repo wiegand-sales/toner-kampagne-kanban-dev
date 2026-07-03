@@ -76,6 +76,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .winrate-val{font-size:28px;font-weight:700;color:var(--green-dark);}
 .winrate-label{font-size:11px;color:var(--text2);margin-top:2px;line-height:1.5;}
 .impact-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.compare-strip{display:flex;justify-content:space-between;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:12px;}
+.compare-item{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.compare-item span{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;}
+.compare-item strong{font-size:15px;}
 .impact-row:last-of-type{border-bottom:none;}
 .legend-item{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:5px;}
 .legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
@@ -570,6 +574,8 @@ function normalizeLeads(){
     if(l.revenue===undefined) l.revenue='';
     if(!l.files) l.files=[];
     if(!l.tasks) l.tasks=[];
+    if(!l.actualPrinters) l.actualPrinters=[];
+    if(l.actual===undefined) l.actual='';
     if(!l.followupHistory){
       l.followupHistory = l.followup ? [{date:l.followup,setAt:l.firstContact?l.firstContact+'T00:00:00':nowISO()}] : [];
     }
@@ -640,7 +646,7 @@ function renderFollowupTimeline(lead){
   html+='</div>';
   return html;
 }
-function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],contact:'',phone:'',email:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',followupHistory:[],forecast:'',notes:'',checklist:[],activity:[],files:[],tasks:[],order:Date.now()};}
+function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],actualPrinters:[],contact:'',phone:'',email:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',followupHistory:[],forecast:'',actual:'',notes:'',checklist:[],activity:[],files:[],tasks:[],order:Date.now()};}
 function openGoogleSearch(){
   const q=(document.getElementById('fCompany')?document.getElementById('fCompany').value:draftLead.company).trim();
   if(!q)return;
@@ -1529,6 +1535,7 @@ function openLeadModal(id){
   draftLead=id?JSON.parse(JSON.stringify(leads.find(x=>x.id===id))):blankLead();
   labelPopoverOpen=false;memberPopoverOpen=false;
   recomputeForecast();
+  recomputeActual();
   renderLeadModal();
   openModal('leadModal');
 }
@@ -1626,6 +1633,26 @@ function renderLeadModal(){
       </div>
     </div>`).join('');
 
+  const actualPrintersHtml=draftLead.actualPrinters.map((p,idx)=>`
+    <div class="printer-card">
+      <div class="printer-card-hdr">
+        <span class="small-label" style="margin:0">Drucker ${idx+1}</span>
+        <button class="check-item-del" onclick="removeActualPrinter(${p.id})" title="Drucker entfernen"><i class="ti ti-trash"></i></button>
+      </div>
+      <div class="field" style="margin-bottom:8px">
+        <input type="text" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${p.model}" oninput="updateActualPrinterModel(${p.id},this.value)" style="width:100%">
+      </div>
+      <div class="sku-grid">
+        ${['I','II','III','IV'].map((rn,i)=>`<div><label>SKU ${rn}</label><input type="text" placeholder="SKU ${rn}" value="${p.skus[i].sku||''}" oninput="updateActualPrinterSku(${p.id},${i},'sku',this.value)" style="width:100%"></div>`).join('')}
+      </div>
+      <div class="sku-grid" style="margin-top:6px">
+        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Anzahl ${rn}</label><input type="number" min="0" step="1" placeholder="0" value="${p.skus[i].qty||''}" oninput="updateActualPrinterSku(${p.id},${i},'qty',this.value)" style="width:100%"></div>`).join('')}
+      </div>
+      <div class="sku-grid" style="margin-top:6px">
+        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${p.skus[i].price||''}" oninput="updateActualPrinterSku(${p.id},${i},'price',this.value)" style="width:100%"></div>`).join('')}
+      </div>
+    </div>`).join('');
+
   const feedItems=[...draftLead.activity].sort((a,b)=>new Date(b.date)-new Date(a.date));
   const feedHtml=feedItems.map(item=>{
     if(item.type==='comment'){
@@ -1670,10 +1697,18 @@ function renderLeadModal(){
   const openTaskCount=(draftLead.tasks||[]).filter(t=>!t.done).length;
 
   const forecastComputedNow=draftLead.demandPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+(parseFloat(x.price)||0)*(parseFloat(x.qty)||0),0),0);
+  const actualComputedNow=draftLead.actualPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+(parseFloat(x.price)||0)*(parseFloat(x.qty)||0),0),0);
+  const diffVal=actualComputedNow-forecastComputedNow;
+  const compareStripHtml=`<div class="compare-strip">
+    <div class="compare-item"><span>Forecast</span><strong style="color:var(--purple)">${fmtEur(forecastComputedNow)||'0 €'}</strong></div>
+    <div class="compare-item"><span>Tatsächlich</span><strong style="color:var(--green-dark)">${fmtEur(actualComputedNow)||'0 €'}</strong></div>
+    <div class="compare-item"><span>Differenz</span><strong style="color:${diffVal>=0?'var(--green-dark)':'var(--red)'}">${diffVal>=0?'+':''}${fmtEur(diffVal)||'0 €'}</strong></div>
+  </div>`;
 
   let rightContentHtml='';
   if(rightTab==='forecast'){
     rightContentHtml=`<div style="overflow-y:auto;flex:1">
+      ${compareStripHtml}
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Forecast (automatisch berechnet)</div>
         <div id="forecastComputedValue" style="font-size:26px;font-weight:700;color:var(--purple)">${fmtEur(forecastComputedNow)||'0 €'}</div>
@@ -1685,6 +1720,22 @@ function renderLeadModal(){
         <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Alle Drucker des Kunden inkl. benötigter Anzahl und Preis je SKU – Basis für den Forecast.</p>
         ${demandPrintersHtml}
         <button class="pill-btn" onclick="addDemandPrinter()"><i class="ti ti-plus"></i> Drucker hinzufügen</button>
+      </div>
+    </div>`;
+  }else if(rightTab==='actual'){
+    rightContentHtml=`<div style="overflow-y:auto;flex:1">
+      ${compareStripHtml}
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Tatsächliches Ergebnis (automatisch berechnet)</div>
+        <div id="actualComputedValue" style="font-size:26px;font-weight:700;color:var(--green-dark)">${fmtEur(actualComputedNow)||'0 €'}</div>
+        <p style="font-size:11px;color:var(--text3);margin-top:6px">Ergibt sich aus Preis × Anzahl, summiert über alle SKUs mit Wert (siehe unten).</p>
+      </div>
+
+      <div class="info-section">
+        <div class="section-hdr">Tatsächlicher Bedarf: Drucker &amp; Patronen</div>
+        <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Was der Kunde wirklich gekauft hat – zum Abgleich mit dem Forecast.</p>
+        ${actualPrintersHtml}
+        <button class="pill-btn" onclick="addActualPrinter()"><i class="ti ti-plus"></i> Drucker hinzufügen</button>
       </div>
     </div>`;
   }else if(rightTab==='tasks'){
@@ -1857,6 +1908,7 @@ function renderLeadModal(){
       <div class="modal-right">
         <div class="tab-bar">
           <button class="tab-btn ${rightTab==='forecast'?'active':''}" onclick="setRightTab('forecast')">Forecast</button>
+          <button class="tab-btn ${rightTab==='actual'?'active':''}" onclick="setRightTab('actual')">Tatsächlich</button>
           <button class="tab-btn ${rightTab==='comments'?'active':''}" onclick="setRightTab('comments')">Kommentare &amp; Aktivität</button>
           <button class="tab-btn ${rightTab==='tasks'?'active':''}" onclick="setRightTab('tasks')">Aufgaben</button>
           <button class="tab-btn ${rightTab==='files'?'active':''}" onclick="setRightTab('files')">Dateien</button>
@@ -1903,6 +1955,32 @@ function recomputeForecast(){
   if(el)el.textContent=fmtEur(total)||'0 €';
   const statEl=document.getElementById('statsBar');
   if(statEl)renderStats();
+}
+
+// Tatsächliches Ergebnis (Spiegelbild vom Forecast, mit dem, was der Kunde wirklich gekauft hat)
+function addActualPrinter(){
+  draftLead.actualPrinters.push({id:nextPrinterId++,model:'',skus:[{sku:'',qty:'',price:''},{sku:'',qty:'',price:''},{sku:'',qty:'',price:''},{sku:'',qty:'',price:''}]});
+  renderLeadModal();
+}
+function removeActualPrinter(id){
+  draftLead.actualPrinters=draftLead.actualPrinters.filter(p=>p.id!==id);
+  recomputeActual();
+  renderLeadModal();
+}
+function updateActualPrinterModel(id,val){
+  const p=draftLead.actualPrinters.find(x=>x.id===id);
+  if(p)p.model=val;
+}
+function updateActualPrinterSku(id,idx,field,val){
+  const p=draftLead.actualPrinters.find(x=>x.id===id);
+  if(p)p.skus[idx][field]=val;
+  recomputeActual();
+}
+function recomputeActual(){
+  const total=draftLead.actualPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+(parseFloat(x.price)||0)*(parseFloat(x.qty)||0),0),0);
+  draftLead.actual=total;
+  const el=document.getElementById('actualComputedValue');
+  if(el)el.textContent=fmtEur(total)||'0 €';
 }
 
 // Rechte Spalte: Tabs
