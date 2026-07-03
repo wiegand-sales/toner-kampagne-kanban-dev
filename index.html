@@ -45,9 +45,26 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .page-hdr-title{font-size:18px;font-weight:700;}
 .page-hdr-sub{font-size:12px;color:var(--text2);margin-top:2px;}
 .dash-kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;}
-.dash-kpi{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.dash-kpi{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;position:relative;}
+.dash-kpi-icon{position:absolute;top:14px;right:14px;font-size:18px;color:var(--text3);opacity:.5;}
 .dash-kpi-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;}
 .dash-kpi-val{font-size:22px;font-weight:700;}
+.dash-row-2-1{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;}
+.dash-row-1-2{display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:16px;}
+.funnel-wrap{display:flex;flex-direction:column;gap:10px;padding-top:4px;}
+.funnel-row{cursor:pointer;}
+.funnel-label{font-size:12px;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:6px;}
+.funnel-track{background:var(--bg3);border-radius:6px;height:28px;overflow:hidden;}
+.funnel-bar{height:100%;border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;color:#fff;font-size:12px;font-weight:700;transition:width .2s;min-width:26px;}
+.donut-wrap{display:flex;justify-content:center;padding:6px 0 10px;}
+.chart-legend{display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:center;}
+.legend-item{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:5px;}
+.legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.agent-bar-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.agent-bar-row:last-child{border-bottom:none;}
+.agent-bar-info{flex:1;min-width:0;}
+.agent-bar-name{font-size:12px;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.agent-bar-val{font-size:13px;font-weight:700;color:var(--purple);flex-shrink:0;width:70px;text-align:right;}
 .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 .dash-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
 .dash-bar-label{width:130px;flex-shrink:0;font-size:12px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -538,6 +555,28 @@ function emailCustomer(){
   window.location.href='mailto:'+email;
 }
 function fmtEur(v){if(v===''||v===null||v===undefined||isNaN(v))return'';return Number(v).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:0})+' €';}
+function svgDonut(segments,size,thickness,centerLabel,centerSub){
+  size=size||150;thickness=thickness||20;
+  const r=(size-thickness)/2,cx=size/2,cy=size/2;
+  const circumference=2*Math.PI*r;
+  const total=segments.reduce((s,x)=>s+x.value,0)||1;
+  let offset=0,circles='';
+  segments.forEach(seg=>{
+    if(seg.value<=0)return;
+    const frac=seg.value/total;
+    const dash=frac*circumference;
+    circles+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="${thickness}" stroke-dasharray="${dash} ${circumference-dash}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})" stroke-linecap="butt"/>`;
+    offset+=dash;
+  });
+  const centerHtml=centerLabel!==undefined?`
+    <text x="${cx}" y="${cy-2}" text-anchor="middle" font-size="20" font-weight="700" fill="var(--text)" font-family="Inter,sans-serif">${centerLabel}</text>
+    <text x="${cx}" y="${cy+16}" text-anchor="middle" font-size="10" fill="var(--text3)" font-family="Inter,sans-serif">${centerSub||''}</text>`:'';
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--bg3)" stroke-width="${thickness}"/>
+    ${circles}
+    ${centerHtml}
+  </svg>`;
+}
 function formatBytes(b){if(b<1024)return b+' B';if(b<1024*1024)return(b/1024).toFixed(1)+' KB';return(b/1024/1024).toFixed(1)+' MB';}
 
 function getFilteredLeads(){
@@ -645,43 +684,83 @@ function renderDashboard(){
   const overdue=leads.filter(l=>l.followup&&daysUntil(l.followup)<0).length;
   const won=leads.filter(l=>l.status==='won').length;
   const lost=leads.filter(l=>l.status==='lost').length;
+  const openCount=total-won-lost;
   const rate=total?Math.round(won/total*100):0;
   const forecastSum=leads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
   const investSum=leads.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.price)||0),0),0);
 
   const kpiHtml=`
     <div class="dash-kpi-row">
-      <div class="dash-kpi"><div class="dash-kpi-label">Leads gesamt</div><div class="dash-kpi-val">${total}</div></div>
-      <div class="dash-kpi"><div class="dash-kpi-label">Follow-up überfällig</div><div class="dash-kpi-val" style="color:${overdue?'var(--red)':'var(--text)'}">${overdue}</div></div>
-      <div class="dash-kpi"><div class="dash-kpi-label">Gewonnen-Quote</div><div class="dash-kpi-val" style="color:var(--green)">${rate}%</div></div>
-      <div class="dash-kpi"><div class="dash-kpi-label">Forecast gesamt</div><div class="dash-kpi-val" style="color:var(--purple)">${fmtEur(forecastSum)||'0 €'}</div></div>
-      <div class="dash-kpi"><div class="dash-kpi-label">Investition (Versand)</div><div class="dash-kpi-val" style="color:var(--amber-dark)">${fmtEur(investSum)||'0 €'}</div></div>
+      <div class="dash-kpi"><i class="ti ti-users dash-kpi-icon"></i><div class="dash-kpi-label">Leads gesamt</div><div class="dash-kpi-val">${total}</div></div>
+      <div class="dash-kpi"><i class="ti ti-alert-triangle dash-kpi-icon" style="color:${overdue?'var(--red)':'var(--text3)'}"></i><div class="dash-kpi-label">Follow-up überfällig</div><div class="dash-kpi-val" style="color:${overdue?'var(--red)':'var(--text)'}">${overdue}</div></div>
+      <div class="dash-kpi"><i class="ti ti-trophy dash-kpi-icon" style="color:var(--green)"></i><div class="dash-kpi-label">Gewonnen-Quote</div><div class="dash-kpi-val" style="color:var(--green)">${rate}%</div></div>
+      <div class="dash-kpi"><i class="ti ti-chart-line dash-kpi-icon" style="color:var(--purple)"></i><div class="dash-kpi-label">Forecast gesamt</div><div class="dash-kpi-val" style="color:var(--purple)">${fmtEur(forecastSum)||'0 €'}</div></div>
+      <div class="dash-kpi"><i class="ti ti-truck-delivery dash-kpi-icon" style="color:var(--amber-dark)"></i><div class="dash-kpi-label">Investition (Versand)</div><div class="dash-kpi-val" style="color:var(--amber-dark)">${fmtEur(investSum)||'0 €'}</div></div>
     </div>`;
 
-  const maxColCount=Math.max(1,...COLUMNS.map(c=>leads.filter(l=>l.status===c.id).length));
-  const statusHtml=COLUMNS.map(c=>{
+  // Funnel
+  const funnelMax=Math.max(1,...COLUMNS.map(c=>leads.filter(l=>l.status===c.id).length));
+  const funnelHtml=COLUMNS.map(c=>{
     const count=leads.filter(l=>l.status===c.id).length;
-    const pct=Math.round(count/maxColCount*100);
-    return `<div class="dash-bar-row">
-      <div class="dash-bar-label"><span class="col-dot" style="background:${COLOR_HEX[c.color]}"></span>${c.name}</div>
-      <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${pct}%;background:${COLOR_HEX[c.color]}"></div></div>
-      <div class="dash-bar-count">${count}</div>
+    const pct=Math.max(8,Math.round(count/funnelMax*100));
+    return `<div class="funnel-row" onclick="switchView('board')" title="${c.name}">
+      <div class="funnel-label"><span class="col-dot" style="background:${COLOR_HEX[c.color]}"></span>${c.name}</div>
+      <div class="funnel-track">
+        <div class="funnel-bar" style="width:${pct}%;background:${COLOR_HEX[c.color]}">${count}</div>
+      </div>
     </div>`;
   }).join('');
 
-  const agentHtml=AGENTS.map(a=>{
+  // Donut: Ergebnis
+  const resultDonut=svgDonut([
+    {value:won,color:'#3B6D11'},
+    {value:lost,color:'#A32D2D'},
+    {value:openCount,color:'#9a9a96'}
+  ],148,20,total,'Leads gesamt');
+
+  // Donut: Labels
+  const labelCounts=LABELS.map(lb=>({lb,count:leads.filter(l=>(l.labelIds||[]).includes(lb.id)).length})).filter(x=>x.count>0);
+  const noLabelCount=leads.filter(l=>!(l.labelIds&&l.labelIds.length)).length;
+  const labelDonut=svgDonut(
+    [...labelCounts.map(x=>({value:x.count,color:x.lb.color})),{value:noLabelCount,color:'#e8e6e0'}],
+    148,20,total-noLabelCount>0?labelCounts.reduce((s,x)=>s+x.count,0):0,'mit Label'
+  );
+  const labelLegend=[...labelCounts.map(x=>`<span class="legend-item"><span class="legend-dot" style="background:${x.lb.color}"></span>${x.lb.name} (${x.count})</span>`),
+    noLabelCount?`<span class="legend-item"><span class="legend-dot" style="background:#e8e6e0"></span>Ohne Label (${noLabelCount})</span>`:''].join('');
+  const resultLegend=`
+    <span class="legend-item"><span class="legend-dot" style="background:#3B6D11"></span>Gewonnen (${won})</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#A32D2D"></span>Verloren (${lost})</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#9a9a96"></span>Offen (${openCount})</span>`;
+
+  // Forecast je Agent (Balken)
+  const agentData=AGENTS.map(a=>{
     const agentLeads=leads.filter(l=>(l.members||[]).includes(a.id));
-    const agentWon=agentLeads.filter(l=>l.status==='won').length;
-    const agentForecast=agentLeads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
-    return `<div class="dash-agent-row">
-      <div class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</div>
-      <div style="flex:1">
-        <div style="font-weight:600;font-size:13px">${a.name}</div>
-        <div style="font-size:11px;color:var(--text2)">${agentLeads.length} Leads · ${agentWon} gewonnen</div>
+    return {a,count:agentLeads.length,won:agentLeads.filter(l=>l.status==='won').length,forecast:agentLeads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0)};
+  });
+  const agentMax=Math.max(1,...agentData.map(x=>x.forecast));
+  const agentBarHtml=agentData.map(x=>`
+    <div class="agent-bar-row">
+      <div class="member-av" style="position:static;margin:0;background:${COLOR_BG[x.a.color]};color:${COLOR_TEXT[x.a.color]}">${ini(x.a.name)}</div>
+      <div class="agent-bar-info">
+        <div class="agent-bar-name">${x.a.name} <span style="font-weight:400;color:var(--text3)">· ${x.count} Leads, ${x.won} gewonnen</span></div>
+        <div class="funnel-track" style="height:10px"><div class="funnel-bar" style="width:${Math.max(4,Math.round(x.forecast/agentMax*100))}%;background:${COLOR_HEX[x.a.color]};font-size:0"></div></div>
       </div>
-      <div style="font-weight:600;font-size:13px;color:var(--purple)">${fmtEur(agentForecast)||'0 €'}</div>
-    </div>`;
-  }).join('');
+      <div class="agent-bar-val">${fmtEur(x.forecast)||'0 €'}</div>
+    </div>`).join('');
+
+  // RMA-Risiko: aktive Leads, deren Versand-SKU eine hohe Reklamationsquote hat
+  const riskLeads=leads.filter(l=>l.status!=='won'&&l.status!=='lost').map(l=>{
+    const skuHit=l.shipPrinter.skus.map(s=>s.sku).filter(Boolean).map(sku=>ARTICLES.find(a=>a.sku===sku)).find(a=>a&&a.crRma>=5);
+    return skuHit?{lead:l,article:skuHit}:null;
+  }).filter(Boolean);
+  const riskHtml=riskLeads.length?riskLeads.map(x=>`
+    <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${x.lead.id})},50)">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.lead.company}</div>
+        <div style="font-size:11px;color:var(--text2)">SKU ${x.article.sku} · ${colById(x.lead.status).name}</div>
+      </div>
+      <span class="due-badge due-overdue">${x.article.crRma}% RMA</span>
+    </div>`).join(''):'<p style="font-size:12px;color:var(--text3)">Keine aktiven Leads mit riskanter SKU. Alles im grünen Bereich.</p>';
 
   const topForecast=[...leads].filter(l=>l.status!=='won'&&l.status!=='lost'&&l.forecast)
     .sort((a,b)=>(parseFloat(b.forecast)||0)-(parseFloat(a.forecast)||0)).slice(0,5);
@@ -706,15 +785,33 @@ function renderDashboard(){
 
   document.getElementById('dashboardContent').innerHTML=`
     ${kpiHtml}
+    <div class="dash-row-2-1">
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Pipeline-Trichter</div>
+        <div class="funnel-wrap">${funnelHtml}</div>
+      </div>
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Ergebnis</div>
+        <div class="donut-wrap">${resultDonut}</div>
+        <div class="chart-legend">${resultLegend}</div>
+      </div>
+    </div>
+    <div class="dash-row-1-2">
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Labels-Verteilung</div>
+        <div class="donut-wrap">${labelDonut}</div>
+        <div class="chart-legend">${labelLegend}</div>
+      </div>
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Forecast je Agent</div>
+        ${agentBarHtml}
+      </div>
+    </div>
+    <div class="info-section" style="border-color:${riskLeads.length?'var(--red)':'var(--border)'}">
+      <div class="section-hdr" style="margin-top:0"><i class="ti ti-shield-exclamation" style="color:${riskLeads.length?'var(--red)':'var(--text2)'}"></i> RMA-Risiko-Check <span style="font-weight:400;color:var(--text3);font-size:11px">(aktive Leads mit SKU ≥5% Reklamationsquote)</span></div>
+      ${riskHtml}
+    </div>
     <div class="dash-grid">
-      <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Leads je Status</div>
-        ${statusHtml}
-      </div>
-      <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Nach Agent</div>
-        ${agentHtml}
-      </div>
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Follow-up überfällig</div>
         ${overdueHtml}
