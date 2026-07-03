@@ -366,6 +366,10 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         <span class="filterbar-label">Mitarbeiter</span>
         <div id="dashAgentChips"></div>
       </div>
+      <div class="filterbar">
+        <span class="filterbar-label">Zeitraum</span>
+        <div id="dashPeriodChips"></div>
+      </div>
       <div class="view-scroll" id="dashboardContent"></div>
     </div>
 
@@ -452,9 +456,9 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 <script>
 // ── CONFIG ──
 let AGENTS=[
-  {id:'a1',name:'Sabine Krause',color:'purple'},
-  {id:'a2',name:'Jonas Weber',color:'teal'},
-  {id:'a3',name:'Lea Hoffmann',color:'amber'},
+  {id:'a1',name:'Sabine Krause',color:'purple',role:'admin',quota:5000},
+  {id:'a2',name:'Jonas Weber',color:'teal',role:'sales',quota:4000},
+  {id:'a3',name:'Lea Hoffmann',color:'amber',role:'am',quota:4000},
 ];
 let COLUMNS=[
   {id:'open',name:'Offene Leads',color:'gray'},
@@ -523,6 +527,7 @@ function loadState(){
     if(data.nextAgentId)nextAgentId=data.nextAgentId;
     if(data.nextArticleId)nextArticleId=data.nextArticleId;
     normalizeColumns();
+    normalizeAgents();
     normalizeLeads();
     saveState();
     return true;
@@ -579,6 +584,8 @@ function normalizeLeads(){
     if(!l.tasks) l.tasks=[];
     if(!l.actualPrinters) l.actualPrinters=[];
     if(l.actual===undefined) l.actual='';
+    if(l.competitor===undefined) l.competitor='';
+    if(l.lossReason===undefined) l.lossReason='';
     if(!l.followupHistory){
       l.followupHistory = l.followup ? [{date:l.followup,setAt:l.firstContact?l.firstContact+'T00:00:00':nowISO()}] : [];
     }
@@ -624,6 +631,21 @@ function normalizeColumns(){
   });
 }
 normalizeColumns();
+function normalizeAgents(){
+  AGENTS.forEach(a=>{
+    if(!a.role)a.role='sales';
+    if(a.quota===undefined)a.quota=0;
+  });
+}
+normalizeAgents();
+function currentAgent(){return agentById(currentUser);}
+function isAdmin(){const a=currentAgent();return a&&a.role==='admin';}
+function requireAdmin(actionLabel){
+  if(isAdmin())return true;
+  alert(`Nur Admins dürfen "${actionLabel}". Aktuell angemeldet als: ${currentAgent()?currentAgent().name:'Unbekannt'} (${roleLabel(currentAgent()?currentAgent().role:'')}).`);
+  return false;
+}
+function roleLabel(r){return r==='admin'?'Admin':r==='am'?'Account Manager':'Sales Agent';}
 function labelById(id){return LABELS.find(l=>l.id===id);}
 function fmtDate(d){if(!d)return'';const p=d.split('-');return`${p[2]}.${p[1]}.${p[0]}`;}
 function daysUntil(d){if(!d)return null;const diff=(new Date(d)-new Date(TODAY))/86400000;return Math.round(diff);}
@@ -649,7 +671,7 @@ function renderFollowupTimeline(lead){
   html+='</div>';
   return html;
 }
-function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],actualPrinters:[],contact:'',phone:'',email:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',followupHistory:[],forecast:'',actual:'',notes:'',checklist:[],activity:[],files:[],tasks:[],order:Date.now()};}
+function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],actualPrinters:[],contact:'',phone:'',email:'',competitor:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',followupHistory:[],forecast:'',actual:'',lossReason:'',notes:'',checklist:[],activity:[],files:[],tasks:[],order:Date.now()};}
 function openGoogleSearch(){
   const q=(document.getElementById('fCompany')?document.getElementById('fCompany').value:draftLead.company).trim();
   if(!q)return;
@@ -741,7 +763,7 @@ function switchView(view){
     document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.toggle('active',v===view);
     document.getElementById('nav'+v.charAt(0).toUpperCase()+v.slice(1)).classList.toggle('active',v===view);
   });
-  if(view==='dashboard'){renderDashboardAgentChips();renderDashboard();}
+  if(view==='dashboard'){renderDashboardAgentChips();renderDashboardPeriodChips();renderDashboard();}
   if(view==='board')renderBoard();
   if(view==='crrma')renderCrRma();
   if(view==='tasks'){renderTasksAgentChips();renderTasksView();}
@@ -780,7 +802,7 @@ function renderBoard(){
         <div class="col-hdr" draggable="${!isEditing}" ondragstart="onColDragStart(event,'${col.id}')" ondragover="onColDragOver(event)" ondrop="onColDrop(event,'${col.id}')" ondragend="onColDragEnd(event)">
           <div class="col-dot" style="background:${COLOR_HEX[col.color]}"></div>
           ${nameHtml}
-          <div class="col-count">${items.length}</div>
+          <div class="col-count" style="${col.wipLimit&&items.length>col.wipLimit?'background:var(--red-bg);color:var(--red-dark)':''}">${items.length}${col.wipLimit?' / '+col.wipLimit:''}</div>
           <button class="col-menu-btn" onclick="event.stopPropagation();toggleColMenu('${col.id}')"><i class="ti ti-dots"></i></button>
         </div>
         ${menuHtml}
@@ -842,8 +864,33 @@ function setDashboardAgentFilter(id){
   renderDashboardAgentChips();
   renderDashboard();
 }
+let activeDashboardPeriod='all';
+function renderDashboardPeriodChips(){
+  const el=document.getElementById('dashPeriodChips');
+  if(!el)return;
+  const opts=[['all','Gesamt'],['week','Diese Woche'],['month','Dieser Monat'],['quarter','Dieses Quartal']];
+  el.innerHTML=opts.map(([k,label])=>`<span class="chip ${activeDashboardPeriod===k?'active':''}" onclick="setDashboardPeriod('${k}')">${label}</span>`).join('');
+}
+function setDashboardPeriod(p){
+  activeDashboardPeriod=p;
+  renderDashboardPeriodChips();
+  renderDashboard();
+}
+function periodStartDate(p){
+  const d=new Date(TODAY);
+  if(p==='week'){d.setDate(d.getDate()-7);}
+  else if(p==='month'){d.setDate(d.getDate()-30);}
+  else if(p==='quarter'){d.setDate(d.getDate()-90);}
+  else{return null;}
+  return d;
+}
 function renderDashboard(){
-  const dl=activeDashboardAgentFilter==='all'?leads:leads.filter(l=>(l.members||[]).includes(activeDashboardAgentFilter));
+  let dl=activeDashboardAgentFilter==='all'?leads:leads.filter(l=>(l.members||[]).includes(activeDashboardAgentFilter));
+  const periodStart=periodStartDate(activeDashboardPeriod);
+  if(periodStart){
+    dl=dl.filter(l=>l.firstContact&&new Date(l.firstContact)>=periodStart);
+  }
+  const movementDays=activeDashboardPeriod==='week'?7:activeDashboardPeriod==='month'?30:activeDashboardPeriod==='quarter'?90:3650;
   const total=dl.length;
   const contacted=dl.filter(l=>l.status!=='open').length;
   const overdue=dl.filter(l=>l.followup&&daysUntil(l.followup)<0).length;
@@ -854,6 +901,12 @@ function renderDashboard(){
   const forecastSum=dl.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
   const investSum=dl.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.price)||0),0),0);
 
+  // Vertriebszyklus-Laenge: Tage von Erstkontakt bis Abschluss (gewonnen/verloren)
+  const cycleDays=dl.filter(l=>isClosedLead(l)&&l.firstContact&&l.closedAt)
+    .map(l=>Math.round((new Date(l.closedAt)-new Date(l.firstContact))/86400000))
+    .filter(d=>d>=0);
+  const avgCycle=cycleDays.length?Math.round(cycleDays.reduce((a,b)=>a+b,0)/cycleDays.length):null;
+
   const kpiHtml=`
     <div class="dash-kpi-row">
       <div class="dash-kpi"><i class="ti ti-phone-outgoing dash-kpi-icon"></i><div class="dash-kpi-label">Kontaktierte Leads</div><div class="dash-kpi-val">${contacted}<span style="font-size:13px;font-weight:500;color:var(--text3)"> / ${total}</span></div></div>
@@ -861,6 +914,7 @@ function renderDashboard(){
       <div class="dash-kpi"><i class="ti ti-trophy dash-kpi-icon" style="color:var(--green)"></i><div class="dash-kpi-label">Gewinnrate (abgeschlossen)</div><div class="dash-kpi-val" style="color:var(--green)">${winRateClosed!==null?winRateClosed+'%':'–'}</div></div>
       <div class="dash-kpi"><i class="ti ti-chart-line dash-kpi-icon" style="color:var(--purple)"></i><div class="dash-kpi-label">Forecast gesamt</div><div class="dash-kpi-val" style="color:var(--purple)">${fmtEur(forecastSum)||'0 €'}</div></div>
       <div class="dash-kpi"><i class="ti ti-truck-delivery dash-kpi-icon" style="color:var(--amber-dark)"></i><div class="dash-kpi-label">Investition (Versand)</div><div class="dash-kpi-val" style="color:var(--amber-dark)">${fmtEur(investSum)||'0 €'}</div></div>
+      <div class="dash-kpi"><i class="ti ti-clock-hour-4 dash-kpi-icon" style="color:var(--teal-dark)"></i><div class="dash-kpi-label">Ø Vertriebszyklus</div><div class="dash-kpi-val" style="color:var(--teal-dark)">${avgCycle!==null?avgCycle+' Tage':'–'}</div></div>
     </div>`;
 
   // Funnel mit Prozentwerten und Konversionsrate zwischen den Stufen
@@ -889,18 +943,23 @@ function renderDashboard(){
   const agentPool=activeDashboardAgentFilter==='all'?AGENTS:AGENTS.filter(a=>a.id===activeDashboardAgentFilter);
   const agentData=agentPool.map(a=>{
     const agentLeads=dl.filter(l=>(l.members||[]).includes(a.id));
-    return {a,count:agentLeads.length,won:agentLeads.filter(l=>isWon(l)).length,forecast:agentLeads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0)};
+    const agentOverdue=agentLeads.filter(l=>l.followup&&daysUntil(l.followup)<0).length;
+    return {a,count:agentLeads.length,won:agentLeads.filter(l=>isWon(l)).length,forecast:agentLeads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0),overdue:agentOverdue};
   });
-  const agentMax=Math.max(1,...agentData.map(x=>x.forecast));
-  const agentBarHtml=agentData.map(x=>`
+  const agentBarHtml=agentData.map(x=>{
+    const quota=x.a.quota||0;
+    const pct=quota?Math.round(x.forecast/quota*100):null;
+    const barColor=pct===null?COLOR_HEX[x.a.color]:(pct>=100?'var(--green-dark)':(pct>=50?COLOR_HEX[x.a.color]:'var(--red)'));
+    return `
     <div class="agent-bar-row">
       <div class="member-av" style="position:static;margin:0;background:${COLOR_BG[x.a.color]};color:${COLOR_TEXT[x.a.color]}">${ini(x.a.name)}</div>
       <div class="agent-bar-info">
-        <div class="agent-bar-name">${x.a.name} <span style="font-weight:400;color:var(--text3)">· ${x.count} Leads, ${x.won} gewonnen</span></div>
-        <div class="funnel-track" style="height:10px"><div class="funnel-bar" style="width:${Math.max(4,Math.round(x.forecast/agentMax*100))}%;background:${COLOR_HEX[x.a.color]};font-size:0"></div></div>
+        <div class="agent-bar-name">${x.a.name} <span style="font-weight:400;color:var(--text3)">· ${x.count} Leads, ${x.won} gewonnen${x.overdue?` · <span style="color:var(--red)">${x.overdue} überfällig</span>`:''}</span></div>
+        <div class="funnel-track" style="height:10px"><div class="funnel-bar" style="width:${Math.max(4,Math.min(100,pct===null?50:pct))}%;background:${barColor};font-size:0"></div></div>
       </div>
-      <div class="agent-bar-val">${fmtEur(x.forecast)||'0 €'}</div>
-    </div>`).join('');
+      <div class="agent-bar-val">${fmtEur(x.forecast)||'0 €'}${quota?`<div style="font-size:10px;font-weight:400;color:var(--text3)">Ziel ${fmtEur(quota)} · ${pct}%</div>`:''}</div>
+    </div>`;
+  }).join('');
 
   // RMA-Risiko: aktive Leads, deren Versand-SKU eine hohe Reklamationsquote hat
   const riskLeads=dl.filter(l=>!isClosedLead(l)).map(l=>{
@@ -965,7 +1024,36 @@ function renderDashboard(){
   const forecastLost=lostLeads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
   const investLost=lostLeads.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.price)||0),0),0);
   const netEffect=forecastWon-investLost;
-  const movements=getRecentMovements(dl,7);
+
+  // B2B vs. B2C
+  const artBreakdown=['B2B','B2C'].map(art=>{
+    const artLeads=dl.filter(l=>l.art===art);
+    const artWon=artLeads.filter(l=>isWon(l)).length;
+    const artClosed=artLeads.filter(l=>isClosedLead(l)).length;
+    return {art,count:artLeads.length,won:artWon,rate:artClosed?Math.round(artWon/artClosed*100):null};
+  });
+  const artHtml=artBreakdown.map(x=>`
+    <div class="impact-row"><span>${x.art} <span style="color:var(--text3);font-weight:400">(${x.count} Leads)</span></span><strong>${x.rate!==null?x.rate+'% Gewinnrate':'– noch keine Abschlüsse'}</strong></div>
+  `).join('');
+
+  // Verlust-Gruende (zusaetzlich zur Phasen-Auswertung)
+  const reasonCounts={};
+  lostLeads.forEach(l=>{
+    const r=l.lossReason||'Kein Grund erfasst';
+    reasonCounts[r]=(reasonCounts[r]||0)+1;
+  });
+  const reasonEntries=Object.entries(reasonCounts).sort((a,b)=>b[1]-a[1]);
+  const reasonMax=Math.max(1,...reasonEntries.map(x=>x[1]));
+  const reasonHtml=reasonEntries.length?reasonEntries.map(([label,count])=>{
+    const pct=Math.max(8,Math.round(count/reasonMax*100));
+    const ofLostPct=lostLeads.length?Math.round(count/lostLeads.length*100):0;
+    return `<div class="funnel-row">
+      <div class="funnel-label">${label}</div>
+      <div class="funnel-track"><div class="funnel-bar" style="width:${pct}%;background:var(--amber)">${count} · ${ofLostPct}%</div></div>
+    </div>`;
+  }).join(''):'<p style="font-size:12px;color:var(--text3)">Noch keine verlorenen Leads.</p>';
+
+  const movements=getRecentMovements(dl,movementDays);
   const movementsRowsHtml=movements.rows.length?movements.rows.slice(0,8).map(r=>`
     <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${r.lead.id})},50)">
       <div style="flex:1;min-width:0">
@@ -973,7 +1061,7 @@ function renderDashboard(){
         <div style="font-size:11px;color:var(--text2)">${r.text.replace('Status geändert: ','')}</div>
       </div>
       <span style="font-size:11px;color:var(--text3);flex-shrink:0">${fmtDate(r.date.slice(0,10))}</span>
-    </div>`).join(''):'<p style="font-size:12px;color:var(--text3)">Keine Bewegungen in den letzten 7 Tagen.</p>';
+    </div>`).join(''):`<p style="font-size:12px;color:var(--text3)">Keine Bewegungen im gewählten Zeitraum (${movementDays} Tage).</p>`;
 
   document.getElementById('dashboardContent').innerHTML=`
     ${kpiHtml}
@@ -981,7 +1069,7 @@ function renderDashboard(){
       <div class="section-hdr" style="margin-top:0">Pipeline-Trichter <span style="font-weight:400;color:var(--text3);font-size:11px">(Anzahl · Anteil an allen Leads, Pfeil = Konversion zur nächsten Stufe)</span></div>
       <div class="funnel-wrap">${funnelHtml}</div>
       <div class="movements-strip">
-        <div class="movements-item"><i class="ti ti-arrows-shuffle" style="color:var(--purple)"></i><strong>${movements.total}</strong> Bewegungen (7 Tage)</div>
+        <div class="movements-item"><i class="ti ti-arrows-shuffle" style="color:var(--purple)"></i><strong>${movements.total}</strong> Bewegungen (${movementDays} Tage)</div>
         <div class="movements-item"><i class="ti ti-arrow-forward-up" style="color:var(--text2)"></i><strong>${movements.forward}</strong> vorwärts</div>
         <div class="movements-item"><i class="ti ti-trophy" style="color:var(--green-dark)"></i><strong>${movements.toWon}</strong> gewonnen</div>
         <div class="movements-item"><i class="ti ti-x" style="color:var(--red)"></i><strong>${movements.toLost}</strong> verloren</div>
@@ -1003,6 +1091,17 @@ function renderDashboard(){
       <div class="info-section" style="border-color:${lostLeads.length?'var(--red)':'var(--border)'}">
         <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-trending-down" style="color:var(--red)"></i> Wo wir Kunden verlieren</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(Phase vor "Verloren")</span></div>
         <div class="funnel-wrap">${lossHtml}</div>
+      </div>
+    </div>
+    <div class="dash-row-1-1">
+      <div class="info-section" style="border-color:${lostLeads.length?'var(--amber)':'var(--border)'}">
+        <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-message-circle-question" style="color:var(--amber-dark)"></i> Warum wir Kunden verlieren</span></div>
+        <div class="funnel-wrap">${reasonHtml}</div>
+      </div>
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-building-store" style="color:var(--purple)"></i> B2B vs. B2C</span></div>
+        ${artHtml}
+        <p style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">Gewinnrate bezogen auf abgeschlossene Leads (gewonnen + verloren) je Kundentyp.</p>
       </div>
     </div>
     <div class="info-section">
@@ -1178,12 +1277,18 @@ function renderSettings(){
       </div>`;
     }
     const leadCount=leads.filter(l=>(l.members||[]).includes(a.id)).length;
-    return `<div class="settings-row">
+    return `<div class="settings-row" style="align-items:flex-start;flex-wrap:wrap">
       <div class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</div>
-      <div style="flex:1">
+      <div style="flex:1;min-width:140px">
         <div style="font-weight:600;font-size:13px">${a.name}</div>
         <div style="font-size:11px;color:var(--text2)">${leadCount} zugewiesene Lead(s)</div>
       </div>
+      <select style="width:130px;font-size:12px" onchange="setAgentRole('${a.id}',this.value)" title="Rolle">
+        <option value="sales" ${a.role==='sales'?'selected':''}>Sales Agent</option>
+        <option value="am" ${a.role==='am'?'selected':''}>Account Manager</option>
+        <option value="admin" ${a.role==='admin'?'selected':''}>Admin</option>
+      </select>
+      <input type="number" min="0" step="100" value="${a.quota||0}" style="width:90px;font-size:12px" title="Monatsziel Forecast (EUR)" onchange="setAgentQuota('${a.id}',this.value)">
       <button class="check-item-del" onclick="startEditAgent('${a.id}')" title="Umbenennen"><i class="ti ti-pencil"></i></button>
       <button class="check-item-del" onclick="deleteAgent('${a.id}')" title="Entfernen"><i class="ti ti-trash"></i></button>
     </div>`;
@@ -1194,6 +1299,7 @@ function renderSettings(){
       <span class="col-dot" style="background:${COLOR_HEX[c.color]}"></span>
       <div style="flex:1;font-weight:600;font-size:13px">${c.name}</div>
       <span style="font-size:11px;color:var(--text2)">${leads.filter(l=>l.status===c.id).length} Lead(s)</span>
+      <input type="number" min="0" step="1" value="${c.wipLimit||''}" placeholder="kein Limit" style="width:100px;font-size:11px" title="WIP-Limit (max. Karten in dieser Liste)" onchange="setColumnWipLimit('${c.id}',this.value)">
     </div>`).join('');
 
   const labelsHtml=LABELS.length?LABELS.map(lb=>{
@@ -1253,11 +1359,22 @@ function confirmEditAgent(id){
   editingAgentId=null;saveState();renderSettings();
 }
 function deleteAgent(id){
+  if(!requireAdmin('Mitarbeiter entfernen'))return;
   const a=agentById(id);
   if(!confirm(`Mitarbeiter "${a?a.name:''}" wirklich entfernen? Wird von allen Leads als Mitglied entfernt.`))return;
   AGENTS=AGENTS.filter(x=>x.id!==id);
   leads.forEach(l=>{l.members=(l.members||[]).filter(m=>m!==id);});
   saveState();renderSettings();
+}
+function setAgentRole(id,role){
+  const a=agentById(id);
+  if(a)a.role=role;
+  saveState();
+}
+function setAgentQuota(id,val){
+  const a=agentById(id);
+  if(a)a.quota=parseFloat(val)||0;
+  saveState();
 }
 function createAgent(){
   const nameEl=document.getElementById('newAgentName');
@@ -1456,7 +1573,14 @@ function setColumnOutcome(id,val){
   saveState();
   renderDashboard();
 }
+function setColumnWipLimit(id,val){
+  const col=COLUMNS.find(c=>c.id===id);
+  if(col)col.wipLimit=val?parseInt(val):undefined;
+  saveState();
+  renderBoard();
+}
 function deleteColumn(id){
+  if(!requireAdmin('eine Liste löschen'))return;
   if(COLUMNS.length<=1){
     alert('Die letzte verbleibende Liste kann nicht gelöscht werden.');
     return;
@@ -1557,6 +1681,7 @@ function openLeadModal(id){
   recomputeForecast();
   recomputeActual();
   renderLeadModal();
+  if(!id)checkDuplicateLead();
   openModal('leadModal');
 }
 
@@ -1812,10 +1937,11 @@ function renderLeadModal(){
 
   document.getElementById('leadModalInner').innerHTML=`
     <div class="modal-topline">
-      <input type="text" class="modal-title-input" id="fCompany" placeholder="Firmenname" value="${draftLead.company}" oninput="draftLead.company=this.value;clearModalError()">
+      <input type="text" class="modal-title-input" id="fCompany" placeholder="Firmenname" value="${draftLead.company}" oninput="draftLead.company=this.value;clearModalError();checkDuplicateLead()">
       <button class="modal-close" title="Firma bei Google suchen" onclick="openGoogleSearch()"><i class="ti ti-brand-google"></i></button>
       <button class="modal-close" onclick="closeModal('leadModal')"><i class="ti ti-x"></i></button>
     </div>
+    <div id="duplicateWarning" style="display:none"></div>
     <div id="modalErrorMsg" style="display:none"></div>
     <div class="modal-grid">
       <div class="modal-left">
@@ -1834,7 +1960,7 @@ function renderLeadModal(){
             <div><label>Ansprechpartner</label><input type="text" value="${draftLead.contact}" oninput="draftLead.contact=this.value" style="width:100%"></div>
             <div><label>Telefonnummer</label>
               <div style="display:flex;gap:6px">
-                <input type="tel" id="fPhone" value="${draftLead.phone}" oninput="draftLead.phone=this.value" style="flex:1">
+                <input type="tel" id="fPhone" value="${draftLead.phone}" oninput="draftLead.phone=this.value;checkDuplicateLead()" style="flex:1">
                 <button class="btn btn-sm" onclick="callCustomer()" title="Kunden anrufen (3CX)"><i class="ti ti-phone"></i></button>
               </div>
             </div>
@@ -1842,7 +1968,7 @@ function renderLeadModal(){
           <div class="field-row-2">
             <div><label>E-Mail</label>
               <div style="display:flex;gap:6px">
-                <input type="email" id="fEmail" value="${draftLead.email}" oninput="draftLead.email=this.value" style="flex:1">
+                <input type="email" id="fEmail" value="${draftLead.email}" oninput="draftLead.email=this.value;checkDuplicateLead()" style="flex:1">
                 <button class="btn btn-sm" onclick="emailCustomer()" title="Mail an Kunden (Outlook)"><i class="ti ti-mail"></i></button>
               </div>
             </div>
@@ -1856,6 +1982,10 @@ function renderLeadModal(){
           <div class="field-row-2">
             <div><label>Anzahl Bestellungen</label><input type="number" min="0" step="1" placeholder="0" value="${draftLead.orderCount}" oninput="draftLead.orderCount=this.value" style="width:100%"></div>
             <div><label>Umsatz (EUR)</label><input type="number" min="0" step="10" placeholder="0" value="${draftLead.revenue}" oninput="draftLead.revenue=this.value" style="width:100%"></div>
+          </div>
+          <div class="field">
+            <label>Wettbewerber <span style="font-weight:400;color:var(--text3)">(mit wem redet der Kunde sonst noch?)</span></label>
+            <input type="text" placeholder="z. B. Lokaler Händler XY, Amazon Business…" value="${draftLead.competitor||''}" oninput="draftLead.competitor=this.value" style="width:100%">
           </div>
           <div class="field" style="margin-bottom:0">
             <label>Notiz</label>
@@ -1879,7 +2009,7 @@ function renderLeadModal(){
           </div>
           <div class="field-row-2">
             <div><label>Status</label>
-              <select id="fStatus" style="width:100%" onchange="draftLead.status=this.value">
+              <select id="fStatus" style="width:100%" onchange="draftLead.status=this.value;renderLeadModal()">
                 ${COLUMNS.map(c=>`<option value="${c.id}" ${draftLead.status===c.id?'selected':''}>${c.name}</option>`).join('')}
               </select>
             </div>
@@ -1890,6 +2020,18 @@ function renderLeadModal(){
               </select>
             </div>
           </div>
+          ${(colById(draftLead.status)&&colById(draftLead.status).outcome==='lost')?`
+          <div class="field" style="background:var(--red-bg);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+            <label style="color:var(--red-dark)">Verlust-Grund <span style="font-weight:400">(hilft bei der Auswertung im Dashboard)</span></label>
+            <select style="width:100%" onchange="draftLead.lossReason=this.value">
+              <option value="">– Bitte auswählen –</option>
+              <option value="Preis zu hoch" ${draftLead.lossReason==='Preis zu hoch'?'selected':''}>Preis zu hoch</option>
+              <option value="Wettbewerber" ${draftLead.lossReason==='Wettbewerber'?'selected':''}>Wettbewerber</option>
+              <option value="Kein Bedarf mehr" ${draftLead.lossReason==='Kein Bedarf mehr'?'selected':''}>Kein Bedarf mehr</option>
+              <option value="Nicht erreichbar" ${draftLead.lossReason==='Nicht erreichbar'?'selected':''}>Nicht erreichbar</option>
+              <option value="Sonstiges" ${draftLead.lossReason==='Sonstiges'?'selected':''}>Sonstiges</option>
+            </select>
+          </div>`:''}
           <div class="field-row-2">
             <div><label>Datum Erstkontakt</label><input type="date" value="${draftLead.firstContact}" onchange="draftLead.firstContact=this.value" style="width:100%"></div>
             <div><label>Follow-up-Datum</label><input type="date" value="${draftLead.followup}" onchange="draftLead.followup=this.value" style="width:100%"></div>
@@ -2195,6 +2337,24 @@ function clearModalError(){
   const companyEl=document.getElementById('fCompany');
   if(companyEl)companyEl.classList.remove('input-error');
 }
+function checkDuplicateLead(){
+  const el=document.getElementById('duplicateWarning');
+  if(!el)return;
+  const norm=v=>(v||'').trim().toLowerCase();
+  const company=norm(draftLead.company),phone=norm(draftLead.phone),email=norm(draftLead.email);
+  const hit=leads.find(l=>l.id!==editingLeadId&&(
+    (company&&norm(l.company)===company)||
+    (phone&&phone.length>4&&norm(l.phone)===phone)||
+    (email&&norm(l.email)===email)
+  ));
+  if(hit){
+    el.style.display='block';
+    el.innerHTML=`<div class="modal-error-msg" style="background:var(--amber-bg);color:var(--amber-dark)"><i class="ti ti-alert-triangle"></i> Möglicher Duplikat-Lead: <strong>${hit.company}</strong> (${hit.customerNumber||'ohne Kd-Nr.'}) hat dieselbe Firma/Telefonnummer/E-Mail.</div>`;
+  }else{
+    el.style.display='none';
+    el.innerHTML='';
+  }
+}
 function saveLead(){
   if(!draftLead.company.trim()){
     showModalError('Bitte zuerst einen Firmennamen eingeben (oben im Fenster) – erst dann lässt sich der Lead speichern.');
@@ -2225,6 +2385,7 @@ function saveLead(){
   closeModal('leadModal');renderBoard();
 }
 function deleteLead(){
+  if(!requireAdmin('einen Lead löschen'))return;
   const l=leads.find(x=>x.id===editingLeadId);
   if(!confirm(`Lead "${l?l.company:''}" wirklich unwiderruflich löschen?`))return;
   leads=leads.filter(x=>x.id!==editingLeadId);
