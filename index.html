@@ -1747,6 +1747,10 @@ function renderLeadModal(){
 
         <div class="info-section">
           <div class="section-hdr">Lead-Status</div>
+          <div style="margin-bottom:12px">
+            <span class="small-label">Zeitstrahl</span>
+            ${renderFollowupTimeline(draftLead)}
+          </div>
           <div class="field-row-2">
             <div><label>Status</label>
               <select id="fStatus" style="width:100%" onchange="draftLead.status=this.value">
@@ -1763,11 +1767,6 @@ function renderLeadModal(){
           <div class="field-row-2">
             <div><label>Datum Erstkontakt</label><input type="date" value="${draftLead.firstContact}" onchange="draftLead.firstContact=this.value" style="width:100%"></div>
             <div><label>Follow-up-Datum</label><input type="date" value="${draftLead.followup}" onchange="draftLead.followup=this.value" style="width:100%"></div>
-          </div>
-
-          <div style="margin-top:4px">
-            <span class="small-label">Zeitstrahl</span>
-            ${renderFollowupTimeline(draftLead)}
           </div>
 
           <div class="label-row-editor" style="margin-top:10px">
