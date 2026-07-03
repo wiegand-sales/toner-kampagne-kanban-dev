@@ -72,6 +72,19 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .task-row-lead{font-size:12px;color:var(--purple);font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0;}
 .task-row-lead:hover{text-decoration:underline;}
 .task-row-empty{font-size:12px;color:var(--text3);padding:6px 0;}
+.crrma-legend{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px;font-size:11px;color:var(--text2);}
+.crrma-legend-item{display:flex;align-items:center;gap:5px;}
+.crrma-dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+.crrma-table{display:flex;flex-direction:column;}
+.crrma-row{display:grid;grid-template-columns:1.3fr 2fr 0.9fr 0.9fr 1fr 1fr 34px;gap:8px;align-items:center;padding:4px 0;}
+.crrma-row.crrma-hdr{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.03em;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:4px;}
+.crrma-row input{width:100%;}
+.crrma-row input.crrma-good{background:var(--green-bg);color:var(--green-dark);font-weight:600;}
+.crrma-row input.crrma-warn{background:var(--amber-bg);color:var(--amber-dark);font-weight:600;}
+.crrma-row input.crrma-bad{background:var(--red-bg);color:var(--red-dark);font-weight:600;}
+.crrma-dot.crrma-good{background:var(--green);}
+.crrma-dot.crrma-warn{background:var(--amber);}
+.crrma-dot.crrma-bad{background:var(--red);}
 
 .staging-topbar{background:#BA7517;color:#fff;font-size:12px;font-weight:600;text-align:center;padding:6px 10px;display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;}
 .staging-topbar a{color:#fff;text-decoration:underline;font-weight:700;}
@@ -266,8 +279,9 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         <div class="sidebar-project-sub">FlowBoard</div>
       </div>
     </div>
-    <div class="sidebar-nav-item" id="navDashboard" onclick="switchView('dashboard')"><i class="ti ti-layout-dashboard"></i> SFP</div>
+    <div class="sidebar-nav-item" id="navDashboard" onclick="switchView('dashboard')"><i class="ti ti-layout-dashboard"></i> SFP: Toner</div>
     <div class="sidebar-nav-item" id="navBoard" onclick="switchView('board')"><i class="ti ti-layout-kanban"></i> Board</div>
+    <div class="sidebar-nav-item" id="navCrrma" onclick="switchView('crrma')"><i class="ti ti-report-money"></i> CR RMA</div>
     <div class="sidebar-nav-item" id="navTasks" onclick="switchView('tasks')"><i class="ti ti-list-check"></i> Aufgaben</div>
     <div class="sidebar-nav-item" id="navSettings" onclick="switchView('settings')"><i class="ti ti-settings"></i> Einstellungen</div>
     <div class="sidebar-footer">Weitere Projekte folgen hier bald.</div>
@@ -308,6 +322,17 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
       <div class="board-wrap">
         <div class="board" id="board"></div>
       </div>
+    </div>
+
+    <div class="view" id="viewCrrma">
+      <div class="page-hdr" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="page-hdr-title">CR RMA</div>
+          <div class="page-hdr-sub">Artikel-Stammdaten mit Reklamationsquoten (RMA/RGA) je SKU</div>
+        </div>
+        <div class="search-box"><i class="ti ti-search"></i><input type="text" id="crrmaSearch" placeholder="SKU oder Titel suchen…" oninput="renderCrRma()"></div>
+      </div>
+      <div class="view-scroll" id="crrmaContent"></div>
     </div>
 
     <div class="view" id="viewTasks">
@@ -368,14 +393,27 @@ let LABELS=[
 let currentUser='a1';
 let nextColId=1;
 let nextAgentId=4;
+let nextArticleId=9;
 let currentView='board';
+
+// ── ARTIKEL-STAMMDATEN (CR RMA) ──
+let ARTICLES=[
+  {id:1,sku:'TN-1001-BK',title:'HP LaserJet Toner Schwarz',ek:12.50,vk:29.90,crRma:2.1,crRga:0.8},
+  {id:2,sku:'TN-1002-BK',title:'Brother Toner Schwarz',ek:9.80,vk:24.90,crRma:3.4,crRga:1.2},
+  {id:3,sku:'TN-1003-BK',title:'Canon Toner Schwarz',ek:14.20,vk:32.90,crRma:1.5,crRga:0.5},
+  {id:4,sku:'TN-1005-CMYK',title:'Xerox Toner Farbset (CMYK)',ek:38.00,vk:79.90,crRma:4.9,crRga:2.0},
+  {id:5,sku:'TN-1006-BK',title:'HP Enterprise Toner Schwarz',ek:22.00,vk:49.90,crRma:1.2,crRga:0.4},
+  {id:6,sku:'TN-1007-CMYK',title:'Epson Tinte Farbset (CMYK)',ek:16.50,vk:34.90,crRma:6.7,crRga:3.1},
+  {id:7,sku:'TN-1008-CMYK',title:'Konica Minolta Toner Farbset',ek:45.00,vk:94.90,crRma:2.8,crRga:1.0},
+  {id:8,sku:'TN-1011-CMYK',title:'HP Color Toner Farbset',ek:19.90,vk:42.90,crRma:3.9,crRga:1.6},
+];
 
 // ── PERSISTENZ (localStorage – Zwischenlösung bis Supabase angebunden ist) ──
 const STORAGE_KEY='toner_kanban_state_v1';
 function saveState(){
   try{
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      leads, COLUMNS, LABELS, AGENTS, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId
+      leads, COLUMNS, LABELS, AGENTS, ARTICLES, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId, nextArticleId
     }));
   }catch(e){ console.warn('Speichern fehlgeschlagen:', e); }
 }
@@ -388,11 +426,13 @@ function loadState(){
     if(data.COLUMNS)COLUMNS=data.COLUMNS;
     if(data.LABELS)LABELS=data.LABELS;
     if(data.AGENTS)AGENTS=data.AGENTS;
+    if(data.ARTICLES)ARTICLES=data.ARTICLES;
     if(data.nextId)nextId=data.nextId;
     if(data.nextLabelId)nextLabelId=data.nextLabelId;
     if(data.nextPrinterId)nextPrinterId=data.nextPrinterId;
     if(data.nextColId)nextColId=data.nextColId;
     if(data.nextAgentId)nextAgentId=data.nextAgentId;
+    if(data.nextArticleId)nextArticleId=data.nextArticleId;
     normalizeLeads();
     saveState();
     return true;
@@ -542,12 +582,13 @@ function setAgentFilter(id){activeAgentFilter=id;renderAgentChips();renderBoard(
 // ── NAVIGATION ──
 function switchView(view){
   currentView=view;
-  ['dashboard','board','tasks','settings'].forEach(v=>{
+  ['dashboard','board','crrma','tasks','settings'].forEach(v=>{
     document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.toggle('active',v===view);
     document.getElementById('nav'+v.charAt(0).toUpperCase()+v.slice(1)).classList.toggle('active',v===view);
   });
   if(view==='dashboard')renderDashboard();
   if(view==='board')renderBoard();
+  if(view==='crrma')renderCrRma();
   if(view==='tasks')renderTasksView();
   if(view==='settings')renderSettings();
 }
@@ -745,6 +786,63 @@ function toggleGlobalTask(leadId,taskId){
   const t=(l.tasks||[]).find(x=>x.id===taskId);
   if(t){t.done=!t.done;saveState();renderTasksView();}
 }
+// ── CR RMA: Artikel-Stammdaten ──
+function updateArticleField(id,field,val){
+  const a=ARTICLES.find(x=>x.id===id);
+  if(!a)return;
+  a[field]=(field==='sku'||field==='title')?val:(val===''?'':parseFloat(val));
+}
+function deleteArticle(id){
+  const a=ARTICLES.find(x=>x.id===id);
+  if(!confirm(`Artikel "${a?a.sku:''}" wirklich löschen?`))return;
+  ARTICLES=ARTICLES.filter(x=>x.id!==id);
+  saveState();
+  renderCrRma();
+}
+function addArticle(){
+  ARTICLES.push({id:nextArticleId++,sku:'',title:'',ek:'',vk:'',crRma:'',crRga:''});
+  saveState();
+  renderCrRma();
+  const rows=document.querySelectorAll('.crrma-row input');
+  if(rows.length)rows[rows.length-6].focus();
+}
+function crRmaCellClass(v){
+  if(v===''||v===null||v===undefined||isNaN(v))return'';
+  if(v>=5)return'crrma-bad';
+  if(v>=2.5)return'crrma-warn';
+  return'crrma-good';
+}
+function renderCrRma(){
+  const q=(document.getElementById('crrmaSearch').value||'').toLowerCase().trim();
+  const filtered=ARTICLES.filter(a=>!q||a.sku.toLowerCase().includes(q)||a.title.toLowerCase().includes(q));
+  const rowsHtml=filtered.map(a=>`
+    <div class="crrma-row">
+      <input type="text" value="${a.sku}" placeholder="SKU" oninput="updateArticleField(${a.id},'sku',this.value);saveState()">
+      <input type="text" value="${a.title}" placeholder="Titel" oninput="updateArticleField(${a.id},'title',this.value);saveState()">
+      <input type="number" step="0.01" value="${a.ek}" placeholder="0.00" oninput="updateArticleField(${a.id},'ek',this.value);saveState()">
+      <input type="number" step="0.01" value="${a.vk}" placeholder="0.00" oninput="updateArticleField(${a.id},'vk',this.value);saveState()">
+      <input type="number" step="0.1" class="${crRmaCellClass(a.crRma)}" value="${a.crRma}" placeholder="0.0" oninput="updateArticleField(${a.id},'crRma',this.value);saveState();this.className=crRmaCellClass(parseFloat(this.value))">
+      <input type="number" step="0.1" class="${crRmaCellClass(a.crRga)}" value="${a.crRga}" placeholder="0.0" oninput="updateArticleField(${a.id},'crRga',this.value);saveState();this.className=crRmaCellClass(parseFloat(this.value))">
+      <button class="check-item-del" onclick="deleteArticle(${a.id})" title="Löschen"><i class="ti ti-trash"></i></button>
+    </div>`).join('');
+
+  document.getElementById('crrmaContent').innerHTML=`
+    <div class="info-section">
+      <div class="crrma-legend">
+        <span class="crrma-legend-item"><span class="crrma-dot crrma-good"></span> unter 2,5% – unbedenklich</span>
+        <span class="crrma-legend-item"><span class="crrma-dot crrma-warn"></span> 2,5–5% – beobachten</span>
+        <span class="crrma-legend-item"><span class="crrma-dot crrma-bad"></span> ab 5% – hohe Reklamationsquote, mit Vorsicht verschicken</span>
+      </div>
+      <div class="crrma-table">
+        <div class="crrma-row crrma-hdr">
+          <div>SKU</div><div>Titel</div><div>EK (€)</div><div>VK (€)</div><div>CR RMA (%)</div><div>CR RGA (%)</div><div></div>
+        </div>
+        ${rowsHtml||'<p style="font-size:12px;color:var(--text3);padding:10px 0">Keine Artikel gefunden.</p>'}
+      </div>
+      <button class="pill-btn" style="margin-top:10px" onclick="addArticle()"><i class="ti ti-plus"></i> Artikel hinzufügen</button>
+    </div>`;
+}
+
 function renderTasksView(){
   const all=getAllTasksFlat();
   const buckets={overdue:[],today:[],week:[],nextweek:[],later:[],none:[],done:[]};
