@@ -1023,6 +1023,21 @@ function renderDashboard(){
         ${topForecastHtml}
       </div>
     </div>`;
+  equalizeRowHeights();
+}
+// Gleicht Boxenhoehen pixelgenau per JS aus (CSS-Flex kann bei Bruch-Pixeln
+// minimal abweichen - das hier erzwingt exakte Gleichheit).
+function equalizeRowHeights(){
+  const raf=typeof requestAnimationFrame==='function'?requestAnimationFrame:(fn=>setTimeout(fn,0));
+  raf(()=>{
+    document.querySelectorAll('#dashboardContent .dash-row-1-1, #dashboardContent .dash-row-eq').forEach(row=>{
+      const boxes=[...row.children].filter(c=>c.classList.contains('info-section'));
+      if(boxes.length<2)return;
+      boxes.forEach(b=>b.style.height='auto');
+      const max=Math.max(...boxes.map(b=>b.getBoundingClientRect().height));
+      boxes.forEach(b=>{b.style.height=Math.ceil(max)+'px';});
+    });
+  });
 }
 
 // ── EINSTELLUNGEN ──
@@ -2255,6 +2270,7 @@ document.addEventListener('click',e=>{
 loadState();
 renderUserSelect();
 renderAgentChips();
+window.addEventListener('resize',()=>{if(currentView==='dashboard')equalizeRowHeights();});
 switchView('board');
 </script>
 
