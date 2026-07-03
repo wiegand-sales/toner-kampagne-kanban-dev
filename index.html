@@ -55,7 +55,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .dash-kpi-val{font-size:22px;font-weight:700;}
 .dash-row-2-1{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;}
 .dash-row-1-2{display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:16px;}
-.dash-row-1-1{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:stretch;}
+.dash-row-1-1{display:flex;gap:16px;margin-bottom:16px;align-items:stretch;}
+.dash-row-1-1>.info-section{flex:1;min-width:0;display:flex;flex-direction:column;}
 .funnel-wrap{display:flex;flex-direction:column;gap:5px;padding-top:2px;}
 .funnel-row{cursor:pointer;display:flex;align-items:center;gap:10px;}
 .funnel-label{font-size:11px;font-weight:500;display:flex;align-items:center;gap:6px;width:172px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -941,10 +942,12 @@ function renderDashboard(){
     const key=l.closedFromStage||'unknown';
     lossByStage[key]=(lossByStage[key]||0)+1;
   });
-  const lossEntries=Object.keys(lossByStage).map(k=>({
-    label:k==='unknown'?'Unbekannt (vor Erfassung verloren)':(colById(k)?colById(k).name:k),
-    count:lossByStage[k]
-  })).sort((a,b)=>b.count-a.count);
+  // Reihenfolge wie im Board: erst alle bekannten Stufen in Pipeline-Reihenfolge, "Unbekannt" ganz am Ende
+  const lossEntries=[];
+  COLUMNS.forEach(c=>{
+    if(lossByStage[c.id])lossEntries.push({label:c.name,count:lossByStage[c.id]});
+  });
+  if(lossByStage.unknown)lossEntries.push({label:'Unbekannt (vor Erfassung verloren)',count:lossByStage.unknown});
   const lossMax=Math.max(1,...lossEntries.map(x=>x.count));
   const lossHtml=lossEntries.length?lossEntries.map(x=>{
     const pct=Math.max(8,Math.round(x.count/lossMax*100));
@@ -997,7 +1000,7 @@ function renderDashboard(){
       </div>
       <div class="info-section" style="border-color:${lostLeads.length?'var(--red)':'var(--border)'}">
         <div class="section-hdr" style="margin-top:0"><i class="ti ti-trending-down" style="color:var(--red)"></i> Wo wir Kunden verlieren <span style="font-weight:400;color:var(--text3);font-size:11px">(Phase vor "Verloren")</span></div>
-        ${lossHtml}
+        <div class="funnel-wrap">${lossHtml}</div>
       </div>
     </div>
     <div class="info-section">
