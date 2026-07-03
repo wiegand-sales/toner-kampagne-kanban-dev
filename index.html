@@ -1095,8 +1095,12 @@ function onDragEnd(e){
   e.target.classList.remove('dragging');
   document.querySelectorAll('.card-drop-top,.card-drop-bottom').forEach(el=>el.classList.remove('card-drop-top','card-drop-bottom'));
 }
-function onDragOver(e){e.preventDefault();e.currentTarget.classList.add('drop-hover');}
-function onDragLeave(e){e.currentTarget.classList.remove('drop-hover');}
+function onDragOver(e){
+  e.preventDefault();
+  if(dragColId){e.currentTarget.classList.add('col-drop-hover');}
+  else{e.currentTarget.classList.add('drop-hover');}
+}
+function onDragLeave(e){e.currentTarget.classList.remove('drop-hover','col-drop-hover');}
 
 // Ablegen auf einer Karte (nicht nur in der Spalte) -> Reihenfolge wie bei Trello
 function onCardDragOver(e){
@@ -1138,7 +1142,21 @@ function onCardDrop(e,targetId){
   renderBoard();
 }
 function onDrop(e,colId){
-  e.preventDefault();e.currentTarget.classList.remove('drop-hover');
+  e.preventDefault();e.currentTarget.classList.remove('drop-hover','col-drop-hover');
+  if(dragColId){
+    if(dragColId!==colId){
+      const fromIdx=COLUMNS.findIndex(c=>c.id===dragColId);
+      const toIdx=COLUMNS.findIndex(c=>c.id===colId);
+      if(fromIdx>-1&&toIdx>-1){
+        const [moved]=COLUMNS.splice(fromIdx,1);
+        COLUMNS.splice(toIdx,0,moved);
+        saveState();
+      }
+    }
+    dragColId=null;
+    renderBoard();
+    return;
+  }
   const l=leads.find(x=>x.id===dragCardId);
   if(l&&l.status!==colId){
     const oldName=colById(l.status).name,newName=colById(colId).name;
