@@ -1732,7 +1732,10 @@ function renderLeadModal(){
       </div>
 
       <div class="info-section">
-        <div class="section-hdr">Tatsächlicher Bedarf: Drucker &amp; Patronen</div>
+        <div class="section-hdr" style="margin-top:0;display:flex;align-items:center;justify-content:space-between">
+          <span>Tatsächlicher Bedarf: Drucker &amp; Patronen</span>
+          <button class="btn btn-sm" onclick="copyForecastToActual()" title="Übernimmt die Drucker/SKUs aus dem Forecast als Ausgangspunkt"><i class="ti ti-copy"></i> Forecast übernehmen</button>
+        </div>
         <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Was der Kunde wirklich gekauft hat – zum Abgleich mit dem Forecast.</p>
         ${actualPrintersHtml}
         <button class="pill-btn" onclick="addActualPrinter()"><i class="ti ti-plus"></i> Drucker hinzufügen</button>
@@ -1981,6 +1984,16 @@ function recomputeActual(){
   draftLead.actual=total;
   const el=document.getElementById('actualComputedValue');
   if(el)el.textContent=fmtEur(total)||'0 €';
+}
+function copyForecastToActual(){
+  if(draftLead.actualPrinters.length&&!confirm('Bereits vorhandene Angaben bei "Tatsächlich" werden dabei überschrieben. Fortfahren?'))return;
+  draftLead.actualPrinters=draftLead.demandPrinters.map(p=>({
+    id:nextPrinterId++,
+    model:p.model,
+    skus:p.skus.map(s=>({sku:s.sku,qty:s.qty,price:s.price}))
+  }));
+  recomputeActual();
+  renderLeadModal();
 }
 
 // Rechte Spalte: Tabs
