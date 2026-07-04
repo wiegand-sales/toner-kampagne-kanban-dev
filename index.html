@@ -382,7 +382,8 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
       <input type="password" id="loginPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')attemptLogin()">
     </div>
     <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px" onclick="attemptLogin()" id="loginBtn"><i class="ti ti-login"></i> Anmelden</button>
-    <div class="login-footer">Noch keinen Zugang? Wende dich an deine Admin-Kollegin/deinen Admin-Kollegen, damit sie/er dir in Supabase einen Zugang anlegt.</div>
+    <button class="btn btn-sm" style="width:100%;justify-content:center;margin-top:8px" onclick="continueOffline()"><i class="ti ti-plug-connected-x"></i> Ohne Anmeldung mit lokalen Daten weiterarbeiten</button>
+    <div class="login-footer">Noch keinen Zugang? Wende dich an deine Admin-Kollegin/deinen Admin-Kollegen, damit sie/er dir in Supabase einen Zugang anlegt.<br>Falls die Anmeldung wegen einer Störung bei Supabase nicht klappt: Mit "Ohne Anmeldung" kannst du trotzdem mit dem zuletzt gespeicherten lokalen Stand weiterarbeiten. Die Cloud-Synchronisation läuft dann automatisch wieder an, sobald du dich später normal anmeldest.</div>
   </div>
 </div>
 
@@ -3328,12 +3329,23 @@ function bootstrapApp(){
   sbInitialSync();
   setInterval(sbPoll,20000);
 }
+let workingOfflineIntentionally=false;
+function continueOffline(){
+  workingOfflineIntentionally=true;
+  showApp();
+}
 function showApp(){
   document.getElementById('loginScreen').classList.add('hidden');
   document.querySelector('.app-shell').classList.remove('hidden');
   if(!window.__appBootstrapped){window.__appBootstrapped=true;bootstrapApp();}
 }
 function showLoginScreen(msg){
+  if(workingOfflineIntentionally){
+    // Bewusst offline gewaehlt: nicht staendig zurueck zum Login zwingen,
+    // nur den Status-Punkt in der Seitenleiste zeigt "Offline" an.
+    setSbStatus('offline',msg||'Ohne Anmeldung – arbeitet lokal weiter.');
+    return;
+  }
   document.querySelector('.app-shell').classList.add('hidden');
   document.getElementById('loginScreen').classList.remove('hidden');
   const msgEl=document.getElementById('loginMessage');
@@ -3354,6 +3366,7 @@ async function attemptLogin(){
   btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2"></i> Anmelden…';
   try{
     await sbLogin(email,password);
+    workingOfflineIntentionally=false;
     showApp();
   }catch(e){
     msgEl.className='login-message login-message-error';
