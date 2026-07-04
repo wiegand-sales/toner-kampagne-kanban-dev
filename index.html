@@ -29,6 +29,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 /* SIDEBAR */
 .sidebar{width:212px;flex-shrink:0;background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 12px;}
 .sidebar-project{display:flex;align-items:center;gap:9px;padding:6px 8px 16px;border-bottom:1px solid var(--border);margin-bottom:14px;}
+.sb-status-indicator{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);padding:0 8px 14px;margin-top:-6px;}
+.sb-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
 .sidebar-project-name{font-size:14px;font-weight:700;}
 .sidebar-project-sub{font-size:11px;color:var(--text3);}
 .sidebar-user-row{padding:6px 8px 14px;margin-bottom:8px;border-bottom:1px solid var(--border);}
@@ -362,6 +364,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         <div class="sidebar-project-sub">FlowBoard</div>
       </div>
     </div>
+    <div id="sbStatusIndicator" class="sb-status-indicator" title="Cloud-Sync-Status"></div>
     <div class="sidebar-user-row">
       <label>Ich bin</label>
       <select id="currentUserSelect" class="me-select" onchange="currentUser=this.value" style="width:100%"></select>
@@ -566,36 +569,141 @@ let nextRiskId=3;
 
 // ── PERSISTENZ (localStorage – Zwischenlösung bis Supabase angebunden ist) ──
 const STORAGE_KEY='toner_kanban_state_v1';
+
+// ── SUPABASE CLOUD-SYNC ──
+// Gemeinsame Datenbank fuer das ganze Team. localStorage bleibt als schneller
+// lokaler Puffer und Offline-Fallback erhalten; die Cloud ist die fuehrende Quelle.
+const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
+const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
+const SB_HEADERS={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'};
+let sbStatus='connecting';   // connecting | online | offline
+let sbStatusDetail='';
+let sbLastUpdatedAt=null;    // Zeitstempel des zuletzt bekannten Cloud-Stands
+let sbPushTimer=null;
+let sbSuppressPush=true;     // bis der erste Abgleich gelaufen ist, nichts hochschieben
+
+function buildStatePayload(){
+  return {leads, COLUMNS, LABELS, AGENTS, ARTICLES, PROJECT, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId, nextArticleId, nextMilestoneId, nextRiskId};
+}
+function applyStateData(data){
+  if(data.leads)leads=data.leads;
+  if(data.COLUMNS)COLUMNS=data.COLUMNS;
+  if(data.LABELS)LABELS=data.LABELS;
+  if(data.AGENTS)AGENTS=data.AGENTS;
+  if(data.ARTICLES)ARTICLES=data.ARTICLES;
+  if(data.PROJECT)PROJECT=Object.assign({milestones:[],risks:[]},data.PROJECT);
+  if(data.nextId)nextId=data.nextId;
+  if(data.nextLabelId)nextLabelId=data.nextLabelId;
+  if(data.nextPrinterId)nextPrinterId=data.nextPrinterId;
+  if(data.nextColId)nextColId=data.nextColId;
+  if(data.nextAgentId)nextAgentId=data.nextAgentId;
+  if(data.nextArticleId)nextArticleId=data.nextArticleId;
+  if(data.nextMilestoneId)nextMilestoneId=data.nextMilestoneId;
+  if(data.nextRiskId)nextRiskId=data.nextRiskId;
+  normalizeColumns();
+  normalizeAgents();
+  normalizeLeads();
+}
+function setSbStatus(status,detail){
+  sbStatus=status;sbStatusDetail=detail||'';
+  const el=document.getElementById('sbStatusIndicator');
+  if(!el)return;
+  const map={
+    connecting:{dot:'#D9A509',text:'Verbinde mit Cloud…'},
+    online:{dot:'#2E8B57',text:'Cloud verbunden'},
+    offline:{dot:'#BD2D29',text:'Offline – nur lokal'}
+  };
+  const m=map[status]||map.offline;
+  el.innerHTML=`<span class="sb-dot" style="background:${m.dot}"></span>${m.text}`;
+  el.title=detail||m.text;
+}
+function scheduleSbPush(){
+  if(sbSuppressPush)return;
+  clearTimeout(sbPushTimer);
+  sbPushTimer=setTimeout(sbPush,1500);
+}
+async function sbPush(){
+  try{
+    const ts=new Date().toISOString();
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state`,{
+      method:'POST',
+      headers:Object.assign({},SB_HEADERS,{'Prefer':'resolution=merge-duplicates,return=representation'}),
+      body:JSON.stringify({id:'main',data:buildStatePayload(),updated_at:ts})
+    });
+    if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
+    const rows=await res.json();
+    if(rows&&rows[0]&&rows[0].updated_at)sbLastUpdatedAt=rows[0].updated_at;
+    else sbLastUpdatedAt=ts;
+    setSbStatus('online');
+  }catch(e){
+    console.warn('Cloud-Push fehlgeschlagen:',e);
+    setSbStatus('offline','Letzter Push fehlgeschlagen: '+e.message+' – Daten sind lokal gesichert, Sync wird erneut versucht.');
+  }
+}
+async function sbPull(){
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=data,updated_at`,{headers:SB_HEADERS});
+  if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
+  const rows=await res.json();
+  return rows&&rows.length?rows[0]:null;
+}
+function refreshCurrentView(){
+  renderUserSelect();
+  switchView(currentView);
+}
+async function sbInitialSync(){
+  try{
+    const remote=await sbPull();
+    if(remote){
+      // Cloud hat Daten -> Cloud gewinnt (fuehrende Quelle fuer das Team)
+      applyStateData(remote.data);
+      sbLastUpdatedAt=remote.updated_at;
+      try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
+      sbSuppressPush=false;
+      setSbStatus('online');
+      refreshCurrentView();
+    }else{
+      // Tabelle existiert, aber noch leer -> lokalen Stand als Startpunkt hochladen
+      sbSuppressPush=false;
+      await sbPush();
+    }
+  }catch(e){
+    console.warn('Cloud-Verbindung fehlgeschlagen:',e);
+    sbSuppressPush=false;
+    setSbStatus('offline','Verbindung fehlgeschlagen: '+e.message);
+  }
+}
+async function sbPoll(){
+  // Nichts uebernehmen, waehrend jemand gerade im Lead-Fenster arbeitet oder Karten auswaehlt
+  const modalOpen=!document.getElementById('leadModal').classList.contains('hidden');
+  if(modalOpen||(typeof bulkMode!=='undefined'&&bulkMode))return;
+  try{
+    const remote=await sbPull();
+    if(remote&&remote.updated_at!==sbLastUpdatedAt){
+      sbSuppressPush=true;
+      applyStateData(remote.data);
+      sbLastUpdatedAt=remote.updated_at;
+      try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
+      sbSuppressPush=false;
+      refreshCurrentView();
+    }
+    setSbStatus('online');
+  }catch(e){
+    setSbStatus('offline','Abgleich fehlgeschlagen: '+e.message);
+  }
+}
+
 function saveState(){
   try{
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      leads, COLUMNS, LABELS, AGENTS, ARTICLES, PROJECT, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId, nextArticleId, nextMilestoneId, nextRiskId
-    }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(buildStatePayload()));
   }catch(e){ console.warn('Speichern fehlgeschlagen:', e); }
+  scheduleSbPush();
 }
 function loadState(){
   try{
     const raw=localStorage.getItem(STORAGE_KEY);
     if(!raw)return false;
     const data=JSON.parse(raw);
-    if(data.leads)leads=data.leads;
-    if(data.COLUMNS)COLUMNS=data.COLUMNS;
-    if(data.LABELS)LABELS=data.LABELS;
-    if(data.AGENTS)AGENTS=data.AGENTS;
-    if(data.ARTICLES)ARTICLES=data.ARTICLES;
-    if(data.PROJECT)PROJECT=Object.assign({milestones:[],risks:[]},data.PROJECT);
-    if(data.nextId)nextId=data.nextId;
-    if(data.nextLabelId)nextLabelId=data.nextLabelId;
-    if(data.nextPrinterId)nextPrinterId=data.nextPrinterId;
-    if(data.nextColId)nextColId=data.nextColId;
-    if(data.nextAgentId)nextAgentId=data.nextAgentId;
-    if(data.nextArticleId)nextArticleId=data.nextArticleId;
-    if(data.nextMilestoneId)nextMilestoneId=data.nextMilestoneId;
-    if(data.nextRiskId)nextRiskId=data.nextRiskId;
-    normalizeColumns();
-    normalizeAgents();
-    normalizeLeads();
-    saveState();
+    applyStateData(data);
     return true;
   }catch(e){ console.warn('Laden fehlgeschlagen:', e); return false; }
 }
@@ -1642,7 +1750,7 @@ function renderSettings(){
 
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Datenspeicherung</div>
-        <p style="font-size:12px;color:var(--text2);line-height:1.6">Alle Daten liegen aktuell lokal im Browser (localStorage) dieses Geräts. Eine Datenbank-Anbindung (Supabase) für Team-weiten Zugriff ist als nächster Schritt geplant.</p>
+        <p style="font-size:12px;color:var(--text2);line-height:1.6">Alle Daten liegen in einer gemeinsamen Cloud-Datenbank (Supabase) – alle Mitarbeiter sehen denselben Stand, egal an welchem Gerät. Der Status oben links in der Seitenleiste zeigt, ob die Verbindung gerade aktiv ist. Bei fehlender Internetverbindung wird lokal weitergearbeitet und automatisch synchronisiert, sobald die Verbindung zurück ist.</p>
         <button class="btn btn-sm" style="margin-top:8px" onclick="exportFullBackup()"><i class="ti ti-database-export"></i> Alle Daten als Backup exportieren (JSON)</button>
       </div>
     </div>
@@ -3045,6 +3153,9 @@ renderUserSelect();
 renderAgentChips();
 window.addEventListener('resize',()=>{if(currentView==='dashboard')equalizeRowHeights();});
 switchView('board');
+setSbStatus('connecting');
+sbInitialSync();
+setInterval(sbPoll,20000);
 </script>
 
 <div class="staging-bottombar">DEV / STAGING — Keine Produktivumgebung — <a href="https://wiegand-sales.github.io/toner-kampagne-kanban/" target="_blank">&rarr; Live</a></div>
