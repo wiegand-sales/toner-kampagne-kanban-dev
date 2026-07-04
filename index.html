@@ -599,6 +599,12 @@ function loadState(){
 }
 
 function nowISO(){return new Date().toISOString();}
+// Escapet Benutzereingaben, bevor sie in HTML eingebaut werden (verhindert kaputte
+// Oberflaeche / Injection durch Anfuehrungszeichen oder HTML-Zeichen in z.B. Firmennamen)
+function esc(v){
+  if(v===undefined||v===null)return'';
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 function fmtDateTime(iso){
   const d=new Date(iso);
   const p=n=>String(n).padStart(2,'0');
@@ -818,7 +824,7 @@ function renderAgentChips(){
   const el=document.getElementById('agentChips');
   let html=`<span class="chip ${activeAgentFilter==='all'?'active':''}" onclick="setAgentFilter('all')">Alle</span>`;
   AGENTS.forEach(a=>{
-    html+=`<span class="chip ${activeAgentFilter===a.id?'active':''}" onclick="setAgentFilter('${a.id}')">${a.name}</span>`;
+    html+=`<span class="chip ${activeAgentFilter===a.id?'active':''}" onclick="setAgentFilter('${a.id}')">${esc(a.name)}</span>`;
   });
   el.innerHTML=html;
 }
@@ -828,13 +834,13 @@ function renderLabelChips(){
   let html=`<span class="chip ${activeLabelFilter==='all'?'active':''}" onclick="setLabelFilter('all')">Alle</span>`;
   LABELS.forEach(lb=>{
     const active=activeLabelFilter===lb.id;
-    html+=`<span class="chip ${active?'active':''}" style="${active?`background:${lb.color};border-color:${lb.color}`:`border-color:${lb.color};color:${lb.color}`}" onclick="setLabelFilter('${lb.id}')">${lb.name}</span>`;
+    html+=`<span class="chip ${active?'active':''}" style="${active?`background:${lb.color};border-color:${lb.color}`:`border-color:${lb.color};color:${lb.color}`}" onclick="setLabelFilter('${lb.id}')">${esc(lb.name)}</span>`;
   });
   el.innerHTML=html;
 }
 function setLabelFilter(id){activeLabelFilter=id;renderLabelChips();renderBoard();}
 function renderUserSelect(){
-  document.getElementById('currentUserSelect').innerHTML=AGENTS.map(a=>`<option value="${a.id}" ${a.id===currentUser?'selected':''}>${a.name}</option>`).join('');
+  document.getElementById('currentUserSelect').innerHTML=AGENTS.map(a=>`<option value="${a.id}" ${a.id===currentUser?'selected':''}>${esc(a.name)}</option>`).join('');
 }
 function setAgentFilter(id){activeAgentFilter=id;renderAgentChips();renderBoard();}
 
@@ -879,8 +885,8 @@ function renderBoard(){
       <div class="col-menu-item danger" onclick="deleteColumn('${col.id}')"><i class="ti ti-trash"></i> Liste löschen</div>
     </div>`:'';
     const nameHtml=isEditing
-      ? `<input type="text" class="col-name-input" id="colNameInput_${col.id}" value="${col.name}" onkeydown="if(event.key==='Enter')confirmRenameColumn('${col.id}');if(event.key==='Escape'){editingColId=null;renderBoard();}" onblur="confirmRenameColumn('${col.id}')" autofocus>`
-      : `<div class="col-name">${col.name}</div>`;
+      ? `<input type="text" class="col-name-input" id="colNameInput_${col.id}" value="${esc(col.name)}" onkeydown="if(event.key==='Enter')confirmRenameColumn('${col.id}');if(event.key==='Escape'){editingColId=null;renderBoard();}" onblur="confirmRenameColumn('${col.id}')" autofocus>`
+      : `<div class="col-name">${esc(col.name)}</div>`;
     return `<div class="col" data-col="${col.id}" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,'${col.id}')">
       <div class="col-hdr-wrap">
         <div class="col-hdr" draggable="${!isEditing}" ondragstart="onColDragStart(event,'${col.id}')" ondragover="onColDragOver(event)" ondrop="onColDrop(event,'${col.id}')" ondragend="onColDragEnd(event)">
@@ -939,7 +945,7 @@ function renderDashboardAgentChips(){
   const el=document.getElementById('dashAgentChips');
   let html=`<span class="chip ${activeDashboardAgentFilter==='all'?'active':''}" onclick="setDashboardAgentFilter('all')">Alle</span>`;
   AGENTS.forEach(a=>{
-    html+=`<span class="chip ${activeDashboardAgentFilter===a.id?'active':''}" onclick="setDashboardAgentFilter('${a.id}')">${a.name}</span>`;
+    html+=`<span class="chip ${activeDashboardAgentFilter===a.id?'active':''}" onclick="setDashboardAgentFilter('${a.id}')">${esc(a.name)}</span>`;
   });
   el.innerHTML=html;
 }
@@ -1015,7 +1021,7 @@ function renderDashboard(){
   const capHtml=capData.map(x=>{
     const overloaded=capAvg>0&&x.openCount>capAvg*1.5&&x.openCount>=3;
     return `<div class="funnel-row">
-      <div class="funnel-label"><div class="member-av" style="position:static;margin:0;width:20px;height:20px;font-size:9px;background:${COLOR_BG[x.a.color]};color:${COLOR_TEXT[x.a.color]}">${ini(x.a.name)}</div>${x.a.name}${overloaded?' <span class="due-badge due-overdue" style="margin-left:4px">überlastet</span>':''}</div>
+      <div class="funnel-label"><div class="member-av" style="position:static;margin:0;width:20px;height:20px;font-size:9px;background:${COLOR_BG[x.a.color]};color:${COLOR_TEXT[x.a.color]}">${ini(x.a.name)}</div>${esc(x.a.name)}${overloaded?' <span class="due-badge due-overdue" style="margin-left:4px">überlastet</span>':''}</div>
       <div class="funnel-track"><div class="funnel-bar" style="width:${Math.max(8,Math.round(x.openCount/capMax*100))}%;background:${overloaded?'var(--red)':COLOR_HEX[x.a.color]}">${x.openCount} offen</div></div>
     </div>`;
   }).join('')||'<p style="font-size:12px;color:var(--text3)">Keine Mitarbeiter erfasst.</p>';
@@ -1073,8 +1079,8 @@ function renderDashboard(){
       const convPct=x.count?Math.round(next.count/x.count*100):0;
       convHtml=`<div class="funnel-conv" title="Konversion zur nächsten Stufe"><i class="ti ti-arrow-right" style="font-size:11px"></i>${convPct}%</div>`;
     }
-    funnelHtml+=`<div class="funnel-row" onclick="switchView('board')" title="${x.c.name}">
-      <div class="funnel-label"><span class="col-dot" style="background:${COLOR_HEX[x.c.color]}"></span>${x.c.name}</div>
+    funnelHtml+=`<div class="funnel-row" onclick="switchView('board')" title="${esc(x.c.name)}">
+      <div class="funnel-label"><span class="col-dot" style="background:${COLOR_HEX[x.c.color]}"></span>${esc(x.c.name)}</div>
       <div class="funnel-track">
         <div class="funnel-bar" style="width:${barPct}%;background:${COLOR_HEX[x.c.color]}">${x.count} · ${ofTotalPct}%</div>
       </div>
@@ -1097,7 +1103,7 @@ function renderDashboard(){
     <div class="agent-bar-row">
       <div class="member-av" style="position:static;margin:0;background:${COLOR_BG[x.a.color]};color:${COLOR_TEXT[x.a.color]}">${ini(x.a.name)}</div>
       <div class="agent-bar-info">
-        <div class="agent-bar-name">${x.a.name} <span style="font-weight:400;color:var(--text3)">· ${x.count} Leads, ${x.won} gewonnen${x.overdue?` · <span style="color:var(--red)">${x.overdue} überfällig</span>`:''}</span></div>
+        <div class="agent-bar-name">${esc(x.a.name)} <span style="font-weight:400;color:var(--text3)">· ${x.count} Leads, ${x.won} gewonnen${x.overdue?` · <span style="color:var(--red)">${x.overdue} überfällig</span>`:''}</span></div>
         <div class="funnel-track" style="height:10px"><div class="funnel-bar" style="width:${Math.max(4,Math.min(100,pct===null?50:pct))}%;background:${barColor};font-size:0"></div></div>
       </div>
       <div class="agent-bar-val">${fmtEur(x.forecast)||'0 €'}${quota?`<div style="font-size:10px;font-weight:400;color:var(--text3)">Ziel ${fmtEur(quota)} · ${pct}%</div>`:''}</div>
@@ -1112,8 +1118,8 @@ function renderDashboard(){
   const riskHtml=riskLeads.length?riskLeads.map(x=>`
     <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${x.lead.id})},50)">
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.lead.company}</div>
-        <div style="font-size:11px;color:var(--text2)">SKU ${x.article.sku} · ${colById(x.lead.status).name}</div>
+        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.lead.company)}</div>
+        <div style="font-size:11px;color:var(--text2)">SKU ${esc(x.article.sku)} · ${esc(colById(x.lead.status).name)}</div>
       </div>
       <span class="due-badge due-overdue">${x.article.crRma}% RMA</span>
     </div>`).join(''):'<p style="font-size:12px;color:var(--text3)">Keine aktiven Leads mit riskanter SKU. Alles im grünen Bereich.</p>';
@@ -1123,8 +1129,8 @@ function renderDashboard(){
   const topForecastHtml=topForecast.length?topForecast.map(l=>`
     <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${l.id})},50)">
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.company}</div>
-        <div style="font-size:11px;color:var(--text2)">${colById(l.status).name}</div>
+        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.company)}</div>
+        <div style="font-size:11px;color:var(--text2)">${esc(colById(l.status).name)}</div>
       </div>
       <div style="font-weight:600;font-size:13px;color:var(--green-dark)">${fmtEur(l.forecast)}</div>
     </div>`).join(''):'<p style="font-size:12px;color:var(--text3)">Keine offenen Leads mit Forecast.</p>';
@@ -1133,8 +1139,8 @@ function renderDashboard(){
   const overdueHtml=overdueLeads.length?overdueLeads.map(l=>`
     <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${l.id})},50)">
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.company}</div>
-        <div style="font-size:11px;color:var(--text2)">${colById(l.status).name}</div>
+        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.company)}</div>
+        <div style="font-size:11px;color:var(--text2)">${esc(colById(l.status).name)}</div>
       </div>
       <span class="due-badge due-overdue"><i class="ti ti-clock" style="font-size:11px"></i>${Math.abs(daysUntil(l.followup))}T überfällig</span>
     </div>`).join(''):'<p style="font-size:12px;color:var(--text3)">Keine überfälligen Follow-ups.</p>';
@@ -1157,7 +1163,7 @@ function renderDashboard(){
     const pct=Math.max(8,Math.round(x.count/lossMax*100));
     const ofLostPct=lostLeads.length?Math.round(x.count/lostLeads.length*100):0;
     return `<div class="funnel-row">
-      <div class="funnel-label">${x.label}</div>
+      <div class="funnel-label">${esc(x.label)}</div>
       <div class="funnel-track"><div class="funnel-bar" style="width:${pct}%;background:var(--red)">${x.count} · ${ofLostPct}%</div></div>
     </div>`;
   }).join(''):'<p style="font-size:12px;color:var(--text3)">Noch keine verlorenen Leads.</p>';
@@ -1200,8 +1206,8 @@ function renderDashboard(){
   const movementsRowsHtml=movements.rows.length?movements.rows.slice(0,8).map(r=>`
     <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${r.lead.id})},50)">
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.lead.company}</div>
-        <div style="font-size:11px;color:var(--text2)">${r.text.replace('Status geändert: ','')}</div>
+        <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.lead.company)}</div>
+        <div style="font-size:11px;color:var(--text2)">${esc(r.text.replace('Status geändert: ',''))}</div>
       </div>
       <span style="font-size:11px;color:var(--text3);flex-shrink:0">${fmtDate(r.date.slice(0,10))}</span>
     </div>`).join(''):`<p style="font-size:12px;color:var(--text3)">Keine Bewegungen im gewählten Zeitraum (${movementDays} Tage).</p>`;
@@ -1318,12 +1324,12 @@ function followupRowHtml(l){
   const d=daysUntil(l.followup);
   const cls=d<0?'due-overdue':(d<=2?'due-soon':'due-ok');
   const label=d<0?`${Math.abs(d)}T überfällig`:(d===0?'heute':fmtDate(l.followup));
-  const membersHtml=(l.members||[]).slice(0,3).map(id=>{const a=agentById(id);return a?`<div class="member-av" style="position:static;margin-left:-6px;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}" title="${a.name}">${ini(a.name)}</div>`:'';}).join('');
+  const membersHtml=(l.members||[]).slice(0,3).map(id=>{const a=agentById(id);return a?`<div class="member-av" style="position:static;margin-left:-6px;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}" title="${esc(a.name)}">${ini(a.name)}</div>`:'';}).join('');
   return `<div class="task-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${l.id})},50)">
     <span class="task-group-dot" style="background:${COLOR_HEX[colById(l.status).color]};flex-shrink:0"></span>
     <div style="flex:1;min-width:0">
-      <div class="task-row-text">${l.company}</div>
-      <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.contact} · ${colById(l.status).name}</div>
+      <div class="task-row-text">${esc(l.company)}</div>
+      <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.contact)} · ${esc(colById(l.status).name)}</div>
     </div>
     <div class="member-stack">${membersHtml}</div>
     <span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${label}</span>
@@ -1355,7 +1361,7 @@ function renderTasksAgentChips(){
   const el=document.getElementById('tasksAgentChips');
   let html=`<span class="chip ${activeTasksAgentFilter==='all'?'active':''}" onclick="setTasksAgentFilter('all')">Alle</span>`;
   AGENTS.forEach(a=>{
-    html+=`<span class="chip ${activeTasksAgentFilter===a.id?'active':''}" onclick="setTasksAgentFilter('${a.id}')">${a.name}</span>`;
+    html+=`<span class="chip ${activeTasksAgentFilter===a.id?'active':''}" onclick="setTasksAgentFilter('${a.id}')">${esc(a.name)}</span>`;
   });
   el.innerHTML=html;
 }
@@ -1443,8 +1449,8 @@ function renderCrRma(){
     const margin=(parseFloat(a.vk)||0)-(parseFloat(a.ek)||0);
     return `
     <div class="crrma-row">
-      <input type="text" value="${a.sku}" placeholder="SKU" oninput="updateArticleField(${a.id},'sku',this.value);saveState()">
-      <input type="text" value="${a.title}" placeholder="Titel" oninput="updateArticleField(${a.id},'title',this.value);saveState()">
+      <input type="text" value="${esc(a.sku)}" placeholder="SKU" oninput="updateArticleField(${a.id},'sku',this.value);saveState()">
+      <input type="text" value="${esc(a.title)}" placeholder="Titel" oninput="updateArticleField(${a.id},'title',this.value);saveState()">
       <input type="number" step="0.01" value="${a.ek}" placeholder="0.00" onchange="updateArticleField(${a.id},'ek',this.value);saveState();renderCrRma()">
       <input type="number" step="0.01" value="${a.vk}" placeholder="0.00" onchange="updateArticleField(${a.id},'vk',this.value);saveState();renderCrRma()">
       <input type="number" step="0.01" class="crrma-margin-input" style="color:${margin>=0?'var(--green-dark)':'var(--red)'}" value="${margin.toFixed(2)}" title="Marge ändern → VK wird automatisch neu berechnet (EK bleibt fix)" onchange="updateArticleMargin(${a.id},this.value)">
@@ -1491,7 +1497,7 @@ function renderActivities(){
         const fuChanges=(l.followupHistory||[]).length;
         const statusChanges=(l.activity||[]).filter(a=>a.type==='activity'&&a.text.indexOf('Status geändert:')===0).length;
         return `<div class="info-section" style="cursor:pointer" onclick="switchView('board');setTimeout(function(){openLeadModal(${l.id})},50)">
-          <div class="section-hdr" style="margin-top:0">${l.company} <span style="font-weight:400;color:var(--text3);font-size:11px">${l.customerNumber||''}</span></div>
+          <div class="section-hdr" style="margin-top:0">${esc(l.company)} <span style="font-weight:400;color:var(--text3);font-size:11px">${esc(l.customerNumber||'')}</span></div>
           <div class="impact-row"><span>Follow-up-Datum geändert</span><strong style="color:var(--purple)">${fuChanges}×</strong></div>
           <div class="impact-row"><span>Statuswechsel</span><strong style="color:var(--teal-dark)">${statusChanges}×</strong></div>
           <div class="impact-row"><span>Aktueller Status</span><strong>${colById(l.status)?colById(l.status).name:'–'}</strong></div>
@@ -1515,8 +1521,8 @@ function renderActivities(){
     const ag=agentById(e.author);
     return `<div class="dash-lead-row" style="align-items:flex-start" onclick="switchView('board');setTimeout(function(){openLeadModal(${e.lead.id})},50)">
       <div style="flex:1;min-width:0">
-        <span style="font-weight:600;font-size:13px">${e.lead.company}</span>
-        <span style="font-size:12px;color:var(--text2)"> ${e.type==='comment'?'– Kommentar: ':'– '}${e.text}</span>
+        <span style="font-weight:600;font-size:13px">${esc(e.lead.company)}</span>
+        <span style="font-size:12px;color:var(--text2)"> ${e.type==='comment'?'– Kommentar: ':'– '}${esc(e.text)}</span>
       </div>
       <span style="font-size:11px;color:var(--text3);flex-shrink:0;white-space:nowrap">${ag?ag.name:'?'} · ${fmtDateTime(e.date)}</span>
     </div>`;
@@ -1538,7 +1544,7 @@ function renderSettings(){
   const agentsHtml=AGENTS.map(a=>{
     if(editingAgentId===a.id){
       return `<div class="settings-row">
-        <input type="text" id="editAgentInput_${a.id}" value="${a.name}" class="col-name-input" style="flex:1"
+        <input type="text" id="editAgentInput_${a.id}" value="${esc(a.name)}" class="col-name-input" style="flex:1"
           onkeydown="if(event.key==='Enter')confirmEditAgent('${a.id}');if(event.key==='Escape'){editingAgentId=null;renderSettings();}"
           onblur="confirmEditAgent('${a.id}')" autofocus>
       </div>`;
@@ -1547,7 +1553,7 @@ function renderSettings(){
     return `<div class="settings-row" style="align-items:flex-start;flex-wrap:wrap">
       <div class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</div>
       <div style="flex:1;min-width:140px">
-        <div style="font-weight:600;font-size:13px">${a.name}</div>
+        <div style="font-weight:600;font-size:13px">${esc(a.name)}</div>
         <div style="font-size:11px;color:var(--text2)">${leadCount} zugewiesene Lead(s)</div>
       </div>
       <select style="width:130px;font-size:12px" onchange="setAgentRole('${a.id}',this.value)" title="Rolle">
@@ -1572,14 +1578,14 @@ function renderSettings(){
   const labelsHtml=LABELS.length?LABELS.map(lb=>{
     if(editingLabelId===lb.id){
       return `<div class="settings-row">
-        <input type="text" id="editLabelInput_${lb.id}" value="${lb.name}" class="col-name-input" style="flex:1"
+        <input type="text" id="editLabelInput_${lb.id}" value="${esc(lb.name)}" class="col-name-input" style="flex:1"
           onkeydown="if(event.key==='Enter')confirmEditLabel('${lb.id}');if(event.key==='Escape'){editingLabelId=null;renderSettings();}"
           onblur="confirmEditLabel('${lb.id}')" autofocus>
       </div>`;
     }
     const useCount=leads.filter(l=>(l.labelIds||[]).includes(lb.id)).length;
     return `<div class="settings-row">
-      <span class="label-chip" style="background:${lb.color}">${lb.name}</span>
+      <span class="label-chip" style="background:${lb.color}">${esc(lb.name)}</span>
       <span style="flex:1;font-size:11px;color:var(--text2)">${useCount} Lead(s)</span>
       <button class="check-item-del" onclick="startEditLabelSettings('${lb.id}')" title="Umbenennen"><i class="ti ti-pencil"></i></button>
       <button class="check-item-del" onclick="deleteLabelGlobal('${lb.id}')" title="Löschen"><i class="ti ti-trash"></i></button>
@@ -1591,7 +1597,7 @@ function renderSettings(){
     const overdue=!m.done&&d<0;
     return `<div class="settings-row">
       <input type="checkbox" ${m.done?'checked':''} onchange="toggleMilestone(${m.id})" style="width:16px;height:16px">
-      <div style="flex:1;font-size:13px;${m.done?'text-decoration:line-through;color:var(--text3)':''}">${m.name}</div>
+      <div style="flex:1;font-size:13px;${m.done?'text-decoration:line-through;color:var(--text3)':''}">${esc(m.name)}</div>
       <span class="due-badge ${m.done?'due-ok':(overdue?'due-overdue':'due-ok')}">${fmtDate(m.targetDate)}</span>
       <button class="check-item-del" onclick="deleteMilestone(${m.id})"><i class="ti ti-trash"></i></button>
     </div>`;
@@ -1602,7 +1608,7 @@ function renderSettings(){
   const risksHtml=PROJECT.risks.map(r=>`
     <div class="settings-row">
       <span class="due-badge" style="background:${riskSeverityColor[r.severity]}22;color:${riskSeverityColor[r.severity]}">${riskSeverityLabel[r.severity]}</span>
-      <div style="flex:1;font-size:13px;${!r.open?'text-decoration:line-through;color:var(--text3)':''}">${r.text}</div>
+      <div style="flex:1;font-size:13px;${!r.open?'text-decoration:line-through;color:var(--text3)':''}">${esc(r.text)}</div>
       <input type="checkbox" ${!r.open?'checked':''} onchange="toggleRisk(${r.id})" title="Erledigt/behoben" style="width:16px;height:16px">
       <button class="check-item-del" onclick="deleteRisk(${r.id})"><i class="ti ti-trash"></i></button>
     </div>`).join('')||'<p style="font-size:12px;color:var(--text3)">Keine Risiken erfasst.</p>';
@@ -1712,8 +1718,8 @@ function createAgent(){
 function startEditLabelSettings(id){editingLabelId=id;renderSettings();const el=document.getElementById('editLabelInput_'+id);if(el){el.focus();el.select();}}
 
 function cardHtml(l,isFirst,isLast){
-  const labelsHtml=(l.labelIds||[]).map(id=>{const lb=labelById(id);return lb?`<span class="label-chip" style="background:${lb.color}">${lb.name}</span>`:'';}).join('');
-  const membersHtml=(l.members||[]).slice(0,4).map(id=>{const a=agentById(id);return a?`<div class="member-av" style="background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}" title="${a.name}">${ini(a.name)}</div>`:'';}).join('');
+  const labelsHtml=(l.labelIds||[]).map(id=>{const lb=labelById(id);return lb?`<span class="label-chip" style="background:${lb.color}">${esc(lb.name)}</span>`:'';}).join('');
+  const membersHtml=(l.members||[]).slice(0,4).map(id=>{const a=agentById(id);return a?`<div class="member-av" style="background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}" title="${esc(a.name)}">${ini(a.name)}</div>`:'';}).join('');
   const checkTotal=(l.checklist||[]).length;
   const checkDone=(l.checklist||[]).filter(c=>c.done).length;
   let dueHtml='';
@@ -1739,8 +1745,8 @@ function cardHtml(l,isFirst,isLast){
       ${!isFirst?`<button onclick="event.stopPropagation();moveLeadUp(${l.id})" title="Nach oben"><i class="ti ti-chevron-up"></i></button>`:''}
       ${!isLast?`<button onclick="event.stopPropagation();moveLeadDown(${l.id})" title="Nach unten"><i class="ti ti-chevron-down"></i></button>`:''}
     </div>`}
-    <div class="card-company">${l.company} ${agingHtml}</div>
-    <div class="card-contact">${l.contact}${l.customerNumber?` · ${l.customerNumber}`:''}</div>
+    <div class="card-company">${esc(l.company)} ${agingHtml}</div>
+    <div class="card-contact">${esc(l.contact)}${l.customerNumber?` · ${esc(l.customerNumber)}`:''}</div>
     <div class="card-labels-slot">${labelsHtml}</div>
     <div class="card-badges-row">${metaBadges.join('')}</div>
     <div class="card-spacer"></div>
@@ -1760,7 +1766,7 @@ function toggleBulkMode(){
   document.getElementById('bulkActionBar').style.display=bulkMode?'flex':'none';
   document.getElementById('bulkModeBtn').classList.toggle('active',bulkMode);
   if(bulkMode){
-    document.getElementById('bulkAgentSelect').innerHTML=AGENTS.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+    document.getElementById('bulkAgentSelect').innerHTML=AGENTS.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
   }
   updateBulkCountLabel();
   renderBoard();
@@ -1956,12 +1962,12 @@ function deleteColumn(id){
   const leadsInCol=leads.filter(l=>l.status===id);
   const otherCol=COLUMNS.find(c=>c.id!==id);
   const msg=leadsInCol.length
-    ? `Die Liste "${col.name}" enthält ${leadsInCol.length} Lead(s). Diese werden nach "${otherCol.name}" verschoben. Liste trotzdem löschen?`
-    : `Liste "${col.name}" wirklich löschen?`;
+    ? `Die Liste "${esc(col.name)}" enthält ${leadsInCol.length} Lead(s). Diese werden nach "${otherCol.name}" verschoben. Liste trotzdem löschen?`
+    : `Liste "${esc(col.name)}" wirklich löschen?`;
   if(!confirm(msg))return;
   leadsInCol.forEach(l=>{
     l.status=otherCol.id;
-    l.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Status geändert: ${col.name} → ${otherCol.name} (Liste gelöscht)`,date:nowISO()});
+    l.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Status geändert: ${esc(col.name)} → ${otherCol.name} (Liste gelöscht)`,date:nowISO()});
   });
   COLUMNS=COLUMNS.filter(c=>c.id!==id);
   colMenuOpenId=null;
@@ -2058,10 +2064,10 @@ function renderLeadModal(){
   const checkDone=draftLead.checklist.filter(c=>c.done).length;
   const pct=checkTotal?Math.round(checkDone/checkTotal*100):0;
 
-  const labelChips=draftLead.labelIds.map(id=>{const lb=labelById(id);return lb?`<span class="label-chip" style="background:${lb.color}">${lb.name}</span>`:'';}).join('');
+  const labelChips=draftLead.labelIds.map(id=>{const lb=labelById(id);return lb?`<span class="label-chip" style="background:${lb.color}">${esc(lb.name)}</span>`:'';}).join('');
   const memberChips=draftLead.members.map(id=>{
     const a=agentById(id);if(!a)return'';
-    return `<span class="member-chip"><span class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</span>${a.name}</span>`;
+    return `<span class="member-chip"><span class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</span>${esc(a.name)}</span>`;
   }).join('');
 
   const usedColors=LABELS.map(l=>l.color);
@@ -2070,14 +2076,14 @@ function renderLeadModal(){
     ${LABELS.map(lb=>{
       if(editingLabelId===lb.id){
         return `<div class="popover-item" style="padding:4px 6px" onclick="event.stopPropagation()">
-          <input type="text" id="editLabelInput_${lb.id}" value="${lb.name}" class="col-name-input" style="flex:1"
+          <input type="text" id="editLabelInput_${lb.id}" value="${esc(lb.name)}" class="col-name-input" style="flex:1"
             onkeydown="if(event.key==='Enter')confirmEditLabel('${lb.id}');if(event.key==='Escape'){editingLabelId=null;renderLeadModal();}"
             onblur="confirmEditLabel('${lb.id}')">
         </div>`;
       }
       return `<div class="popover-item" onclick="toggleDraftLabel('${lb.id}')">
         <input type="checkbox" ${draftLead.labelIds.includes(lb.id)?'checked':''} onclick="event.stopPropagation();toggleDraftLabel('${lb.id}')">
-        <span class="label-chip" style="background:${lb.color}">${lb.name}</span>
+        <span class="label-chip" style="background:${lb.color}">${esc(lb.name)}</span>
         <span style="flex:1"></span>
         <button class="check-item-del" onclick="event.stopPropagation();startEditLabel('${lb.id}')" title="Umbenennen"><i class="ti ti-pencil" style="font-size:12px"></i></button>
         <button class="check-item-del" onclick="event.stopPropagation();deleteLabelGlobal('${lb.id}')" title="Label löschen"><i class="ti ti-trash" style="font-size:12px"></i></button>
@@ -2102,13 +2108,13 @@ function renderLeadModal(){
   const memberPopoverHtml=memberPopoverOpen?`<div class="popover">
     ${AGENTS.map(a=>`<div class="popover-item" onclick="toggleDraftMember('${a.id}')">
       <input type="checkbox" ${draftLead.members.includes(a.id)?'checked':''} onclick="event.stopPropagation();toggleDraftMember('${a.id}')">
-      <span class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</span>${a.name}
+      <span class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</span>${esc(a.name)}
     </div>`).join('')}
   </div>`:'';
 
   const checklistHtml=draftLead.checklist.map(c=>`<div class="check-item-row">
     <input type="checkbox" ${c.done?'checked':''} onchange="toggleCheckItem(${c.id})">
-    <span class="check-item-text ${c.done?'done':''}">${c.text}</span>
+    <span class="check-item-text ${c.done?'done':''}">${esc(c.text)}</span>
     <button class="check-item-del" onclick="deleteCheckItem(${c.id})"><i class="ti ti-x"></i></button>
   </div>`).join('');
 
@@ -2132,16 +2138,16 @@ function renderLeadModal(){
         <button class="check-item-del" onclick="removeDemandPrinter(${p.id})" title="Drucker entfernen"><i class="ti ti-trash"></i></button>
       </div>
       <div class="field" style="margin-bottom:8px">
-        <input type="text" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${p.model}" oninput="updateDemandPrinterModel(${p.id},this.value)" style="width:100%">
+        <input type="text" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${esc(p.model)}" oninput="updateDemandPrinterModel(${p.id},this.value)" style="width:100%">
       </div>
       <div class="sku-grid">
-        ${['I','II','III','IV'].map((rn,i)=>`<div><label>SKU ${rn}</label><input type="text" placeholder="SKU ${rn}" value="${p.skus[i].sku||''}" oninput="updateDemandPrinterSku(${p.id},${i},'sku',this.value)" style="width:100%"></div>`).join('')}
+        ${['I','II','III','IV'].map((rn,i)=>`<div><label>SKU ${rn}</label><input type="text" placeholder="SKU ${rn}" value="${esc(p.skus[i].sku||'')}" oninput="updateDemandPrinterSku(${p.id},${i},'sku',this.value)" style="width:100%"></div>`).join('')}
       </div>
       <div class="sku-grid" style="margin-top:6px">
-        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Anzahl ${rn}</label><input type="number" min="0" step="1" placeholder="0" value="${p.skus[i].qty||''}" oninput="updateDemandPrinterSku(${p.id},${i},'qty',this.value)" style="width:100%"></div>`).join('')}
+        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Anzahl ${rn}</label><input type="number" min="0" step="1" placeholder="0" value="${esc(p.skus[i].qty||'')}" oninput="updateDemandPrinterSku(${p.id},${i},'qty',this.value)" style="width:100%"></div>`).join('')}
       </div>
       <div class="sku-grid" style="margin-top:6px">
-        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${p.skus[i].price||''}" oninput="updateDemandPrinterSku(${p.id},${i},'price',this.value)" style="width:100%"></div>`).join('')}
+        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${esc(p.skus[i].price||'')}" oninput="updateDemandPrinterSku(${p.id},${i},'price',this.value)" style="width:100%"></div>`).join('')}
       </div>
     </div>`).join('');
 
@@ -2152,16 +2158,16 @@ function renderLeadModal(){
         <button class="check-item-del" onclick="removeActualPrinter(${p.id})" title="Drucker entfernen"><i class="ti ti-trash"></i></button>
       </div>
       <div class="field" style="margin-bottom:8px">
-        <input type="text" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${p.model}" oninput="updateActualPrinterModel(${p.id},this.value)" style="width:100%">
+        <input type="text" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${esc(p.model)}" oninput="updateActualPrinterModel(${p.id},this.value)" style="width:100%">
       </div>
       <div class="sku-grid">
-        ${['I','II','III','IV'].map((rn,i)=>`<div><label>SKU ${rn}</label><input type="text" placeholder="SKU ${rn}" value="${p.skus[i].sku||''}" oninput="updateActualPrinterSku(${p.id},${i},'sku',this.value)" style="width:100%"></div>`).join('')}
+        ${['I','II','III','IV'].map((rn,i)=>`<div><label>SKU ${rn}</label><input type="text" placeholder="SKU ${rn}" value="${esc(p.skus[i].sku||'')}" oninput="updateActualPrinterSku(${p.id},${i},'sku',this.value)" style="width:100%"></div>`).join('')}
       </div>
       <div class="sku-grid" style="margin-top:6px">
-        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Anzahl ${rn}</label><input type="number" min="0" step="1" placeholder="0" value="${p.skus[i].qty||''}" oninput="updateActualPrinterSku(${p.id},${i},'qty',this.value)" style="width:100%"></div>`).join('')}
+        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Anzahl ${rn}</label><input type="number" min="0" step="1" placeholder="0" value="${esc(p.skus[i].qty||'')}" oninput="updateActualPrinterSku(${p.id},${i},'qty',this.value)" style="width:100%"></div>`).join('')}
       </div>
       <div class="sku-grid" style="margin-top:6px">
-        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${p.skus[i].price||''}" oninput="updateActualPrinterSku(${p.id},${i},'price',this.value)" style="width:100%"></div>`).join('')}
+        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${esc(p.skus[i].price||'')}" oninput="updateActualPrinterSku(${p.id},${i},'price',this.value)" style="width:100%"></div>`).join('')}
       </div>
     </div>`).join('');
 
@@ -2174,7 +2180,7 @@ function renderLeadModal(){
         <div class="comment-av" style="background:${COLOR_BG[a?a.color:'gray']};color:${COLOR_TEXT[a?a.color:'gray']}">${a?ini(a.name):'?'}</div>
         <div class="comment-bubble">
           <span class="comment-author">${a?a.name:'Unbekannt'}</span><span class="comment-date">${fmtDateTime(item.date)}</span>${item.backdated?'<span class="backdated-tag" title="Nachträglich mit vergangenem Datum erfasst"><i class="ti ti-history" style="font-size:10px"></i> nacherfasst</span>':''}
-          <div class="comment-text">${item.text}</div>
+          <div class="comment-text">${esc(item.text)}</div>
         </div>
       </div>`;
     }
@@ -2182,13 +2188,13 @@ function renderLeadModal(){
       <div class="comment-av" style="background:${COLOR_BG[a?a.color:'gray']};color:${COLOR_TEXT[a?a.color:'gray']}">${a?ini(a.name):'?'}</div>
       <div class="comment-bubble activity-bubble">
         <span class="comment-author">${a?a.name:'System'}</span><span class="comment-date">${fmtDateTime(item.date)}</span>
-        <div class="activity-text"><i class="ti ti-point-filled" style="font-size:7px"></i> ${item.text}</div>
+        <div class="activity-text"><i class="ti ti-point-filled" style="font-size:7px"></i> ${esc(item.text)}</div>
       </div>
     </div>`;
   }).join('')||`<div class="activity-item" style="padding-left:0">${activityFeedFilter==='comments'?'Noch keine Kommentare.':activityFeedFilter==='activity'?'Noch keine Aktivität.':'Noch keine Kommentare oder Aktivität.'}</div>`;
 
   const filesHtml=(draftLead.files||[]).map(f=>`<div class="file-row">
-      <a href="${f.dataUrl}" download="${f.name}"><i class="ti ti-file"></i>${f.name} <span style="color:var(--text3)">(${formatBytes(f.size)})</span></a>
+      <a href="${f.dataUrl}" download="${esc(f.name)}"><i class="ti ti-file"></i>${esc(f.name)} <span style="color:var(--text3)">(${formatBytes(f.size)})</span></a>
       <button class="check-item-del" onclick="removeFile(${f.id})"><i class="ti ti-x"></i></button>
     </div>`).join('')||`<div class="activity-item" style="padding-left:0">Noch keine Dateien angehängt.</div>`;
 
@@ -2207,7 +2213,7 @@ function renderLeadModal(){
     return `<div class="check-item-row" style="align-items:flex-start">
       <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask(${t.id})" style="margin-top:2px">
       <div style="flex:1">
-        <span class="check-item-text ${t.done?'done':''}">${t.text}</span>
+        <span class="check-item-text ${t.done?'done':''}">${esc(t.text)}</span>
         ${dueBadge?`<div style="margin-top:4px">${dueBadge}</div>`:''}
       </div>
       <button class="check-item-del" onclick="deleteTask(${t.id})"><i class="ti ti-x"></i></button>
@@ -2322,7 +2328,7 @@ function renderLeadModal(){
 
   document.getElementById('leadModalInner').innerHTML=`
     <div class="modal-topline">
-      <input type="text" class="modal-title-input" id="fCompany" placeholder="Firmenname" value="${draftLead.company}" oninput="draftLead.company=this.value;clearModalError();checkDuplicateLead()">
+      <input type="text" class="modal-title-input" id="fCompany" placeholder="Firmenname" value="${esc(draftLead.company)}" oninput="draftLead.company=this.value;clearModalError();checkDuplicateLead()">
       <button class="modal-close" title="Firma bei Google suchen" onclick="openGoogleSearch()"><i class="ti ti-brand-google"></i></button>
       <button class="modal-close" onclick="closeModal('leadModal')"><i class="ti ti-x"></i></button>
     </div>
@@ -2333,7 +2339,7 @@ function renderLeadModal(){
         <div class="info-section">
           <div class="section-hdr">Kundeninformationen</div>
           <div class="field-row-2">
-            <div><label>Kundennummer</label><input type="text" value="${draftLead.customerNumber}" oninput="draftLead.customerNumber=this.value" style="width:100%"></div>
+            <div><label>Kundennummer</label><input type="text" value="${esc(draftLead.customerNumber)}" oninput="draftLead.customerNumber=this.value" style="width:100%"></div>
             <div><label>Art</label>
               <select style="width:100%" onchange="draftLead.art=this.value">
                 <option value="B2B" ${draftLead.art==='B2B'?'selected':''}>B2B</option>
@@ -2342,10 +2348,10 @@ function renderLeadModal(){
             </div>
           </div>
           <div class="field-row-2">
-            <div><label>Ansprechpartner</label><input type="text" value="${draftLead.contact}" oninput="draftLead.contact=this.value" style="width:100%"></div>
+            <div><label>Ansprechpartner</label><input type="text" value="${esc(draftLead.contact)}" oninput="draftLead.contact=this.value" style="width:100%"></div>
             <div><label>Telefonnummer</label>
               <div style="display:flex;gap:6px">
-                <input type="tel" id="fPhone" value="${draftLead.phone}" oninput="draftLead.phone=this.value;checkDuplicateLead()" style="flex:1">
+                <input type="tel" id="fPhone" value="${esc(draftLead.phone)}" oninput="draftLead.phone=this.value;checkDuplicateLead()" style="flex:1">
                 <button class="btn btn-sm" onclick="callCustomer()" title="Kunden anrufen (3CX)"><i class="ti ti-phone"></i></button>
               </div>
             </div>
@@ -2353,13 +2359,13 @@ function renderLeadModal(){
           <div class="field-row-2">
             <div><label>E-Mail</label>
               <div style="display:flex;gap:6px">
-                <input type="email" id="fEmail" value="${draftLead.email}" oninput="draftLead.email=this.value;checkDuplicateLead()" style="flex:1">
+                <input type="email" id="fEmail" value="${esc(draftLead.email)}" oninput="draftLead.email=this.value;checkDuplicateLead()" style="flex:1">
                 <button class="btn btn-sm" onclick="emailCustomer()" title="Mail an Kunden (Outlook)"><i class="ti ti-mail"></i></button>
               </div>
             </div>
             <div><label>Adresse</label>
               <div style="display:flex;gap:6px">
-                <input type="text" id="fAddress" placeholder="Straße, PLZ Ort" value="${draftLead.address}" oninput="draftLead.address=this.value" style="flex:1">
+                <input type="text" id="fAddress" placeholder="Straße, PLZ Ort" value="${esc(draftLead.address)}" oninput="draftLead.address=this.value" style="flex:1">
                 <button class="btn btn-sm" onclick="openMapsSearch()" title="Adresse auf Google Maps anzeigen"><i class="ti ti-map-pin"></i></button>
               </div>
             </div>
@@ -2370,11 +2376,11 @@ function renderLeadModal(){
           </div>
           <div class="field">
             <label>Wettbewerber <span style="font-weight:400;color:var(--text3)">(mit wem redet der Kunde sonst noch?)</span></label>
-            <input type="text" placeholder="z. B. Lokaler Händler XY, Amazon Business…" value="${draftLead.competitor||''}" oninput="draftLead.competitor=this.value" style="width:100%">
+            <input type="text" placeholder="z. B. Lokaler Händler XY, Amazon Business…" value="${esc(draftLead.competitor||'')}" oninput="draftLead.competitor=this.value" style="width:100%">
           </div>
           <div class="field" style="margin-bottom:0">
             <label>Notiz</label>
-            <textarea placeholder="Interne Notiz…" oninput="draftLead.notes=this.value">${draftLead.notes}</textarea>
+            <textarea placeholder="Interne Notiz…" oninput="draftLead.notes=this.value">${esc(draftLead.notes)}</textarea>
           </div>
         </div>
 
@@ -2743,7 +2749,7 @@ function checkDuplicateLead(){
   ));
   if(hit){
     el.style.display='block';
-    el.innerHTML=`<div class="modal-error-msg" style="background:var(--amber-bg);color:var(--amber-dark)"><i class="ti ti-alert-triangle"></i> Möglicher Duplikat-Lead: <strong>${hit.company}</strong> (${hit.customerNumber||'ohne Kd-Nr.'}) hat dieselbe Firma/Telefonnummer/E-Mail.</div>`;
+    el.innerHTML=`<div class="modal-error-msg" style="background:var(--amber-bg);color:var(--amber-dark)"><i class="ti ti-alert-triangle"></i> Möglicher Duplikat-Lead: <strong>${esc(hit.company)}</strong> (${hit.customerNumber||'ohne Kd-Nr.'}) hat dieselbe Firma/Telefonnummer/E-Mail.</div>`;
   }else{
     el.style.display='none';
     el.innerHTML='';
@@ -2894,7 +2900,7 @@ function exportCSV(){
   const rows=leads.map(l=>{
     const shipSkus=l.shipPrinter.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.price?` (${fmtEur(s.price)})`:''}`).join(', ');
     const investTotal=l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.price)||0),0);
-    const demand=(l.demandPrinters||[]).map(p=>`${p.model} [${p.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.qty?` x${s.qty}`:''}`).join(', ')}]`).join(' | ');
+    const demand=(l.demandPrinters||[]).map(p=>`${esc(p.model)} [${p.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.qty?` x${s.qty}`:''}`).join(', ')}]`).join(' | ');
     return [
       l.company,l.customerNumber,l.art,l.address,l.orderCount,l.revenue,
       l.shipPrinter.model,shipSkus,investTotal||'',demand,
