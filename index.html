@@ -116,25 +116,31 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .dash-lead-row:last-child{border-bottom:none;}
 .dash-lead-row:hover{background:var(--bg2);margin:0 -8px;padding:8px 8px;border-radius:6px;}
 .settings-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
-.agent-card-list{display:flex;flex-direction:column;gap:8px;}
-.agent-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;}
-.agent-card-top{display:flex;align-items:center;gap:10px;}
-.agent-avatar-select{width:36px;height:36px;border-radius:50%;border:none;font-weight:700;font-size:12px;text-align:center;text-align-last:center;cursor:pointer;flex-shrink:0;}
-.agent-card-identity{flex:1;min-width:0;}
-.agent-card-name{font-weight:600;font-size:13px;color:var(--text);}
-.agent-card-meta{font-size:11px;color:var(--text3);margin-top:1px;}
 .role-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:12px;white-space:nowrap;text-transform:uppercase;letter-spacing:.02em;}
 .role-badge.role-admin{background:var(--purple-bg);color:var(--purple-dark);}
 .role-badge.role-sales{background:var(--teal-bg);color:var(--teal-dark);}
 .role-badge.role-am{background:var(--amber-bg);color:var(--amber-dark);}
-.agent-card-actions{display:flex;gap:2px;flex-shrink:0;}
 .icon-btn{width:26px;height:26px;border:none;background:transparent;color:var(--text3);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;}
 .icon-btn:hover{background:var(--bg3);color:var(--text);}
 .icon-btn-danger:hover{background:var(--red-bg);color:var(--red);}
-.agent-card-details{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
-.agent-detail-field{font-size:12px;padding:6px 9px;border-radius:6px;border:1px solid var(--border2);background:var(--bg);}
-.agent-card-new{background:var(--bg);border-style:dashed;}
-.agent-card-new-label{font-size:12px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:6px;}
+.status-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:12px;white-space:nowrap;}
+.status-badge.status-active{background:var(--green-bg);color:var(--green-dark);}
+.status-badge.status-inactive{background:var(--bg3);color:var(--text3);}
+.agent-table{width:100%;border-collapse:collapse;font-size:13px;}
+.agent-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--text3);font-weight:600;padding:0 10px 8px;border-bottom:1px solid var(--border);}
+.agent-table td{padding:10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.agent-table-row.agent-row-inactive{opacity:.55;}
+.agent-table-identity{display:flex;align-items:center;gap:10px;}
+.agent-table-name{font-weight:600;font-size:13px;}
+.agent-table-email{font-size:11px;color:var(--text3);}
+.agent-table-actions{display:flex;gap:2px;}
+.agent-color-swatches{display:flex;flex-wrap:wrap;gap:6px;}
+.agent-color-swatch{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;}
+.agent-color-swatch.selected{border-color:var(--text);}
+.modal-sm-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.modal-sm-title{font-size:16px;font-weight:700;}
+.modal-sm-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;}
+.modal-sm-actions{display:flex;gap:8px;margin-top:18px;}
 .settings-row:last-child{border-bottom:none;}
 .task-group{margin-bottom:18px;}
 .task-group-hdr{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:8px;}
@@ -296,6 +302,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .logout-btn{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 4px;border-radius:6px;}
 .logout-btn:hover{color:var(--red);background:var(--red-bg);}
 .modal-lg{background:var(--bg);border-radius:var(--r-lg);width:100%;max-width:1360px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;}
+.modal-sm{background:var(--bg);border-radius:var(--r-lg);width:100%;max-width:460px;max-height:90vh;overflow-y:auto;padding:22px 24px;}
 .modal-topline{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0;}
 .modal-error-msg{background:var(--red-bg);color:var(--red-dark);font-size:12px;font-weight:500;padding:8px 18px;display:flex;align-items:center;gap:6px;flex-shrink:0;}
 .input-error{border-color:var(--red) !important;}
@@ -559,12 +566,16 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
   <div class="modal-lg" id="leadModalInner"></div>
 </div>
 
+<div class="modal-overlay hidden" id="agentModal">
+  <div class="modal-sm" id="agentModalInner"></div>
+</div>
+
 <script>
 // ── CONFIG ──
 let AGENTS=[
-  {id:'a1',name:'Sabine Krause',color:'purple',role:'admin',quota:5000,email:''},
-  {id:'a2',name:'Jonas Weber',color:'teal',role:'sales',quota:4000,email:''},
-  {id:'a3',name:'Lea Hoffmann',color:'amber',role:'am',quota:4000,email:''},
+  {id:'a1',name:'Sabine Krause',color:'purple',role:'admin',quota:5000,email:'',active:true},
+  {id:'a2',name:'Jonas Weber',color:'teal',role:'sales',quota:4000,email:'',active:true},
+  {id:'a3',name:'Lea Hoffmann',color:'amber',role:'am',quota:4000,email:'',active:true},
 ];
 let COLUMNS=[
   {id:'open',name:'Offene Leads',color:'gray'},
@@ -938,6 +949,7 @@ function normalizeAgents(){
     if(!a.role)a.role='sales';
     if(a.quota===undefined)a.quota=0;
     if(a.email===undefined)a.email='';
+    if(a.active===undefined)a.active=true;
   });
 }
 normalizeAgents();
@@ -1046,11 +1058,12 @@ function renderStats(){
 }
 
 // ── RENDER: AGENT FILTER + USER SELECT ──
+function activeAgents(){return AGENTS.filter(a=>a.active!==false);}
 function renderAgentChips(){
   const el=document.getElementById('agentChips');
   let html=`<span class="chip ${activeAgentFilter==='all'?'active':''}" onclick="setAgentFilter('all')">Alle</span>`;
   AGENTS.forEach(a=>{
-    html+=`<span class="chip ${activeAgentFilter===a.id?'active':''}" onclick="setAgentFilter('${a.id}')">${esc(a.name)}</span>`;
+    html+=`<span class="chip ${activeAgentFilter===a.id?'active':''}" onclick="setAgentFilter('${a.id}')">${esc(a.name)}${a.active===false?' <span style="opacity:.6">(inaktiv)</span>':''}</span>`;
   });
   el.innerHTML=html;
 }
@@ -1066,7 +1079,9 @@ function renderLabelChips(){
 }
 function setLabelFilter(id){activeLabelFilter=id;renderLabelChips();renderBoard();}
 function renderUserSelect(){
-  document.getElementById('currentUserSelect').innerHTML=AGENTS.map(a=>`<option value="${a.id}" ${a.id===currentUser?'selected':''}>${esc(a.name)}</option>`).join('');
+  const avail=activeAgents();
+  if(!avail.some(a=>a.id===currentUser)&&avail.length){currentUser=avail[0].id;}
+  document.getElementById('currentUserSelect').innerHTML=avail.map(a=>`<option value="${a.id}" ${a.id===currentUser?'selected':''}>${esc(a.name)}</option>`).join('');
 }
 function setAgentFilter(id){activeAgentFilter=id;renderAgentChips();renderBoard();}
 
@@ -1767,43 +1782,32 @@ function renderSettings(){
   const allColorKeys=Object.keys(COLOR_HEX);
   const freeAgentColor=allColorKeys.find(c=>!usedAgentColors.includes(c))||allColorKeys[0];
 
-  const COLOR_KEYS=Object.keys(COLOR_HEX);
   const ROLE_LABELS={sales:'Sales Agent',am:'Account Manager',admin:'Admin'};
-  const agentsHtml=AGENTS.map(a=>{
-    if(editingAgentId===a.id){
-      return `<div class="agent-card">
-        <input type="text" id="editAgentInput_${a.id}" value="${esc(a.name)}" class="col-name-input" style="width:100%"
-          onkeydown="if(event.key==='Enter')confirmEditAgent('${a.id}');if(event.key==='Escape'){editingAgentId=null;renderSettings();}"
-          onblur="confirmEditAgent('${a.id}')" autofocus>
-      </div>`;
-    }
+  const agentRowsHtml=AGENTS.map(a=>{
     const leadCount=leads.filter(l=>(l.members||[]).includes(a.id)).length;
-    return `<div class="agent-card">
-      <div class="agent-card-top">
-        <select class="agent-avatar-select" style="background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}" onchange="setAgentColor('${a.id}',this.value)" title="Avatar-Farbe">
-          ${COLOR_KEYS.map(c=>`<option value="${c}" ${a.color===c?'selected':''}>${ini(a.name)}</option>`).join('')}
-        </select>
-        <div class="agent-card-identity">
-          <div class="agent-card-name">${esc(a.name)}</div>
-          <div class="agent-card-meta">${leadCount} Lead(s) · Ziel ${fmtEur(a.quota||0)}/Monat</div>
+    const inactive=a.active===false;
+    return `<tr class="agent-table-row${inactive?' agent-row-inactive':''}">
+      <td>
+        <div class="agent-table-identity">
+          <div class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</div>
+          <div>
+            <div class="agent-table-name">${esc(a.name)}</div>
+            <div class="agent-table-email">${esc(a.email)||'–'}</div>
+          </div>
         </div>
-        <span class="role-badge role-${a.role}">${ROLE_LABELS[a.role]||a.role}</span>
-        <div class="agent-card-actions">
-          <button class="icon-btn" onclick="startEditAgent('${a.id}')" title="Umbenennen"><i class="ti ti-pencil"></i></button>
-          <button class="icon-btn icon-btn-danger" onclick="deleteAgent('${a.id}')" title="Entfernen"><i class="ti ti-trash"></i></button>
+      </td>
+      <td><span class="role-badge role-${a.role}">${ROLE_LABELS[a.role]||a.role}</span></td>
+      <td>${leadCount}</td>
+      <td>${fmtEur(a.quota||0)}</td>
+      <td>${inactive?'<span class="status-badge status-inactive">Inaktiv</span>':'<span class="status-badge status-active">Aktiv</span>'}</td>
+      <td>
+        <div class="agent-table-actions">
+          <button class="icon-btn" onclick="openAgentModal('${a.id}')" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
+          <button class="icon-btn" onclick="toggleAgentActive('${a.id}')" title="${inactive?'Aktivieren':'Deaktivieren'}"><i class="ti ti-${inactive?'user-check':'user-off'}"></i></button>
+          <button class="icon-btn icon-btn-danger" onclick="deleteAgent('${a.id}')" title="Endgültig löschen"><i class="ti ti-trash"></i></button>
         </div>
-      </div>
-      <div class="agent-card-details">
-        <select class="agent-detail-field" style="width:150px" onchange="setAgentRole('${a.id}',this.value)" title="Rolle">
-          <option value="sales" ${a.role==='sales'?'selected':''}>Sales Agent</option>
-          <option value="am" ${a.role==='am'?'selected':''}>Account Manager</option>
-          <option value="admin" ${a.role==='admin'?'selected':''}>Admin</option>
-        </select>
-        <input type="number" min="0" step="100" class="agent-detail-field" style="width:110px" value="${a.quota||0}" title="Monatsziel Forecast (EUR)" onchange="setAgentQuota('${a.id}',this.value)">
-        <input type="email" class="agent-detail-field" style="flex:1;min-width:170px" placeholder="Login-E-Mail" value="${esc(a.email||'')}" onchange="setAgentEmail('${a.id}',this.value)">
-        <button class="btn btn-sm" onclick="adminSetPassword('${a.id}')" title="Neues Passwort für diesen Login setzen"><i class="ti ti-key"></i> Passwort</button>
-      </div>
-    </div>`;
+      </td>
+    </tr>`;
   }).join('');
 
   const colsHtml=COLUMNS.map((c,i)=>`
@@ -1855,23 +1859,23 @@ function renderSettings(){
   document.getElementById('settingsContent').innerHTML=`
     <div class="dash-grid">
       <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Mitarbeiter</div>
-        <p style="font-size:11px;color:var(--text3);margin:-4px 0 10px">Verantwortlich für Leads, wählbar als Mitglieder auf Karten. Mit E-Mail + Passwort erhält die Person direkt einen Login-Zugang.</p>
-        <div class="agent-card-list">${agentsHtml}</div>
-        <div class="agent-card agent-card-new">
-          <div class="agent-card-new-label"><i class="ti ti-user-plus"></i> Neuer Mitarbeiter</div>
-          <div class="agent-card-details" style="margin-top:8px">
-            <input type="text" id="newAgentName" class="agent-detail-field" placeholder="Name" style="min-width:110px">
-            <input type="email" id="newAgentEmail" class="agent-detail-field" placeholder="Login-E-Mail (optional)" style="min-width:170px">
-            <input type="password" id="newAgentPassword" class="agent-detail-field" placeholder="Passwort, mind. 6 Zeichen (optional)" style="min-width:180px">
-            <select id="newAgentRole" class="agent-detail-field" style="width:130px">
+        <div class="section-hdr" style="margin-top:0">Mitarbeiter anlegen</div>
+        <p style="font-size:11px;color:var(--text3);margin:-4px 0 10px">Mit E-Mail + Passwort erhält die Person direkt einen Login-Zugang. Beides kann auch leer bleiben für eine reine interne Zuordnung.</p>
+        <div class="field-row-2">
+          <div><label>Name</label><input type="text" id="newAgentName" placeholder="Vor- und Nachname" style="width:100%"></div>
+          <div><label>Rolle</label>
+            <select id="newAgentRole" style="width:100%">
               <option value="sales">Sales Agent</option>
               <option value="am">Account Manager</option>
               <option value="admin">Admin</option>
             </select>
-            <button class="btn btn-sm btn-primary" onclick="createAgent()"><i class="ti ti-plus"></i> Anlegen</button>
           </div>
         </div>
+        <div class="field-row-2">
+          <div><label>Login-E-Mail (optional)</label><input type="email" id="newAgentEmail" placeholder="login@wiegand-gmbh.de" style="width:100%"></div>
+          <div><label>Passwort (optional, mind. 6 Zeichen)</label><input type="password" id="newAgentPassword" placeholder="••••••••" style="width:100%"></div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:6px" onclick="createAgent()"><i class="ti ti-user-plus"></i> Mitarbeiter anlegen</button>
       </div>
 
       <div class="info-section">
@@ -1880,7 +1884,21 @@ function renderSettings(){
         ${labelsHtml}
         <p style="font-size:11px;color:var(--text3);margin-top:10px">Neue Labels legst du direkt in einer Lead-Karte an (Bereich "Labels").</p>
       </div>
+    </div>
 
+    <div class="info-section">
+      <div class="section-hdr" style="margin-top:0">Mitarbeiter-Übersicht</div>
+      <div style="overflow-x:auto">
+        <table class="agent-table">
+          <thead><tr>
+            <th>Name</th><th>Rolle</th><th>Leads</th><th>Ziel/Monat</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody>${agentRowsHtml}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="dash-grid">
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Listen (Board-Spalten)</div>
         <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Reihenfolge, Umbenennen, Farbe und Löschen direkt im Board über das •••-Menü einer Liste.</p>
@@ -1932,19 +1950,80 @@ function renderSettings(){
 }
 
 // Agents CRUD
-function startEditAgent(id){editingAgentId=id;renderSettings();const el=document.getElementById('editAgentInput_'+id);if(el){el.focus();el.select();}}
-function confirmEditAgent(id){
-  const el=document.getElementById('editAgentInput_'+id);
-  if(el){const val=el.value.trim();const a=agentById(id);if(a&&val)a.name=val;}
-  editingAgentId=null;saveState();renderSettings();
+function openAgentModal(id){
+  editingAgentId=id;
+  const a=agentById(id);
+  if(!a)return;
+  const COLOR_KEYS=Object.keys(COLOR_HEX);
+  document.getElementById('agentModalInner').innerHTML=`
+    <div class="modal-sm-hdr">
+      <div class="modal-sm-title">Mitarbeiter bearbeiten</div>
+      <button class="modal-sm-close" onclick="closeAgentModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="field"><label>Name</label><input type="text" id="agentModalName" value="${esc(a.name)}" style="width:100%"></div>
+    <div class="field-row-2">
+      <div><label>Rolle</label>
+        <select id="agentModalRole" style="width:100%">
+          <option value="sales" ${a.role==='sales'?'selected':''}>Sales Agent</option>
+          <option value="am" ${a.role==='am'?'selected':''}>Account Manager</option>
+          <option value="admin" ${a.role==='admin'?'selected':''}>Admin</option>
+        </select>
+      </div>
+      <div><label>Ziel/Monat (EUR)</label><input type="number" id="agentModalQuota" min="0" step="100" value="${a.quota||0}" style="width:100%"></div>
+    </div>
+    <div class="field"><label>Login-E-Mail</label><input type="email" id="agentModalEmail" value="${esc(a.email||'')}" placeholder="login@wiegand-gmbh.de" style="width:100%"></div>
+    <div class="field">
+      <label>Avatar-Farbe</label>
+      <div class="agent-color-swatches" id="agentModalColorSwatches">
+        ${COLOR_KEYS.map(c=>`<div class="agent-color-swatch ${a.color===c?'selected':''}" data-color="${c}" style="background:${COLOR_HEX[c]}" onclick="selectAgentModalColor('${c}')" title="${c}"></div>`).join('')}
+      </div>
+    </div>
+    <button class="btn btn-sm" style="width:100%;justify-content:center" onclick="adminSetPassword('${a.id}')"><i class="ti ti-key"></i> Passwort setzen</button>
+    <div class="modal-sm-actions">
+      <button class="btn" style="flex:1;justify-content:center" onclick="closeAgentModal()">Abbrechen</button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="saveAgentModal('${a.id}')"><i class="ti ti-check"></i> Speichern</button>
+    </div>`;
+  document.getElementById('agentModalInner').dataset.selectedColor=a.color;
+  openModal('agentModal');
+}
+function selectAgentModalColor(color){
+  document.getElementById('agentModalInner').dataset.selectedColor=color;
+  document.querySelectorAll('#agentModalColorSwatches .agent-color-swatch').forEach(el=>{
+    el.classList.toggle('selected',el.dataset.color===color);
+  });
+}
+function closeAgentModal(){
+  editingAgentId=null;
+  closeModal('agentModal');
+}
+function saveAgentModal(id){
+  const a=agentById(id);
+  if(!a)return;
+  const name=document.getElementById('agentModalName').value.trim();
+  if(!name){alert('Bitte einen Namen eingeben.');return;}
+  a.name=name;
+  a.role=document.getElementById('agentModalRole').value;
+  a.quota=parseFloat(document.getElementById('agentModalQuota').value)||0;
+  a.email=document.getElementById('agentModalEmail').value.trim();
+  a.color=document.getElementById('agentModalInner').dataset.selectedColor||a.color;
+  saveState();
+  closeAgentModal();
+  renderSettings();renderBoard();renderUserSelect();
+}
+function toggleAgentActive(id){
+  const a=agentById(id);
+  if(!a)return;
+  a.active=!(a.active!==false);
+  saveState();
+  renderSettings();renderUserSelect();renderAgentChips();
 }
 function deleteAgent(id){
   if(!requireAdmin('Mitarbeiter entfernen'))return;
   const a=agentById(id);
-  if(!confirm(`Mitarbeiter "${a?a.name:''}" wirklich entfernen? Wird von allen Leads als Mitglied entfernt.`))return;
+  if(!confirm(`Mitarbeiter "${a?a.name:''}" wirklich endgültig entfernen? Wird von allen Leads als Mitglied entfernt.\n\nTipp: Wenn die Person nur vorübergehend nicht mehr aktiv sein soll, nutze stattdessen "Deaktivieren" – dann bleiben Name und Historie erhalten.`))return;
   AGENTS=AGENTS.filter(x=>x.id!==id);
   leads.forEach(l=>{l.members=(l.members||[]).filter(m=>m!==id);});
-  saveState();renderSettings();
+  saveState();renderSettings();renderUserSelect();
 }
 function setAgentRole(id,role){
   const a=agentById(id);
@@ -2411,9 +2490,9 @@ function renderLeadModal(){
   </div>`:'';
 
   const memberPopoverHtml=memberPopoverOpen?`<div class="popover">
-    ${AGENTS.map(a=>`<div class="popover-item" onclick="toggleDraftMember('${a.id}')">
+    ${AGENTS.filter(a=>a.active!==false||draftLead.members.includes(a.id)).map(a=>`<div class="popover-item" onclick="toggleDraftMember('${a.id}')">
       <input type="checkbox" ${draftLead.members.includes(a.id)?'checked':''} onclick="event.stopPropagation();toggleDraftMember('${a.id}')">
-      <span class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</span>${esc(a.name)}
+      <span class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</span>${esc(a.name)}${a.active===false?' <span style="color:var(--text3);font-size:11px">(inaktiv)</span>':''}
     </div>`).join('')}
   </div>`:'';
 
@@ -3337,6 +3416,7 @@ function triggerCSVImport(){
 function openModal(id){document.getElementById(id).classList.remove('hidden');}
 function closeModal(id){document.getElementById(id).classList.add('hidden');}
 document.getElementById('leadModal').addEventListener('click',e=>{if(e.target.id==='leadModal')closeModal('leadModal');});
+document.getElementById('agentModal').addEventListener('click',e=>{if(e.target.id==='agentModal')closeAgentModal();});
 document.addEventListener('click',e=>{
   if(!e.target.closest('.label-row-editor')&&labelPopoverOpen){labelPopoverOpen=false;renderLeadModal();}
   if(!e.target.closest('.member-row-editor')&&memberPopoverOpen){memberPopoverOpen=false;renderLeadModal();}
