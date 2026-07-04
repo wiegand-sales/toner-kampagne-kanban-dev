@@ -116,6 +116,25 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .dash-lead-row:last-child{border-bottom:none;}
 .dash-lead-row:hover{background:var(--bg2);margin:0 -8px;padding:8px 8px;border-radius:6px;}
 .settings-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
+.agent-card-list{display:flex;flex-direction:column;gap:8px;}
+.agent-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px;}
+.agent-card-top{display:flex;align-items:center;gap:10px;}
+.agent-avatar-select{width:36px;height:36px;border-radius:50%;border:none;font-weight:700;font-size:12px;text-align:center;text-align-last:center;cursor:pointer;flex-shrink:0;}
+.agent-card-identity{flex:1;min-width:0;}
+.agent-card-name{font-weight:600;font-size:13px;color:var(--text);}
+.agent-card-meta{font-size:11px;color:var(--text3);margin-top:1px;}
+.role-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:12px;white-space:nowrap;text-transform:uppercase;letter-spacing:.02em;}
+.role-badge.role-admin{background:var(--purple-bg);color:var(--purple-dark);}
+.role-badge.role-sales{background:var(--teal-bg);color:var(--teal-dark);}
+.role-badge.role-am{background:var(--amber-bg);color:var(--amber-dark);}
+.agent-card-actions{display:flex;gap:2px;flex-shrink:0;}
+.icon-btn{width:26px;height:26px;border:none;background:transparent;color:var(--text3);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;}
+.icon-btn:hover{background:var(--bg3);color:var(--text);}
+.icon-btn-danger:hover{background:var(--red-bg);color:var(--red);}
+.agent-card-details{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+.agent-detail-field{font-size:12px;padding:6px 9px;border-radius:6px;border:1px solid var(--border2);background:var(--bg);}
+.agent-card-new{background:var(--bg);border-style:dashed;}
+.agent-card-new-label{font-size:12px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:6px;}
 .settings-row:last-child{border-bottom:none;}
 .task-group{margin-bottom:18px;}
 .task-group-hdr{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:8px;}
@@ -1749,34 +1768,40 @@ function renderSettings(){
   const freeAgentColor=allColorKeys.find(c=>!usedAgentColors.includes(c))||allColorKeys[0];
 
   const COLOR_KEYS=Object.keys(COLOR_HEX);
+  const ROLE_LABELS={sales:'Sales Agent',am:'Account Manager',admin:'Admin'};
   const agentsHtml=AGENTS.map(a=>{
     if(editingAgentId===a.id){
-      return `<div class="settings-row">
-        <input type="text" id="editAgentInput_${a.id}" value="${esc(a.name)}" class="col-name-input" style="flex:1"
+      return `<div class="agent-card">
+        <input type="text" id="editAgentInput_${a.id}" value="${esc(a.name)}" class="col-name-input" style="width:100%"
           onkeydown="if(event.key==='Enter')confirmEditAgent('${a.id}');if(event.key==='Escape'){editingAgentId=null;renderSettings();}"
           onblur="confirmEditAgent('${a.id}')" autofocus>
       </div>`;
     }
     const leadCount=leads.filter(l=>(l.members||[]).includes(a.id)).length;
-    return `<div class="settings-row" style="align-items:flex-start;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:6px">
-      <select style="width:44px;height:26px;padding:0;border:none;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]};font-weight:700;font-size:10px;text-align:center;border-radius:50%;text-align-last:center" onchange="setAgentColor('${a.id}',this.value)" title="Avatar-Farbe">
-        ${COLOR_KEYS.map(c=>`<option value="${c}" ${a.color===c?'selected':''} style="background:${COLOR_HEX[c]}">${ini(a.name)}</option>`).join('')}
-      </select>
-      <div style="flex:1;min-width:140px">
-        <div style="font-weight:600;font-size:13px">${esc(a.name)}</div>
-        <div style="font-size:11px;color:var(--text2)">${leadCount} zugewiesene Lead(s)</div>
+    return `<div class="agent-card">
+      <div class="agent-card-top">
+        <select class="agent-avatar-select" style="background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}" onchange="setAgentColor('${a.id}',this.value)" title="Avatar-Farbe">
+          ${COLOR_KEYS.map(c=>`<option value="${c}" ${a.color===c?'selected':''}>${ini(a.name)}</option>`).join('')}
+        </select>
+        <div class="agent-card-identity">
+          <div class="agent-card-name">${esc(a.name)}</div>
+          <div class="agent-card-meta">${leadCount} Lead(s) · Ziel ${fmtEur(a.quota||0)}/Monat</div>
+        </div>
+        <span class="role-badge role-${a.role}">${ROLE_LABELS[a.role]||a.role}</span>
+        <div class="agent-card-actions">
+          <button class="icon-btn" onclick="startEditAgent('${a.id}')" title="Umbenennen"><i class="ti ti-pencil"></i></button>
+          <button class="icon-btn icon-btn-danger" onclick="deleteAgent('${a.id}')" title="Entfernen"><i class="ti ti-trash"></i></button>
+        </div>
       </div>
-      <select style="width:130px;font-size:12px" onchange="setAgentRole('${a.id}',this.value)" title="Rolle">
-        <option value="sales" ${a.role==='sales'?'selected':''}>Sales Agent</option>
-        <option value="am" ${a.role==='am'?'selected':''}>Account Manager</option>
-        <option value="admin" ${a.role==='admin'?'selected':''}>Admin</option>
-      </select>
-      <input type="number" min="0" step="100" value="${a.quota||0}" style="width:90px;font-size:12px" title="Monatsziel Forecast (EUR)" onchange="setAgentQuota('${a.id}',this.value)">
-      <button class="check-item-del" onclick="startEditAgent('${a.id}')" title="Umbenennen"><i class="ti ti-pencil"></i></button>
-      <button class="check-item-del" onclick="deleteAgent('${a.id}')" title="Entfernen"><i class="ti ti-trash"></i></button>
-      <div style="flex-basis:100%;display:flex;gap:8px;margin-top:6px;align-items:center">
-        <input type="email" placeholder="login@wiegand-gmbh.de" value="${esc(a.email||'')}" style="flex:1;min-width:180px;font-size:12px" onchange="setAgentEmail('${a.id}',this.value)">
-        <button class="btn btn-sm" onclick="adminSetPassword('${a.id}')" title="Neues Passwort für diesen Login setzen"><i class="ti ti-key"></i> Passwort setzen</button>
+      <div class="agent-card-details">
+        <select class="agent-detail-field" style="width:150px" onchange="setAgentRole('${a.id}',this.value)" title="Rolle">
+          <option value="sales" ${a.role==='sales'?'selected':''}>Sales Agent</option>
+          <option value="am" ${a.role==='am'?'selected':''}>Account Manager</option>
+          <option value="admin" ${a.role==='admin'?'selected':''}>Admin</option>
+        </select>
+        <input type="number" min="0" step="100" class="agent-detail-field" style="width:110px" value="${a.quota||0}" title="Monatsziel Forecast (EUR)" onchange="setAgentQuota('${a.id}',this.value)">
+        <input type="email" class="agent-detail-field" style="flex:1;min-width:170px" placeholder="Login-E-Mail" value="${esc(a.email||'')}" onchange="setAgentEmail('${a.id}',this.value)">
+        <button class="btn btn-sm" onclick="adminSetPassword('${a.id}')" title="Neues Passwort für diesen Login setzen"><i class="ti ti-key"></i> Passwort</button>
       </div>
     </div>`;
   }).join('');
@@ -1831,22 +1856,21 @@ function renderSettings(){
     <div class="dash-grid">
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Mitarbeiter</div>
-        <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Verantwortlich für Leads, wählbar als Mitglieder auf Karten. Mit E-Mail + Passwort erhält die Person direkt einen Login-Zugang.</p>
-        ${agentsHtml}
-        <div style="margin-top:10px;padding:10px;background:var(--bg2);border-radius:8px">
-          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">NEUER MITARBEITER</div>
-          <div class="add-check-row" style="flex-wrap:wrap;gap:6px">
-            <input type="text" id="newAgentName" placeholder="Name" style="min-width:120px">
-            <input type="email" id="newAgentEmail" placeholder="login@wiegand-gmbh.de" style="min-width:170px">
-            <input type="password" id="newAgentPassword" placeholder="Passwort (mind. 6 Zeichen)" style="min-width:150px">
-            <select id="newAgentRole" style="width:130px">
+        <p style="font-size:11px;color:var(--text3);margin:-4px 0 10px">Verantwortlich für Leads, wählbar als Mitglieder auf Karten. Mit E-Mail + Passwort erhält die Person direkt einen Login-Zugang.</p>
+        <div class="agent-card-list">${agentsHtml}</div>
+        <div class="agent-card agent-card-new">
+          <div class="agent-card-new-label"><i class="ti ti-user-plus"></i> Neuer Mitarbeiter</div>
+          <div class="agent-card-details" style="margin-top:8px">
+            <input type="text" id="newAgentName" class="agent-detail-field" placeholder="Name" style="min-width:110px">
+            <input type="email" id="newAgentEmail" class="agent-detail-field" placeholder="Login-E-Mail (optional)" style="min-width:170px">
+            <input type="password" id="newAgentPassword" class="agent-detail-field" placeholder="Passwort, mind. 6 Zeichen (optional)" style="min-width:180px">
+            <select id="newAgentRole" class="agent-detail-field" style="width:130px">
               <option value="sales">Sales Agent</option>
               <option value="am">Account Manager</option>
               <option value="admin">Admin</option>
             </select>
             <button class="btn btn-sm btn-primary" onclick="createAgent()"><i class="ti ti-plus"></i> Anlegen</button>
           </div>
-          <p style="font-size:10px;color:var(--text3);margin-top:6px">E-Mail/Passwort optional leer lassen, um nur eine interne Karten-Zuordnung ohne Login anzulegen.</p>
         </div>
       </div>
 
