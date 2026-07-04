@@ -744,6 +744,12 @@ let nextPrinterId=1;
 // (der ggf. vor neueren Funktionen wie Aufgaben/Dateien gespeichert wurde).
 function normalizeLeads(){
   leads.forEach(l=>{
+    // Selbstheilung: falls der Status auf keine existierende Liste mehr zeigt
+    // (z.B. durch einen frueheren Bug oder eine geloeschte Liste), landet der
+    // Lead wieder sichtbar in der ersten Liste statt unsichtbar zu verschwinden.
+    if(!COLUMNS.some(c=>c.id===l.status)){
+      l.status=COLUMNS[0].id;
+    }
     const oldPrinters = l.printers || (l.printerModel ? [{id:0,model:l.printerModel,skus:[l.sku||'','','','']}] : []);
     if(!l.shipPrinter){
       const first = oldPrinters[0];
@@ -858,7 +864,7 @@ function renderFollowupTimeline(lead){
   html+='</div>';
   return html;
 }
-function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],actualPrinters:[],contact:'',phone:'',email:'',competitor:'',status:'new',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',followupHistory:[],forecast:'',actual:'',lossReason:'',notes:'',checklist:[],activity:[],files:[],tasks:[],order:Date.now()};}
+function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],actualPrinters:[],contact:'',phone:'',email:'',competitor:'',status:COLUMNS[0].id,tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',followupHistory:[],forecast:'',actual:'',lossReason:'',notes:'',checklist:[],activity:[],files:[],tasks:[],order:Date.now()};}
 function openGoogleSearch(){
   const q=(document.getElementById('fCompany')?document.getElementById('fCompany').value:draftLead.company).trim();
   if(!q)return;
