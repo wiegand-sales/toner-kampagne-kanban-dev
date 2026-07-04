@@ -410,6 +410,8 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         </div>
         <div class="tb-right">
           <div class="search-box"><i class="ti ti-search"></i><input type="text" id="searchInput" placeholder="Firma, Kontakt, Kd-Nr." oninput="renderBoard()"></div>
+          <button class="btn" onclick="triggerCSVImport()" title="Leads aus CSV-Datei importieren (Spalte 'Firmenname' erforderlich)"><i class="ti ti-upload"></i> Import CSV</button>
+          <input type="file" id="csvImportInput" accept=".csv,text/csv" style="display:none" onchange="if(this.files[0]){importCSVFile(this.files[0]);this.value='';}">
           <button class="btn" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</button>
           <button class="btn btn-primary" onclick="openLeadModal(null)"><i class="ti ti-plus"></i> Neuer Lead</button>
         </div>
@@ -1962,12 +1964,12 @@ function deleteColumn(id){
   const leadsInCol=leads.filter(l=>l.status===id);
   const otherCol=COLUMNS.find(c=>c.id!==id);
   const msg=leadsInCol.length
-    ? `Die Liste "${esc(col.name)}" enthält ${leadsInCol.length} Lead(s). Diese werden nach "${otherCol.name}" verschoben. Liste trotzdem löschen?`
-    : `Liste "${esc(col.name)}" wirklich löschen?`;
+    ? `Die Liste "${col.name}" enthält ${leadsInCol.length} Lead(s). Diese werden nach "${otherCol.name}" verschoben. Liste trotzdem löschen?`
+    : `Liste "${col.name}" wirklich löschen?`;
   if(!confirm(msg))return;
   leadsInCol.forEach(l=>{
     l.status=otherCol.id;
-    l.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Status geändert: ${esc(col.name)} → ${otherCol.name} (Liste gelöscht)`,date:nowISO()});
+    l.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Status geändert: ${col.name} → ${otherCol.name} (Liste gelöscht)`,date:nowISO()});
   });
   COLUMNS=COLUMNS.filter(c=>c.id!==id);
   colMenuOpenId=null;
@@ -2900,7 +2902,7 @@ function exportCSV(){
   const rows=leads.map(l=>{
     const shipSkus=l.shipPrinter.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.price?` (${fmtEur(s.price)})`:''}`).join(', ');
     const investTotal=l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.price)||0),0);
-    const demand=(l.demandPrinters||[]).map(p=>`${esc(p.model)} [${p.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.qty?` x${s.qty}`:''}`).join(', ')}]`).join(' | ');
+    const demand=(l.demandPrinters||[]).map(p=>`${p.model} [${p.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.qty?` x${s.qty}`:''}`).join(', ')}]`).join(' | ');
     return [
       l.company,l.customerNumber,l.art,l.address,l.orderCount,l.revenue,
       l.shipPrinter.model,shipSkus,investTotal||'',demand,
@@ -2917,6 +2919,115 @@ function exportCSV(){
   const a=document.createElement('a');
   a.href=url;a.download='toner_kampagne_leads.csv';a.click();
   URL.revokeObjectURL(url);
+}
+
+// ── CSV IMPORT ──
+// Robuster Mini-CSV-Parser (kann Anfuehrungszeichen, Kommas und Semikolons in Feldern)
+function parseCSV(text){
+  // Trennzeichen erkennen: Semikolon (deutsches Excel) oder Komma
+  const firstLine=text.split(/\r?\n/)[0]||'';
+  const delim=(firstLine.split(';').length>firstLine.split(',').length)?';':',';
+  const rows=[];let row=[];let field='';let inQuotes=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(inQuotes){
+      if(ch==='"'){
+        if(text[i+1]==='"'){field+='"';i++;}
+        else inQuotes=false;
+      }else field+=ch;
+    }else{
+      if(ch==='"')inQuotes=true;
+      else if(ch===delim){row.push(field);field='';}
+      else if(ch==='\n'||ch==='\r'){
+        if(ch==='\r'&&text[i+1]==='\n')i++;
+        row.push(field);field='';
+        if(row.some(f=>f.trim()!==''))rows.push(row);
+        row=[];
+      }else field+=ch;
+    }
+  }
+  row.push(field);
+  if(row.some(f=>f.trim()!==''))rows.push(row);
+  return rows;
+}
+// Flexible Header-Erkennung: verschiedene gaengige Spaltennamen werden akzeptiert
+const CSV_FIELD_ALIASES={
+  company:['firmenname','firma','company','unternehmen','name'],
+  customerNumber:['kundennummer','kd-nr','kdnr','kundennr','customer number'],
+  contact:['ansprechpartner','kontakt','contact','ansprechperson'],
+  phone:['telefonnummer','telefon','phone','tel','rufnummer'],
+  email:['e-mail','email','mail'],
+  address:['adresse','address','anschrift'],
+  art:['art','typ','type','kundentyp'],
+  notes:['notizen','notiz','notes','bemerkung','kommentar'],
+  firstContact:['datum erstkontakt','erstkontakt'],
+  followup:['follow-up-datum','followup','follow-up','wiedervorlage'],
+};
+function importCSVFile(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      let text=e.target.result;
+      if(text.charCodeAt(0)===0xFEFF)text=text.slice(1); // BOM entfernen
+      const rows=parseCSV(text);
+      if(rows.length<2){alert('Die Datei enthält keine Datenzeilen (nur Kopfzeile oder leer).');return;}
+      const headers=rows[0].map(h=>h.trim().toLowerCase());
+      // Spalten-Zuordnung aufbauen
+      const colMap={};
+      Object.entries(CSV_FIELD_ALIASES).forEach(([field,aliases])=>{
+        const idx=headers.findIndex(h=>aliases.includes(h));
+        if(idx>-1)colMap[field]=idx;
+      });
+      if(colMap.company===undefined){
+        alert('Keine Spalte "Firmenname" (oder "Firma") in der Kopfzeile gefunden. Bitte prüfe die CSV-Datei.\n\nGefundene Spalten: '+rows[0].join(', '));
+        return;
+      }
+      const norm=v=>(v||'').trim().toLowerCase();
+      let added=0,skippedDup=0,skippedEmpty=0;
+      const firstColId=COLUMNS[0].id;
+      rows.slice(1).forEach(r=>{
+        const get=f=>colMap[f]!==undefined?(r[colMap[f]]||'').trim():'';
+        const company=get('company');
+        if(!company){skippedEmpty++;return;}
+        const phone=get('phone'),email=get('email'),custNo=get('customerNumber');
+        const isDup=leads.some(l=>
+          (norm(l.company)===norm(company))||
+          (custNo&&norm(l.customerNumber)===norm(custNo))||
+          (phone&&phone.length>4&&norm(l.phone)===norm(phone))||
+          (email&&norm(l.email)===norm(email))
+        );
+        if(isDup){skippedDup++;return;}
+        const nl=blankLead();
+        nl.id=nextId++;
+        nl.company=company;
+        nl.customerNumber=custNo;
+        nl.contact=get('contact');
+        nl.phone=phone;
+        nl.email=email;
+        nl.address=get('address');
+        nl.notes=get('notes');
+        nl.firstContact=get('firstContact');
+        nl.followup=get('followup');
+        const art=get('art').toUpperCase();
+        if(art==='B2B'||art==='B2C')nl.art=art;
+        nl.status=firstColId;
+        nl.statusSince=TODAY;
+        nl.activity=[{id:Date.now()+Math.random(),type:'activity',author:currentUser,text:'Lead per CSV-Import angelegt',date:nowISO()}];
+        if(nl.followup)nl.followupHistory=[{date:nl.followup,setAt:nowISO()}];
+        leads.push(nl);
+        added++;
+      });
+      saveState();
+      renderBoard();
+      alert(`CSV-Import abgeschlossen:\n\n✓ ${added} neue Leads angelegt (in "${COLUMNS[0].name}")\n↷ ${skippedDup} übersprungen (Duplikat: Firma, Kundennummer, Telefon oder E-Mail existiert bereits)\n∅ ${skippedEmpty} übersprungen (kein Firmenname)`);
+    }catch(err){
+      alert('Fehler beim Import: '+err.message);
+    }
+  };
+  reader.readAsText(file,'utf-8');
+}
+function triggerCSVImport(){
+  document.getElementById('csvImportInput').click();
 }
 
 // ── MODAL HELPERS ──
