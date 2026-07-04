@@ -542,9 +542,9 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 <script>
 // ── CONFIG ──
 let AGENTS=[
-  {id:'a1',name:'Sabine Krause',color:'purple',role:'admin',quota:5000},
-  {id:'a2',name:'Jonas Weber',color:'teal',role:'sales',quota:4000},
-  {id:'a3',name:'Lea Hoffmann',color:'amber',role:'am',quota:4000},
+  {id:'a1',name:'Sabine Krause',color:'purple',role:'admin',quota:5000,email:''},
+  {id:'a2',name:'Jonas Weber',color:'teal',role:'sales',quota:4000,email:''},
+  {id:'a3',name:'Lea Hoffmann',color:'amber',role:'am',quota:4000,email:''},
 ];
 let COLUMNS=[
   {id:'open',name:'Offene Leads',color:'gray'},
@@ -917,6 +917,7 @@ function normalizeAgents(){
   AGENTS.forEach(a=>{
     if(!a.role)a.role='sales';
     if(a.quota===undefined)a.quota=0;
+    if(a.email===undefined)a.email='';
   });
 }
 normalizeAgents();
@@ -1062,7 +1063,7 @@ function switchView(view){
   if(view==='crrma')renderCrRma();
   if(view==='tasks'){renderTasksAgentChips();renderTasksView();}
   if(view==='activities')renderActivities();
-  if(view==='settings')renderSettings();
+  if(view==='settings'){renderSettings();equalizeRowHeights();}
 }
 
 function renderBoard(){
@@ -1502,7 +1503,7 @@ function renderDashboard(){
 function equalizeRowHeights(){
   const raf=typeof requestAnimationFrame==='function'?requestAnimationFrame:(fn=>setTimeout(fn,0));
   raf(()=>{
-    document.querySelectorAll('#dashboardContent .dash-row-1-1, #dashboardContent .dash-row-eq').forEach(row=>{
+    document.querySelectorAll('#dashboardContent .dash-row-1-1, #dashboardContent .dash-row-eq, #settingsContent .dash-row-1-1').forEach(row=>{
       const boxes=[...row.children].filter(c=>c.classList.contains('info-section'));
       if(boxes.length<2)return;
       boxes.forEach(b=>b.style.height='auto');
@@ -1746,6 +1747,7 @@ function renderSettings(){
   const allColorKeys=Object.keys(COLOR_HEX);
   const freeAgentColor=allColorKeys.find(c=>!usedAgentColors.includes(c))||allColorKeys[0];
 
+  const COLOR_KEYS=Object.keys(COLOR_HEX);
   const agentsHtml=AGENTS.map(a=>{
     if(editingAgentId===a.id){
       return `<div class="settings-row">
@@ -1755,8 +1757,10 @@ function renderSettings(){
       </div>`;
     }
     const leadCount=leads.filter(l=>(l.members||[]).includes(a.id)).length;
-    return `<div class="settings-row" style="align-items:flex-start;flex-wrap:wrap">
-      <div class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</div>
+    return `<div class="settings-row" style="align-items:flex-start;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:6px">
+      <select style="width:44px;height:26px;padding:0;border:none;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]};font-weight:700;font-size:10px;text-align:center;border-radius:50%;text-align-last:center" onchange="setAgentColor('${a.id}',this.value)" title="Avatar-Farbe">
+        ${COLOR_KEYS.map(c=>`<option value="${c}" ${a.color===c?'selected':''} style="background:${COLOR_HEX[c]}">${ini(a.name)}</option>`).join('')}
+      </select>
       <div style="flex:1;min-width:140px">
         <div style="font-weight:600;font-size:13px">${esc(a.name)}</div>
         <div style="font-size:11px;color:var(--text2)">${leadCount} zugewiesene Lead(s)</div>
@@ -1769,6 +1773,10 @@ function renderSettings(){
       <input type="number" min="0" step="100" value="${a.quota||0}" style="width:90px;font-size:12px" title="Monatsziel Forecast (EUR)" onchange="setAgentQuota('${a.id}',this.value)">
       <button class="check-item-del" onclick="startEditAgent('${a.id}')" title="Umbenennen"><i class="ti ti-pencil"></i></button>
       <button class="check-item-del" onclick="deleteAgent('${a.id}')" title="Entfernen"><i class="ti ti-trash"></i></button>
+      <div style="flex-basis:100%;display:flex;gap:8px;margin-top:6px;align-items:center">
+        <input type="email" placeholder="login@wiegand-gmbh.de" value="${esc(a.email||'')}" style="flex:1;min-width:180px;font-size:12px" onchange="setAgentEmail('${a.id}',this.value)">
+        <button class="btn btn-sm" onclick="adminSetPassword('${a.id}')" title="Neues Passwort für diesen Login setzen"><i class="ti ti-key"></i> Passwort setzen</button>
+      </div>
     </div>`;
   }).join('');
 
@@ -1822,11 +1830,22 @@ function renderSettings(){
     <div class="dash-grid">
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Mitarbeiter</div>
-        <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Verantwortlich für Leads, wählbar als Mitglieder auf Karten.</p>
+        <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Verantwortlich für Leads, wählbar als Mitglieder auf Karten. Mit E-Mail + Passwort erhält die Person direkt einen Login-Zugang.</p>
         ${agentsHtml}
-        <div class="add-check-row" style="margin-top:10px">
-          <input type="text" id="newAgentName" placeholder="Name neuer Mitarbeiter…" onkeydown="if(event.key==='Enter')createAgent()">
-          <button class="btn btn-sm btn-primary" onclick="createAgent()"><i class="ti ti-plus"></i></button>
+        <div style="margin-top:10px;padding:10px;background:var(--bg2);border-radius:8px">
+          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px">NEUER MITARBEITER</div>
+          <div class="add-check-row" style="flex-wrap:wrap;gap:6px">
+            <input type="text" id="newAgentName" placeholder="Name" style="min-width:120px">
+            <input type="email" id="newAgentEmail" placeholder="login@wiegand-gmbh.de" style="min-width:170px">
+            <input type="password" id="newAgentPassword" placeholder="Passwort (mind. 6 Zeichen)" style="min-width:150px">
+            <select id="newAgentRole" style="width:130px">
+              <option value="sales">Sales Agent</option>
+              <option value="am">Account Manager</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button class="btn btn-sm btn-primary" onclick="createAgent()"><i class="ti ti-plus"></i> Anlegen</button>
+          </div>
+          <p style="font-size:10px;color:var(--text3);margin-top:6px">E-Mail/Passwort optional leer lassen, um nur eine interne Karten-Zuordnung ohne Login anzulegen.</p>
         </div>
       </div>
 
@@ -1884,6 +1903,7 @@ function renderSettings(){
         <button class="btn btn-sm btn-primary" onclick="createRisk()"><i class="ti ti-plus"></i></button>
       </div>
     </div>`;
+  equalizeRowHeights();
 }
 
 // Agents CRUD
@@ -1911,14 +1931,69 @@ function setAgentQuota(id,val){
   if(a)a.quota=parseFloat(val)||0;
   saveState();
 }
+function setAgentColor(id,color){
+  const a=agentById(id);
+  if(a)a.color=color;
+  saveState();renderSettings();renderBoard();
+}
+function setAgentEmail(id,email){
+  const a=agentById(id);
+  if(a)a.email=email.trim();
+  saveState();
+}
+// ── Admin-Nutzerverwaltung ueber die Edge Function (sicheres Passwort-Setzen/Anlegen) ──
+const ADMIN_USERS_FUNCTION_URL=`${SUPABASE_URL}/functions/v1/admin-manage-users`;
+async function callAdminUsersFunction(payload){
+  if(!isSbSessionValid()){
+    throw new Error('Du musst angemeldet sein, um Nutzer zu verwalten.');
+  }
+  const res=await fetch(ADMIN_USERS_FUNCTION_URL,{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+sbSession.access_token,'Content-Type':'application/json','apikey':SUPABASE_KEY},
+    body:JSON.stringify(payload)
+  });
+  const body=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(body.error||('Fehler (Status '+res.status+')'));
+  return body;
+}
+async function adminSetPassword(id){
+  const a=agentById(id);
+  if(!a)return;
+  if(!a.email){alert('Bitte zuerst eine E-Mail-Adresse für diesen Mitarbeiter hinterlegen.');return;}
+  const pw=prompt(`Neues Passwort für ${a.name} (${a.email}):`);
+  if(!pw)return;
+  if(pw.length<6){alert('Das Passwort muss mindestens 6 Zeichen haben.');return;}
+  try{
+    await callAdminUsersFunction({action:'setPassword',email:a.email,password:pw});
+    alert(`Passwort für ${a.name} wurde geändert.`);
+  }catch(e){
+    alert('Fehler beim Setzen des Passworts:\n\n'+e.message+'\n\nHinweis: Die Edge Function "admin-manage-users" muss bei Supabase eingerichtet sein und du musst als Admin angemeldet sein.');
+  }
+}
 function createAgent(){
   const nameEl=document.getElementById('newAgentName');
+  const emailEl=document.getElementById('newAgentEmail');
+  const pwEl=document.getElementById('newAgentPassword');
+  const roleEl=document.getElementById('newAgentRole');
   const name=nameEl.value.trim();
+  const email=emailEl.value.trim();
+  const password=pwEl.value;
+  const role=roleEl.value;
   if(!name)return;
+  if(email&&password&&password.length<6){alert('Das Passwort muss mindestens 6 Zeichen haben.');return;}
   const usedColors=AGENTS.map(a=>a.color);
   const color=Object.keys(COLOR_HEX).find(c=>!usedColors.includes(c))||'gray';
-  AGENTS.push({id:'a'+(nextAgentId++),name,color});
+  const newId='a'+(nextAgentId++);
+  AGENTS.push({id:newId,name,color,role,quota:0,email});
   saveState();renderSettings();renderUserSelect();
+  nameEl.value='';emailEl.value='';pwEl.value='';
+  if(email&&password){
+    callAdminUsersFunction({action:'createUser',email,password,role}).then(()=>{
+      alert(`${name} wurde angelegt und kann sich jetzt mit ${email} anmelden.`);
+    }).catch(e=>{
+      alert(`Mitarbeiter "${name}" wurde intern angelegt, der Login-Zugang konnte aber nicht erstellt werden:\n\n${e.message}\n\nDu kannst es später über "Passwort setzen" erneut versuchen, sobald die Edge Function eingerichtet ist.`);
+    });
+  }
 }
 function startEditLabelSettings(id){editingLabelId=id;renderSettings();const el=document.getElementById('editLabelInput_'+id);if(el){el.focus();el.select();}}
 
