@@ -1184,6 +1184,9 @@ function renderBoard(){
         <option value="lost" ${col.outcome==='lost'?'selected':''}>Verloren</option>
       </select>
       <div class="popover-divider"></div>
+      <div class="col-menu-item" onclick="sortColumnByFollowup('${col.id}','asc')"><i class="ti ti-sort-ascending"></i> Nach Fälligkeit sortieren (bald zuerst)</div>
+      <div class="col-menu-item" onclick="sortColumnByFollowup('${col.id}','desc')"><i class="ti ti-sort-descending"></i> Nach Fälligkeit sortieren (spät zuerst)</div>
+      <div class="popover-divider"></div>
       <div class="col-menu-item danger" onclick="deleteColumn('${col.id}')"><i class="ti ti-trash"></i> Liste löschen</div>
     </div>`:'';
     const nameHtml=isEditing
@@ -2489,6 +2492,22 @@ function moveLeadDown(id){
 }
 
 // ── SPALTEN (LISTEN): Hinzufügen, Löschen, Umbenennen, Farbe, Reihenfolge ──
+// Sortiert alle Leads einer Liste nach Follow-up-Datum neu (Leads ohne Datum landen immer ans Ende)
+function sortColumnByFollowup(colId,direction){
+  const colLeads=leads.filter(l=>l.status===colId);
+  colLeads.sort((a,b)=>{
+    const aHas=!!a.followup,bHas=!!b.followup;
+    if(!aHas&&!bHas)return 0;
+    if(!aHas)return 1;
+    if(!bHas)return -1;
+    const diff=new Date(a.followup)-new Date(b.followup);
+    return direction==='asc'?diff:-diff;
+  });
+  colLeads.forEach((l,i)=>{l.order=i;});
+  colMenuOpenId=null;
+  saveState();
+  renderBoard();
+}
 function toggleColMenu(id){
   colMenuOpenId = colMenuOpenId===id ? null : id;
   renderBoard();
