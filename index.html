@@ -582,6 +582,12 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
           </div>
         </div>
       </div>
+      <div class="tab-bar" style="margin:0 26px 14px;max-width:560px">
+        <button class="tab-btn" id="settingsTabBtn_team" onclick="setSettingsTab('team')"><i class="ti ti-users"></i> Team</button>
+        <button class="tab-btn" id="settingsTabBtn_board" onclick="setSettingsTab('board')"><i class="ti ti-layout-kanban"></i> Board</button>
+        <button class="tab-btn" id="settingsTabBtn_project" onclick="setSettingsTab('project')"><i class="ti ti-target-arrow"></i> Projekt</button>
+        <button class="tab-btn" id="settingsTabBtn_system" onclick="setSettingsTab('system')"><i class="ti ti-database"></i> System</button>
+      </div>
       <div class="view-scroll" id="settingsContent"></div>
     </div>
 
@@ -1924,7 +1930,16 @@ function renderActivities(){
     </div>`;
 }
 
+let settingsTab='team';
+function setSettingsTab(tab){
+  settingsTab=tab;
+  renderSettings();
+}
 function renderSettings(){
+  ['team','board','project','system'].forEach(t=>{
+    const btn=document.getElementById('settingsTabBtn_'+t);
+    if(btn)btn.classList.toggle('active',settingsTab===t);
+  });
   const usedAgentColors=AGENTS.map(a=>a.color);
   const allColorKeys=Object.keys(COLOR_HEX);
   const freeAgentColor=allColorKeys.find(c=>!usedAgentColors.includes(c))||allColorKeys[0];
@@ -2003,8 +2018,8 @@ function renderSettings(){
       <button class="check-item-del" onclick="deleteRisk(${r.id})"><i class="ti ti-trash"></i></button>
     </div>`).join('')||'<p style="font-size:12px;color:var(--text3)">Keine Risiken erfasst.</p>';
 
-  document.getElementById('settingsContent').innerHTML=`
-    <div class="dash-row-1-1">
+  const tabContent={
+    team:`
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Mitarbeiter anlegen</div>
         <p style="font-size:11px;color:var(--text3);margin:-4px 0 10px">Mit E-Mail + Passwort erhält die Person direkt einen Login-Zugang. Beides kann auch leer bleiben für eine reine interne Zuordnung.</p>
@@ -2024,75 +2039,73 @@ function renderSettings(){
         </div>
         <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:6px" onclick="createAgent()"><i class="ti ti-user-plus"></i> Mitarbeiter anlegen</button>
       </div>
-
       <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Labels</div>
-        <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Werden auf Lead-Karten zur Kategorisierung genutzt.</p>
-        ${labelsHtml}
-        <p style="font-size:11px;color:var(--text3);margin-top:10px">Neue Labels legst du direkt in einer Lead-Karte an (Bereich "Labels").</p>
+        <div class="section-hdr" style="margin-top:0">Mitarbeiter-Übersicht</div>
+        <div style="overflow-x:auto">
+          <table class="agent-table">
+            <thead><tr>
+              <th>Name</th><th>Rolle</th><th>Leads</th><th>Ziel/Monat</th><th>Status</th><th></th>
+            </tr></thead>
+            <tbody>${agentRowsHtml}</tbody>
+          </table>
+        </div>
+      </div>`,
+    board:`
+      <div class="dash-row-1-1">
+        <div class="info-section">
+          <div class="section-hdr" style="margin-top:0">Listen (Board-Spalten)</div>
+          <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Reihenfolge, Umbenennen, Farbe und Löschen direkt im Board über das •••-Menü einer Liste.</p>
+          ${colsHtml}
+        </div>
+        <div class="info-section">
+          <div class="section-hdr" style="margin-top:0">Labels</div>
+          <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Werden auf Lead-Karten zur Kategorisierung genutzt.</p>
+          ${labelsHtml}
+          <p style="font-size:11px;color:var(--text3);margin-top:10px">Neue Labels legst du direkt in einer Lead-Karte an (Bereich "Labels").</p>
+        </div>
+      </div>`,
+    project:`
+      <div class="dash-row-1-1">
+        <div class="info-section">
+          <div class="section-hdr" style="margin-top:0">Projekt-Zeitrahmen &amp; Budget</div>
+          <div class="field-row-2">
+            <div><label>Projektstart</label><input type="date" value="${PROJECT.startDate}" onchange="setProjectField('startDate',this.value)" style="width:100%"></div>
+            <div><label>Projektende</label><input type="date" value="${PROJECT.endDate}" onchange="setProjectField('endDate',this.value)" style="width:100%"></div>
+          </div>
+          <div class="field"><label>Gesamtbudget (EUR)</label><input type="number" min="0" step="100" value="${PROJECT.budget}" onchange="setProjectField('budget',parseFloat(this.value)||0)" style="width:100%"></div>
+          <p style="font-size:11px;color:var(--text3);margin-top:6px">Budget-Auslastung (Toner-Investition gesamt) siehst du im Dashboard.</p>
+        </div>
+        <div class="info-section">
+          <div class="section-hdr" style="margin-top:0">Meilensteine</div>
+          ${milestonesHtml}
+          <div class="add-check-row" style="margin-top:10px;flex-wrap:wrap;gap:6px">
+            <input type="text" id="newMilestoneName" placeholder="Meilenstein…" style="flex:1;min-width:140px">
+            <input type="date" id="newMilestoneDate" style="width:150px">
+            <button class="btn btn-sm btn-primary" onclick="createMilestone()"><i class="ti ti-plus"></i></button>
+          </div>
+        </div>
       </div>
-    </div>
-
-    <div class="info-section">
-      <div class="section-hdr" style="margin-top:0">Mitarbeiter-Übersicht</div>
-      <div style="overflow-x:auto">
-        <table class="agent-table">
-          <thead><tr>
-            <th>Name</th><th>Rolle</th><th>Leads</th><th>Ziel/Monat</th><th>Status</th><th></th>
-          </tr></thead>
-          <tbody>${agentRowsHtml}</tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="dash-row-1-1">
       <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Listen (Board-Spalten)</div>
-        <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Reihenfolge, Umbenennen, Farbe und Löschen direkt im Board über das •••-Menü einer Liste.</p>
-        ${colsHtml}
-      </div>
-
+        <div class="section-hdr" style="margin-top:0">Projekt-Risiken <span style="font-weight:400;color:var(--text3);font-size:11px">(allgemein, nicht an einen einzelnen Lead gebunden)</span></div>
+        ${risksHtml}
+        <div class="add-check-row" style="margin-top:10px;flex-wrap:wrap;gap:6px">
+          <input type="text" id="newRiskText" placeholder="Risiko beschreiben…" style="flex:1;min-width:180px">
+          <select id="newRiskSeverity" style="width:110px">
+            <option value="high">Hoch</option>
+            <option value="medium" selected>Mittel</option>
+            <option value="low">Niedrig</option>
+          </select>
+          <button class="btn btn-sm btn-primary" onclick="createRisk()"><i class="ti ti-plus"></i></button>
+        </div>
+      </div>`,
+    system:`
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Datenspeicherung</div>
         <p style="font-size:12px;color:var(--text2);line-height:1.6">Alle Daten liegen in einer gemeinsamen Cloud-Datenbank (Supabase) – alle Mitarbeiter sehen denselben Stand, egal an welchem Gerät. Der Status oben links in der Seitenleiste zeigt, ob die Verbindung gerade aktiv ist. Bei fehlender Internetverbindung wird lokal weitergearbeitet und automatisch synchronisiert, sobald die Verbindung zurück ist.</p>
         <button class="btn btn-sm" style="margin-top:8px" onclick="exportFullBackup()"><i class="ti ti-database-export"></i> Alle Daten als Backup exportieren (JSON)</button>
-      </div>
-    </div>
-
-    <div class="dash-row-1-1">
-      <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Projekt-Zeitrahmen &amp; Budget</div>
-        <div class="field-row-2">
-          <div><label>Projektstart</label><input type="date" value="${PROJECT.startDate}" onchange="setProjectField('startDate',this.value)" style="width:100%"></div>
-          <div><label>Projektende</label><input type="date" value="${PROJECT.endDate}" onchange="setProjectField('endDate',this.value)" style="width:100%"></div>
-        </div>
-        <div class="field"><label>Gesamtbudget (EUR)</label><input type="number" min="0" step="100" value="${PROJECT.budget}" onchange="setProjectField('budget',parseFloat(this.value)||0)" style="width:100%"></div>
-        <p style="font-size:11px;color:var(--text3);margin-top:6px">Budget-Auslastung (Toner-Investition gesamt) siehst du im Dashboard.</p>
-      </div>
-      <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Meilensteine</div>
-        ${milestonesHtml}
-        <div class="add-check-row" style="margin-top:10px;flex-wrap:wrap;gap:6px">
-          <input type="text" id="newMilestoneName" placeholder="Meilenstein…" style="flex:1;min-width:140px">
-          <input type="date" id="newMilestoneDate" style="width:150px">
-          <button class="btn btn-sm btn-primary" onclick="createMilestone()"><i class="ti ti-plus"></i></button>
-        </div>
-      </div>
-    </div>
-
-    <div class="info-section">
-      <div class="section-hdr" style="margin-top:0">Projekt-Risiken <span style="font-weight:400;color:var(--text3);font-size:11px">(allgemein, nicht an einen einzelnen Lead gebunden)</span></div>
-      ${risksHtml}
-      <div class="add-check-row" style="margin-top:10px;flex-wrap:wrap;gap:6px">
-        <input type="text" id="newRiskText" placeholder="Risiko beschreiben…" style="flex:1;min-width:180px">
-        <select id="newRiskSeverity" style="width:110px">
-          <option value="high">Hoch</option>
-          <option value="medium" selected>Mittel</option>
-          <option value="low">Niedrig</option>
-        </select>
-        <button class="btn btn-sm btn-primary" onclick="createRisk()"><i class="ti ti-plus"></i></button>
-      </div>
-    </div>`;
+      </div>`,
+  };
+  document.getElementById('settingsContent').innerHTML=tabContent[settingsTab]||tabContent.team;
   equalizeRowHeights();
 }
 
