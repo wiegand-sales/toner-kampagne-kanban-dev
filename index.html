@@ -829,9 +829,12 @@ async function sbInitialSync(){
   }
 }
 async function sbPoll(){
-  // Nichts uebernehmen, waehrend jemand gerade im Lead-Fenster arbeitet oder Karten auswaehlt
+  // Nichts uebernehmen, waehrend jemand gerade im Lead-Fenster arbeitet, Karten
+  // auswaehlt, ODER eine eigene Aenderung noch nicht hochgeladen wurde (sbPushTimer
+  // laeuft noch) - sonst koennte eine eigene, noch ungesicherte Aenderung durch
+  // einen aelteren Cloud-Stand ueberschrieben werden.
   const modalOpen=!document.getElementById('leadModal').classList.contains('hidden');
-  if(modalOpen||(typeof bulkMode!=='undefined'&&bulkMode))return;
+  if(modalOpen||(typeof bulkMode!=='undefined'&&bulkMode)||sbPushTimer)return;
   try{
     const remote=await sbPull();
     if(remote&&remote.updated_at!==sbLastUpdatedAt){
@@ -892,6 +895,10 @@ let leads=[
   {id:12,company:'Vogel Consulting',customerNumber:'K-10012',art:'B2C',printerModel:'',sku:'',contact:'Petra Vogel',phone:'+49 211 998811',email:'petra@vogel-consulting.de',status:'open',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',forecast:'',notes:'',checklist:[],activity:[]},
 ];
 let nextId=13;
+// Kollisionssichere ID: verhindert, dass zwei Geraete beim gleichzeitigen Anlegen
+// (bevor synchronisiert wurde) versehentlich dieselbe ID vergeben und sich damit
+// gegenseitig ueberschreiben. Zeitstempel (ms) + Zufallszahl statt hochzaehlender Nummer.
+function genId(){return Date.now()*1000+Math.floor(Math.random()*1000);}
 let nextLabelId=5;
 let nextPrinterId=1;
 
@@ -915,7 +922,7 @@ function normalizeLeads(){
       };
     }
     if(!l.demandPrinters){
-      l.demandPrinters = oldPrinters.map(p=>({id:nextPrinterId++,model:p.model,skus:p.skus.map(s=>({sku:s||'',qty:'',price:''}))}));
+      l.demandPrinters = oldPrinters.map(p=>({id:genId(),model:p.model,skus:p.skus.map(s=>({sku:s||'',qty:'',price:''}))}));
     }
     l.demandPrinters.forEach(p=>p.skus.forEach(s=>{if(s.price===undefined)s.price='';}));
     delete l.printers; delete l.printerModel; delete l.sku; delete l.annualVolume;
@@ -1712,7 +1719,7 @@ function deleteArticle(id){
   renderCrRma();
 }
 function addArticle(){
-  ARTICLES.push({id:nextArticleId++,sku:'',title:'',ek:'',vk:'',crRma:'',crRga:''});
+  ARTICLES.push({id:genId(),sku:'',title:'',ek:'',vk:'',crRma:'',crRga:''});
   saveState();
   renderCrRma();
   const rows=document.querySelectorAll('.crrma-row input');
@@ -2251,7 +2258,7 @@ function createAgent(){
   if(email&&password&&password.length<6){alert('Das Passwort muss mindestens 6 Zeichen haben.');return;}
   const usedColors=AGENTS.map(a=>a.color);
   const color=Object.keys(COLOR_HEX).find(c=>!usedColors.includes(c))||'gray';
-  const newId='a'+(nextAgentId++);
+  const newId='a'+genId();
   AGENTS.push({id:newId,name,color,role,quota:0,email});
   saveState();renderSettings();renderUserSelect();
   nameEl.value='';emailEl.value='';pwEl.value='';
@@ -2556,7 +2563,7 @@ function confirmAddColumn(){
   if(!name){cancelAddColumn();return;}
   const palette=['gray','teal','amber','purple','green','red'];
   const color=palette[COLUMNS.length%palette.length];
-  COLUMNS.push({id:'col_'+(nextColId++)+'_'+Date.now(),name,color});
+  COLUMNS.push({id:'col_'+genId(),name,color});
   addColumnFormOpen=false;
   saveState();
   renderBoard();
@@ -3060,7 +3067,7 @@ function updateShipPrinterSku(idx,field,val){draftLead.shipPrinter.skus[idx][fie
 
 // Kundenbedarf-Drucker (Forecast-Tab, mehrere Drucker, mit benötigter Anzahl je SKU)
 function addDemandPrinter(){
-  draftLead.demandPrinters.push({id:nextPrinterId++,model:'',skus:[{sku:'',qty:'',price:''},{sku:'',qty:'',price:''},{sku:'',qty:'',price:''},{sku:'',qty:'',price:''}]});
+  draftLead.demandPrinters.push({id:genId(),model:'',skus:[{sku:'',qty:'',price:''},{sku:'',qty:'',price:''},{sku:'',qty:'',price:''},{sku:'',qty:'',price:''}]});
   renderLeadModal();
 }
 function removeDemandPrinter(id){
@@ -3088,7 +3095,7 @@ function recomputeForecast(){
 
 // Tatsächliches Ergebnis (Spiegelbild vom Forecast, mit dem, was der Kunde wirklich gekauft hat)
 function addActualPrinter(){
-  draftLead.actualPrinters.push({id:nextPrinterId++,model:'',skus:[{sku:'',qty:'',price:''},{sku:'',qty:'',price:''},{sku:'',qty:'',price:''},{sku:'',qty:'',price:''}]});
+  draftLead.actualPrinters.push({id:genId(),model:'',skus:[{sku:'',qty:'',price:''},{sku:'',qty:'',price:''},{sku:'',qty:'',price:''},{sku:'',qty:'',price:''}]});
   renderLeadModal();
 }
 function removeActualPrinter(id){
@@ -3114,7 +3121,7 @@ function recomputeActual(){
 function copyForecastToActual(){
   if(draftLead.actualPrinters.length&&!confirm('Bereits vorhandene Angaben bei "Tatsächlich" werden dabei überschrieben. Fortfahren?'))return;
   draftLead.actualPrinters=draftLead.demandPrinters.map(p=>({
-    id:nextPrinterId++,
+    id:genId(),
     model:p.model,
     skus:p.skus.map(s=>({sku:s.sku,qty:s.qty,price:s.price}))
   }));
@@ -3243,7 +3250,7 @@ function createLabel(){
   if(!name)return;
   const sel=document.querySelector('#newLabelColors .color-swatch.selected');
   const color=sel?sel.dataset.color:LABEL_PALETTE[0];
-  const newLabel={id:'l'+(nextLabelId++),name,color};
+  const newLabel={id:'l'+genId(),name,color};
   LABELS.push(newLabel);
   draftLead.labelIds.push(newLabel.id);
   saveState();
@@ -3391,7 +3398,7 @@ function saveLead(){
     });
     Object.assign(original,draftLead);
   }else{
-    draftLead.id=nextId++;
+    draftLead.id=genId();
     if(draftLead.followup){
       draftLead.followupHistory=[{date:draftLead.followup,setAt:nowISO()}];
     }
@@ -3422,7 +3429,7 @@ function createMilestone(){
   const dateEl=document.getElementById('newMilestoneDate');
   const name=nameEl.value.trim();
   if(!name||!dateEl.value)return;
-  PROJECT.milestones.push({id:nextMilestoneId++,name,targetDate:dateEl.value,done:false});
+  PROJECT.milestones.push({id:genId(),name,targetDate:dateEl.value,done:false});
   saveState();
   renderSettings();
 }
@@ -3442,7 +3449,7 @@ function createRisk(){
   const sevEl=document.getElementById('newRiskSeverity');
   const text=textEl.value.trim();
   if(!text)return;
-  PROJECT.risks.push({id:nextRiskId++,text,severity:sevEl.value,open:true});
+  PROJECT.risks.push({id:genId(),text,severity:sevEl.value,open:true});
   saveState();
   renderSettings();
 }
@@ -3475,18 +3482,29 @@ function exportFullBackup(){
   URL.revokeObjectURL(url);
 }
 function exportCSV(){
-  const headers=['Firmenname','Kundennummer','Art','Adresse','Anzahl Bestellungen','Umsatz (EUR)','Versand-Drucker','Versand-SKUs (Preis)','Investition gesamt (EUR)','Kundenbedarf Drucker & Anzahl','Ansprechpartner','Telefonnummer','E-Mail','Mitglieder','Status','Free Toner verschickt','Datum Erstkontakt','Follow-up-Datum','Forecast (EUR)','Labels','Notizen'];
+  const headers=['Firmenname','Kundennummer','Art','Adresse','Anzahl Bestellungen','Umsatz (EUR)',
+    'Versand-Drucker','Versand-SKUs (Preis)','Investition gesamt (EUR)','Kundenbedarf Drucker & Anzahl',
+    'Tatsächlicher Bedarf Drucker & Anzahl','Ansprechpartner','Telefonnummer','E-Mail','Wettbewerber',
+    'Mitglieder','Status','Seit wann in dieser Liste','Free Toner verschickt','Datum Erstkontakt',
+    'Follow-up-Datum','Forecast (EUR)','Tatsächliches Ergebnis (EUR)','Verlust-Grund','Labels',
+    'Anzahl Kommentare','Offene Aufgaben','Aufgaben gesamt','Anzahl Anhänge','Notizen'];
   const rows=leads.map(l=>{
     const shipSkus=l.shipPrinter.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.price?` (${fmtEur(s.price)})`:''}`).join(', ');
     const investTotal=l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.price)||0),0);
     const demand=(l.demandPrinters||[]).map(p=>`${p.model} [${p.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.qty?` x${s.qty}`:''}`).join(', ')}]`).join(' | ');
+    const actualDemand=(l.actualPrinters||[]).map(p=>`${p.model} [${p.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.qty?` x${s.qty}`:''}`).join(', ')}]`).join(' | ');
+    const commentCount=(l.activity||[]).filter(a=>a.type==='comment').length;
+    const tasksTotal=(l.tasks||[]).length;
+    const tasksOpen=(l.tasks||[]).filter(t=>!t.done).length;
     return [
       l.company,l.customerNumber,l.art,l.address,l.orderCount,l.revenue,
-      l.shipPrinter.model,shipSkus,investTotal||'',demand,
-      l.contact,l.phone,l.email,
+      l.shipPrinter.model,shipSkus,investTotal||'',demand,actualDemand,
+      l.contact,l.phone,l.email,l.competitor||'',
       l.members.map(id=>agentById(id)?.name).filter(Boolean).join('; '),
-      colById(l.status).name,l.tonerSent,l.firstContact,l.followup,l.forecast,
+      colById(l.status).name,fmtDate(l.statusSince)||'',l.tonerSent,l.firstContact,l.followup,
+      l.forecast,l.actual||'',l.lossReason||'',
       l.labelIds.map(id=>labelById(id)?.name).filter(Boolean).join('; '),
+      commentCount,tasksOpen,tasksTotal,(l.files||[]).length,
       l.notes
     ];
   });
@@ -3494,7 +3512,7 @@ function exportCSV(){
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url;a.download='toner_kampagne_leads.csv';a.click();
+  a.href=url;a.download=`toner_kampagne_leads_${TODAY}.csv`;a.click();
   URL.revokeObjectURL(url);
 }
 
@@ -3590,7 +3608,7 @@ function importCSVFile(file){
         }
         seenInFile.add(fileKey);
         const nl=blankLead();
-        nl.id=nextId++;
+        nl.id=genId();
         nl.company=company;
         nl.customerNumber=custNo;
         nl.contact=get('contact');
@@ -3693,7 +3711,7 @@ function importArticleCSVFile(file){
         }
         seenInFile.add(norm(sku));
         ARTICLES.push({
-          id:nextArticleId++,
+          id:genId(),
           sku,
           title:get('title'),
           ek:parseFloat(get('ek'))||0,
@@ -3737,7 +3755,23 @@ function bootstrapApp(){
   switchView('board');
   setSbStatus('connecting');
   sbInitialSync();
-  setInterval(sbPoll,20000);
+  setInterval(sbPoll,15000);
+  // Falls die Seite geschlossen/verlassen wird, waehrend eine Aenderung noch
+  // auf den Upload wartet: sofortigen Versuch mit keepalive starten, damit die
+  // Aenderung nicht nur lokal, sondern auch in der Cloud landet.
+  window.addEventListener('beforeunload',()=>{
+    if(sbPushTimer&&!sbSuppressPush&&sbSession){
+      clearTimeout(sbPushTimer);
+      try{
+        fetch(`${SUPABASE_URL}/rest/v1/app_state`,{
+          method:'POST',
+          headers:Object.assign({},getSbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
+          body:JSON.stringify({id:'main',data:buildStatePayload(),updated_at:new Date().toISOString()}),
+          keepalive:true
+        });
+      }catch(e){}
+    }
+  });
 }
 let workingOfflineIntentionally=false;
 function continueOffline(){
