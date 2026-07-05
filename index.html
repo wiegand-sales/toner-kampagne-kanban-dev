@@ -524,7 +524,12 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
             <div class="page-hdr-sub">Artikel-Stammdaten mit Reklamationsquoten (RMA/RGA) je SKU</div>
           </div>
         </div>
-        <div class="search-box"><i class="ti ti-search"></i><input type="text" id="crrmaSearch" placeholder="SKU oder Titel suchen…" oninput="renderCrRma()"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="search-box"><i class="ti ti-search"></i><input type="text" id="crrmaSearch" placeholder="SKU oder Titel suchen…" oninput="renderCrRma()"></div>
+          <button class="btn btn-sm" onclick="triggerArticleCSVImport()" title="Artikel aus CSV-Datei importieren (Spalte 'SKU' erforderlich)"><i class="ti ti-upload"></i> Import CSV</button>
+          <input type="file" id="articleCsvImportInput" accept=".csv,text/csv" style="display:none" onchange="if(this.files[0]){importArticleCSVFile(this.files[0]);this.value='';}">
+          <button class="btn btn-sm" onclick="exportArticleCSV()"><i class="ti ti-download"></i> Export CSV</button>
+        </div>
       </div>
       <div class="view-scroll" id="crrmaContent"></div>
     </div>
@@ -3498,6 +3503,95 @@ function importCSVFile(file){
 }
 function triggerCSVImport(){
   document.getElementById('csvImportInput').click();
+}
+
+// ── CR RMA: ARTIKEL-STAMMDATEN CSV IMPORT/EXPORT ──
+const ARTICLE_CSV_FIELD_ALIASES={
+  sku:['sku','artikelnummer','art-nr'],
+  title:['titel','name','bezeichnung','artikelbezeichnung'],
+  ek:['ek','ek (eur)','einkaufspreis','einkauf'],
+  vk:['vk','vk (eur)','verkaufspreis','verkauf'],
+  crRma:['cr rma','cr rma (%)','cr-rma','rma','rma-quote'],
+  crRga:['cr rga','cr rga (%)','cr-rga','rga','rga-quote'],
+};
+function triggerArticleCSVImport(){
+  document.getElementById('articleCsvImportInput').click();
+}
+function exportArticleCSV(){
+  const headers=['SKU','Titel','EK (EUR)','VK (EUR)','CR RMA (%)','CR RGA (%)'];
+  const rows=ARTICLES.map(a=>[a.sku,a.title,a.ek,a.vk,a.crRma,a.crRga]);
+  const csvEscape=v=>{
+    v=(v===undefined||v===null)?'':String(v);
+    return /[;,"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;
+  };
+  const csv=[headers,...rows].map(r=>r.map(csvEscape).join(';')).join('\r\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`crrma_artikel_${TODAY}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function importArticleCSVFile(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      let text=e.target.result;
+      text=text.replace(/^\uFEFF/,'').replace(/\uFEFF/g,'');
+      const rows=parseCSV(text);
+      if(rows.length<2){alert('Die Datei enthält keine Datenzeilen (nur Kopfzeile oder leer).');return;}
+      const headers=rows[0].map(h=>h.replace(/\uFEFF/g,'').replace(/^["']|["']$/g,'').trim().toLowerCase());
+      const colMap={};
+      Object.entries(ARTICLE_CSV_FIELD_ALIASES).forEach(([field,aliases])=>{
+        const idx=headers.findIndex(h=>aliases.includes(h));
+        if(idx>-1)colMap[field]=idx;
+      });
+      if(colMap.sku===undefined){
+        alert('Keine Spalte "SKU" in der Kopfzeile gefunden. Bitte prüfe die CSV-Datei.\n\nGefundene Spalten: '+rows[0].join(', '));
+        return;
+      }
+      const norm=v=>(v||'').trim().toLowerCase();
+      let added=0,skippedDup=0,skippedEmpty=0;
+      const dupDetails=[];
+      const seenInFile=new Set();
+      rows.slice(1).forEach((r,rowIdx)=>{
+        const get=f=>colMap[f]!==undefined?(r[colMap[f]]||'').trim():'';
+        const sku=get('sku');
+        if(!sku){skippedEmpty++;return;}
+        const existingMatch=ARTICLES.find(a=>norm(a.sku)===norm(sku));
+        if(existingMatch||seenInFile.has(norm(sku))){
+          skippedDup++;
+          dupDetails.push(`Zeile ${rowIdx+2}: SKU "${sku}" – ${existingMatch?'existiert bereits':'doppelt in der hochgeladenen Datei'}`);
+          return;
+        }
+        seenInFile.add(norm(sku));
+        ARTICLES.push({
+          id:nextArticleId++,
+          sku,
+          title:get('title'),
+          ek:parseFloat(get('ek'))||0,
+          vk:parseFloat(get('vk'))||0,
+          crRma:parseFloat(get('crRma'))||0,
+          crRga:parseFloat(get('crRga'))||0,
+        });
+        added++;
+      });
+      saveState();
+      renderCrRma();
+      let msg=`CSV-Import abgeschlossen:\n\n✓ ${added} neue Artikel angelegt\n↷ ${skippedDup} übersprungen (SKU bereits vorhanden oder doppelt in der Datei)\n∅ ${skippedEmpty} übersprungen (keine SKU)`;
+      if(dupDetails.length){
+        msg+='\n\nÜbersprungene Zeilen im Detail:\n'+dupDetails.slice(0,25).join('\n');
+        if(dupDetails.length>25)msg+=`\n… und ${dupDetails.length-25} weitere`;
+      }
+      alert(msg);
+    }catch(err){
+      alert('Fehler beim Import: '+err.message);
+    }
+  };
+  reader.readAsText(file,'utf-8');
 }
 
 // ── MODAL HELPERS ──
