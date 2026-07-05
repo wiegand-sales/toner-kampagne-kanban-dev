@@ -2273,7 +2273,7 @@ function setAgentEmail(id,email){
 // ── Admin-Nutzerverwaltung ueber die Edge Function (sicheres Passwort-Setzen/Anlegen) ──
 const ADMIN_USERS_FUNCTION_URL=`${SUPABASE_URL}/functions/v1/admin-manage-users`;
 // ── Automatische E-Mail-Benachrichtigung bei Verschieben in bestimmte Listen ──
-const NOTIFY_FUNCTION_URL=`${SUPABASE_URL}/functions/v1/send-lead-notification`;
+const NOTIFY_FUNCTION_URL=`${SUPABASE_URL}/functions/v1/send-lead-notification-`;
 function maybeSendListNotification(lead,oldStatus,newStatus){
   if(oldStatus===newStatus)return;
   if(!PROJECT.notificationsEnabled)return;
