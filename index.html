@@ -75,6 +75,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .project-status-item span:first-child{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;}
 .project-status-item strong{font-size:14px;margin-top:1px;}
 .project-status-sub{font-size:10px;color:var(--text3);margin-top:3px;}
+.no-date-warning{background:var(--amber-bg);color:var(--amber-dark);border-radius:8px;padding:9px 14px;font-size:12px;display:flex;align-items:center;gap:8px;margin-bottom:16px;}
+.no-date-warning a{color:var(--amber-dark);font-weight:600;text-decoration:underline;cursor:pointer;margin-left:auto;flex-shrink:0;white-space:nowrap;}
 .movements-item{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px;}
 .movements-item strong{font-size:14px;color:var(--text);}
 .movements-details{margin-top:10px;}
@@ -1248,7 +1250,9 @@ function periodStartDate(p){
 function renderDashboard(){
   let dl=activeDashboardAgentFilter==='all'?leads:leads.filter(l=>(l.members||[]).includes(activeDashboardAgentFilter));
   const periodStart=periodStartDate(activeDashboardPeriod);
+  let excludedNoDate=0;
   if(periodStart){
+    excludedNoDate=dl.filter(l=>!l.firstContact).length;
     dl=dl.filter(l=>l.firstContact&&new Date(l.firstContact)>=periodStart);
   }
   const movementDays=activeDashboardPeriod==='week'?7:activeDashboardPeriod==='month'?30:activeDashboardPeriod==='quarter'?90:3650;
@@ -1493,6 +1497,7 @@ function renderDashboard(){
         <div class="project-status-item"><span>Offene Risiken</span><strong style="color:${openRisks.length?'var(--red)':'var(--green-dark)'}">${openRisks.length}</strong><span class="project-status-sub">${openRisks.length?openRisks[0].text.slice(0,40)+(openRisks[0].text.length>40?'…':''):'keine offenen Risiken'}</span></div>
       </div>
     </div>
+    ${excludedNoDate>0?`<div class="no-date-warning"><i class="ti ti-alert-triangle"></i> ${excludedNoDate} Lead${excludedNoDate===1?'':'s'} ohne Erstkontakt-Datum ${excludedNoDate===1?'wird':'werden'} bei "${activeDashboardPeriod==='week'?'Diese Woche':activeDashboardPeriod==='month'?'Dieser Monat':'Dieses Quartal'}" nicht mitgezählt, da der Zeitraum-Filter sich auf dieses Datum bezieht. <a onclick="switchView('board')">→ Im Board nachtragen</a></div>`:''}
     ${kpiHtml}
     <div class="info-section">
       <div class="section-hdr" style="margin-top:0">Pipeline-Trichter <span style="font-weight:400;color:var(--text3);font-size:11px">(Anzahl · Anteil an allen Leads, Pfeil = Konversion zur nächsten Stufe)</span></div>
