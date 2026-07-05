@@ -34,6 +34,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .sidebar-project-name{font-size:14px;font-weight:700;}
 .sidebar-project-sub{font-size:11px;color:var(--text3);}
 .sidebar-user-row{padding:6px 8px 14px;margin-bottom:8px;border-bottom:1px solid var(--border);}
+.current-user-display{display:flex;align-items:center;gap:8px;margin-top:2px;}
+.current-user-display .member-av{width:26px;height:26px;font-size:11px;}
+.current-user-display span{font-size:13px;font-weight:600;color:var(--text);}
 .sidebar-user-row label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
 .sidebar-nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r-md);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;margin-bottom:2px;}
 .sidebar-nav-item i{font-size:17px;flex-shrink:0;}
@@ -430,9 +433,18 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
       <span id="sbStatusText"></span>
       <button class="logout-btn" onclick="sbLogout()" title="Abmelden"><i class="ti ti-logout-2"></i></button>
     </div>
-    <div class="sidebar-user-row">
-      <label>Ich bin</label>
-      <select id="currentUserSelect" class="me-select" onchange="currentUser=this.value" style="width:100%"></select>
+    <div class="sidebar-user-row" id="sidebarUserRow">
+      <div id="currentUserConfirmed" class="hidden">
+        <label>Angemeldet als</label>
+        <div class="current-user-display">
+          <div class="member-av" id="currentUserAvatar" style="position:static;margin:0"></div>
+          <span id="currentUserName"></span>
+        </div>
+      </div>
+      <div id="currentUserManual">
+        <label>Ich bin <span style="font-weight:400;color:var(--text3)">(keine Login-E-Mail zugeordnet)</span></label>
+        <select id="currentUserSelect" class="me-select" onchange="currentUser=this.value" style="width:100%"></select>
+      </div>
     </div>
     <div class="sidebar-nav-item" id="navDashboard" onclick="switchView('dashboard')"><i class="ti ti-layout-dashboard"></i> SFP: Toner</div>
     <div class="sidebar-nav-item" id="navBoard" onclick="switchView('board')"><i class="ti ti-layout-kanban"></i> Board</div>
@@ -1080,7 +1092,25 @@ function renderLabelChips(){
 function setLabelFilter(id){activeLabelFilter=id;renderLabelChips();renderBoard();}
 function renderUserSelect(){
   const avail=activeAgents();
-  if(!avail.some(a=>a.id===currentUser)&&avail.length){currentUser=avail[0].id;}
+  // Automatische Erkennung: passt die angemeldete E-Mail zu einem Mitarbeiter,
+  // wird die Auswahl nicht mehr gebraucht - man ist ja bereits eingeloggt.
+  const sessionEmail=(sbSession&&sbSession.email)?sbSession.email.trim().toLowerCase():null;
+  const matched=sessionEmail?AGENTS.find(a=>a.active!==false&&(a.email||'').trim().toLowerCase()===sessionEmail):null;
+  const confirmedEl=document.getElementById('currentUserConfirmed');
+  const manualEl=document.getElementById('currentUserManual');
+  if(matched){
+    currentUser=matched.id;
+    document.getElementById('currentUserAvatar').style.background=COLOR_BG[matched.color];
+    document.getElementById('currentUserAvatar').style.color=COLOR_TEXT[matched.color];
+    document.getElementById('currentUserAvatar').textContent=ini(matched.name);
+    document.getElementById('currentUserName').textContent=matched.name;
+    confirmedEl.classList.remove('hidden');
+    manualEl.classList.add('hidden');
+  }else{
+    if(!avail.some(a=>a.id===currentUser)&&avail.length){currentUser=avail[0].id;}
+    confirmedEl.classList.add('hidden');
+    manualEl.classList.remove('hidden');
+  }
   document.getElementById('currentUserSelect').innerHTML=avail.map(a=>`<option value="${a.id}" ${a.id===currentUser?'selected':''}>${esc(a.name)}</option>`).join('');
 }
 function setAgentFilter(id){activeAgentFilter=id;renderAgentChips();renderBoard();}
@@ -1857,7 +1887,7 @@ function renderSettings(){
     </div>`).join('')||'<p style="font-size:12px;color:var(--text3)">Keine Risiken erfasst.</p>';
 
   document.getElementById('settingsContent').innerHTML=`
-    <div class="dash-grid">
+    <div class="dash-row-1-1">
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Mitarbeiter anlegen</div>
         <p style="font-size:11px;color:var(--text3);margin:-4px 0 10px">Mit E-Mail + Passwort erhält die Person direkt einen Login-Zugang. Beides kann auch leer bleiben für eine reine interne Zuordnung.</p>
@@ -1898,7 +1928,7 @@ function renderSettings(){
       </div>
     </div>
 
-    <div class="dash-grid">
+    <div class="dash-row-1-1">
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Listen (Board-Spalten)</div>
         <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Reihenfolge, Umbenennen, Farbe und Löschen direkt im Board über das •••-Menü einer Liste.</p>
