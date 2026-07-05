@@ -2251,6 +2251,13 @@ function trackClosedStage(lead,oldStatus,newStatus){
 function trackStatusSince(lead,oldStatus,newStatus){
   if(oldStatus!==newStatus)lead.statusSince=TODAY;
 }
+// Erzwingt ein Erstkontakt-Datum, sobald ein Lead die erste Liste verlaesst
+function blocksLeavingFirstColumn(lead,newStatus){
+  return lead.status===COLUMNS[0].id&&newStatus!==COLUMNS[0].id&&!lead.firstContact;
+}
+function warnMissingFirstContact(company){
+  alert(`"${company}" kann "${COLUMNS[0].name}" erst verlassen, wenn ein Erstkontakt-Datum eingetragen ist.\n\nDas Fenster öffnet sich jetzt, bitte trage das Datum im Feld "Datum Erstkontakt" ein und speichere erneut.`);
+}
 function onCardDrop(e,targetId){
   if(!dragCardId)return;
   e.preventDefault();
@@ -2262,6 +2269,11 @@ function onCardDrop(e,targetId){
   const target=leads.find(x=>x.id===targetId);
   dragCardId=null;
   if(!dragged||!target||dragged.id===target.id)return;
+  if(blocksLeavingFirstColumn(dragged,target.status)){
+    warnMissingFirstContact(dragged.company);
+    openLeadModal(dragged.id);
+    return;
+  }
   if(dragged.status!==target.status){
     const oldName=colById(dragged.status).name,newName=colById(target.status).name;
     dragged.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
@@ -2294,6 +2306,12 @@ function onDrop(e,colId){
   }
   const l=leads.find(x=>x.id===dragCardId);
   if(l&&l.status!==colId){
+    if(blocksLeavingFirstColumn(l,colId)){
+      dragCardId=null;
+      warnMissingFirstContact(l.company);
+      openLeadModal(l.id);
+      return;
+    }
     const oldName=colById(l.status).name,newName=colById(colId).name;
     l.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
     trackClosedStage(l,l.status,colId);trackStatusSince(l,l.status,colId);
@@ -2843,7 +2861,7 @@ function renderLeadModal(){
             </select>
           </div>`:''}
           <div class="field-row-2">
-            <div><label>Datum Erstkontakt</label><input type="date" value="${draftLead.firstContact}" onchange="draftLead.firstContact=this.value" style="width:100%"></div>
+            <div><label>Datum Erstkontakt</label><input type="date" id="firstContactInput" value="${draftLead.firstContact}" onchange="draftLead.firstContact=this.value" style="width:100%"></div>
             <div><label>Follow-up-Datum</label><input type="date" value="${draftLead.followup}" onchange="draftLead.followup=this.value" style="width:100%"></div>
           </div>
 
@@ -3218,6 +3236,12 @@ function saveLead(){
   clearModalError();
   if(editingLeadId){
     const original=leads.find(x=>x.id===editingLeadId);
+    if(original.status!==draftLead.status&&blocksLeavingFirstColumn(original,draftLead.status)){
+      showModalError(`Bitte zuerst ein Erstkontakt-Datum eintragen, bevor der Lead "${COLUMNS[0].name}" verlassen kann.`);
+      const el=document.getElementById('firstContactInput');
+      if(el)el.focus();
+      return;
+    }
     if(original.status!==draftLead.status){
       draftLead.activity.unshift({id:Date.now()+1,type:'activity',author:currentUser,text:`Status geändert: ${colById(original.status).name} → ${colById(draftLead.status).name}`,date:nowISO()});
       trackClosedStage(draftLead,original.status,draftLead.status);trackStatusSince(draftLead,original.status,draftLead.status);
