@@ -2114,6 +2114,11 @@ function renderSettings(){
         <div class="section-hdr" style="margin-top:0">Datenspeicherung</div>
         <p style="font-size:12px;color:var(--text2);line-height:1.6">Alle Daten liegen in einer gemeinsamen Cloud-Datenbank (Supabase) – alle Mitarbeiter sehen denselben Stand, egal an welchem Gerät. Der Status oben links in der Seitenleiste zeigt, ob die Verbindung gerade aktiv ist. Bei fehlender Internetverbindung wird lokal weitergearbeitet und automatisch synchronisiert, sobald die Verbindung zurück ist.</p>
         <button class="btn btn-sm" style="margin-top:8px" onclick="exportFullBackup()"><i class="ti ti-database-export"></i> Alle Daten als Backup exportieren (JSON)</button>
+      </div>
+      <div class="info-section" style="border-color:var(--red)">
+        <div class="section-hdr" style="margin-top:0;color:var(--red)"><i class="ti ti-alert-triangle"></i> Gefahrenzone</div>
+        <p style="font-size:12px;color:var(--text2);line-height:1.6">Löscht <strong>alle Leads</strong> unwiderruflich. Die Board-Struktur (Listen/Spalten, Labels, Mitarbeiter, Projekt-Einstellungen) bleibt vollständig erhalten – nur die Kundendaten selbst werden entfernt. Nur für Admins verfügbar.</p>
+        <button class="btn btn-sm" style="margin-top:8px;background:var(--red-bg);color:var(--red-dark);border-color:var(--red)" onclick="deleteAllLeads()"><i class="ti ti-trash"></i> Alle Leads löschen</button>
       </div>`,
   };
   document.getElementById('settingsContent').innerHTML=tabContent[settingsTab]||tabContent.team;
@@ -3465,6 +3470,19 @@ function deleteRisk(id){
   renderSettings();
 }
 
+function deleteAllLeads(){
+  if(!requireAdmin('alle Leads löschen'))return;
+  if(leads.length===0){alert('Es sind bereits keine Leads vorhanden.');return;}
+  if(!confirm(`Wirklich ALLE ${leads.length} Leads unwiderruflich löschen?\n\nDie Listen/Spalten, Labels, Mitarbeiter und Projekt-Einstellungen bleiben erhalten - nur die Kundendaten selbst werden entfernt.\n\nTipp: Es wird automatisch vorher ein Backup heruntergeladen.`))return;
+  const typed=prompt('Zur Sicherheit: Bitte tippe LÖSCHEN (in Großbuchstaben) ein, um zu bestätigen:');
+  if(typed!=='LÖSCHEN'){alert('Abgebrochen - Eingabe stimmte nicht überein. Es wurde nichts gelöscht.');return;}
+  exportFullBackup();
+  leads=[];
+  saveState();
+  renderBoard();
+  renderSettings();
+  alert('Alle Leads wurden gelöscht. Ein Backup der vorherigen Daten wurde als JSON-Datei heruntergeladen.');
+}
 function exportFullBackup(){
   const backup={
     exportedAt:nowISO(),
@@ -3483,22 +3501,32 @@ function exportFullBackup(){
 }
 function exportCSV(){
   const headers=['Firmenname','Kundennummer','Art','Adresse','Anzahl Bestellungen','Umsatz (EUR)',
-    'Versand-Drucker','Versand-SKUs (Preis)','Investition gesamt (EUR)','Kundenbedarf Drucker & Anzahl',
-    'Tatsächlicher Bedarf Drucker & Anzahl','Ansprechpartner','Telefonnummer','E-Mail','Wettbewerber',
+    'Versand-Drucker','Versand-SKUs (Preis)','Investition gesamt (EUR)',
+    'Forecast: Drucker & SKU-Details (Menge, Einzelpreis, Summe)',
+    'Auftrag: Drucker & SKU-Details (Menge, Einzelpreis, Summe)',
+    'Ansprechpartner','Telefonnummer','E-Mail','Wettbewerber',
     'Mitglieder','Status','Seit wann in dieser Liste','Free Toner verschickt','Datum Erstkontakt',
     'Follow-up-Datum','Forecast (EUR)','Tatsächliches Ergebnis (EUR)','Verlust-Grund','Labels',
     'Anzahl Kommentare','Offene Aufgaben','Aufgaben gesamt','Anzahl Anhänge','Notizen'];
+  // Baut je Drucker eine Detailzeile mit jeder einzelnen SKU inkl. Menge, Einzelpreis und Zeilensumme
+  const formatPrinterDetails=printers=>(printers||[]).map(p=>{
+    const skuParts=p.skus.filter(s=>s.sku).map(s=>{
+      const qty=parseFloat(s.qty)||0,price=parseFloat(s.price)||0;
+      return `${s.sku} (${qty} Stk. x ${fmtEur(price)||'0 €'} = ${fmtEur(qty*price)||'0 €'})`;
+    }).join('; ');
+    return `${p.model||'(ohne Modell)'}: ${skuParts||'keine SKUs'}`;
+  }).join(' | ');
   const rows=leads.map(l=>{
     const shipSkus=l.shipPrinter.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.price?` (${fmtEur(s.price)})`:''}`).join(', ');
     const investTotal=l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.price)||0),0);
-    const demand=(l.demandPrinters||[]).map(p=>`${p.model} [${p.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.qty?` x${s.qty}`:''}`).join(', ')}]`).join(' | ');
-    const actualDemand=(l.actualPrinters||[]).map(p=>`${p.model} [${p.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.qty?` x${s.qty}`:''}`).join(', ')}]`).join(' | ');
+    const demandDetails=formatPrinterDetails(l.demandPrinters);
+    const actualDetails=formatPrinterDetails(l.actualPrinters);
     const commentCount=(l.activity||[]).filter(a=>a.type==='comment').length;
     const tasksTotal=(l.tasks||[]).length;
     const tasksOpen=(l.tasks||[]).filter(t=>!t.done).length;
     return [
       l.company,l.customerNumber,l.art,l.address,l.orderCount,l.revenue,
-      l.shipPrinter.model,shipSkus,investTotal||'',demand,actualDemand,
+      l.shipPrinter.model,shipSkus,investTotal||'',demandDetails,actualDetails,
       l.contact,l.phone,l.email,l.competitor||'',
       l.members.map(id=>agentById(id)?.name).filter(Boolean).join('; '),
       colById(l.status).name,fmtDate(l.statusSince)||'',l.tonerSent,l.firstContact,l.followup,
