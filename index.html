@@ -3393,13 +3393,15 @@ function parseCSV(text){
 }
 // Flexible Header-Erkennung: verschiedene gaengige Spaltennamen werden akzeptiert
 const CSV_FIELD_ALIASES={
-  company:['firmenname','firma','company','unternehmen','name'],
+  company:['firmenname','firma','company','unternehmen','name','kundenname'],
   customerNumber:['kundennummer','kd-nr','kdnr','kundennr','customer number'],
   contact:['ansprechpartner','kontakt','contact','ansprechperson'],
   phone:['telefonnummer','telefon','phone','tel','rufnummer'],
   email:['e-mail','email','mail'],
   address:['adresse','address','anschrift'],
   art:['art','typ','type','kundentyp'],
+  orderCount:['anzahl bestellungen','bestellungen','anzahl'],
+  revenue:['umsatz (eur)','umsatz','revenue'],
   notes:['notizen','notiz','notes','bemerkung','kommentar'],
   firstContact:['datum erstkontakt','erstkontakt'],
   followup:['follow-up-datum','followup','follow-up','wiedervorlage'],
@@ -3425,19 +3427,32 @@ function importCSVFile(file){
       }
       const norm=v=>(v||'').trim().toLowerCase();
       let added=0,skippedDup=0,skippedEmpty=0;
+      const dupDetails=[];
+      const seenInFile=new Set(); // erkennt Duplikate auch INNERHALB der hochgeladenen Datei
       const firstColId=COLUMNS[0].id;
-      rows.slice(1).forEach(r=>{
+      rows.slice(1).forEach((r,rowIdx)=>{
         const get=f=>colMap[f]!==undefined?(r[colMap[f]]||'').trim():'';
         const company=get('company');
         if(!company){skippedEmpty++;return;}
         const phone=get('phone'),email=get('email'),custNo=get('customerNumber');
-        const isDup=leads.some(l=>
-          (norm(l.company)===norm(company))||
+        const existingMatch=leads.find(l=>
           (custNo&&norm(l.customerNumber)===norm(custNo))||
+          (norm(l.company)===norm(company))||
           (phone&&phone.length>4&&norm(l.phone)===norm(phone))||
           (email&&norm(l.email)===norm(email))
         );
-        if(isDup){skippedDup++;return;}
+        const fileKey=custNo?'kdnr:'+norm(custNo):'firma:'+norm(company);
+        if(existingMatch||seenInFile.has(fileKey)){
+          skippedDup++;
+          const reason=existingMatch
+            ?(custNo&&norm(existingMatch.customerNumber)===norm(custNo)?'Kundennummer existiert bereits':
+              norm(existingMatch.company)===norm(company)?'Firmenname existiert bereits':
+              phone&&norm(existingMatch.phone)===norm(phone)?'Telefonnummer existiert bereits':'E-Mail existiert bereits')
+            :'Doppelt in der hochgeladenen Datei';
+          dupDetails.push(`Zeile ${rowIdx+2}: "${company}"${custNo?' (Kd-Nr. '+custNo+')':''} – ${reason}`);
+          return;
+        }
+        seenInFile.add(fileKey);
         const nl=blankLead();
         nl.id=nextId++;
         nl.company=company;
@@ -3446,6 +3461,8 @@ function importCSVFile(file){
         nl.phone=phone;
         nl.email=email;
         nl.address=get('address');
+        nl.orderCount=get('orderCount');
+        nl.revenue=get('revenue');
         nl.notes=get('notes');
         nl.firstContact=get('firstContact');
         nl.followup=get('followup');
@@ -3460,7 +3477,12 @@ function importCSVFile(file){
       });
       saveState();
       renderBoard();
-      alert(`CSV-Import abgeschlossen:\n\n✓ ${added} neue Leads angelegt (in "${COLUMNS[0].name}")\n↷ ${skippedDup} übersprungen (Duplikat: Firma, Kundennummer, Telefon oder E-Mail existiert bereits)\n∅ ${skippedEmpty} übersprungen (kein Firmenname)`);
+      let msg=`CSV-Import abgeschlossen:\n\n✓ ${added} neue Leads angelegt (in "${COLUMNS[0].name}")\n↷ ${skippedDup} übersprungen (bereits vorhanden oder doppelt in der Datei)\n∅ ${skippedEmpty} übersprungen (kein Firmenname)`;
+      if(dupDetails.length){
+        msg+='\n\nÜbersprungene Zeilen im Detail:\n'+dupDetails.slice(0,25).join('\n');
+        if(dupDetails.length>25)msg+=`\n… und ${dupDetails.length-25} weitere`;
+      }
+      alert(msg);
     }catch(err){
       alert('Fehler beim Import: '+err.message);
     }
