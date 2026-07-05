@@ -2045,8 +2045,8 @@ function renderSettings(){
           </div>
         </div>
         <div class="field-row-2">
-          <div><label>Login-E-Mail (optional)</label><input type="email" id="newAgentEmail" placeholder="login@wiegand-gmbh.de" style="width:100%"></div>
-          <div><label>Passwort (optional, mind. 6 Zeichen)</label><input type="password" id="newAgentPassword" placeholder="••••••••" style="width:100%"></div>
+          <div><label>Login-E-Mail (optional)</label><input type="email" id="newAgentEmail" name="new-agent-email-no-autofill" autocomplete="off" placeholder="login@wiegand-gmbh.de" style="width:100%"></div>
+          <div><label>Passwort (optional, mind. 6 Zeichen)</label><input type="password" id="newAgentPassword" name="new-agent-password-no-autofill" autocomplete="new-password" placeholder="••••••••" style="width:100%"></div>
         </div>
         <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:6px" onclick="createAgent()"><i class="ti ti-user-plus"></i> Mitarbeiter anlegen</button>
       </div>
@@ -2142,7 +2142,7 @@ function openAgentModal(id){
       </div>
       <div><label>Ziel/Monat (EUR)</label><input type="number" id="agentModalQuota" min="0" step="100" value="${a.quota||0}" style="width:100%"></div>
     </div>
-    <div class="field"><label>Login-E-Mail</label><input type="email" id="agentModalEmail" value="${esc(a.email||'')}" placeholder="login@wiegand-gmbh.de" style="width:100%"></div>
+    <div class="field"><label>Login-E-Mail</label><input type="email" id="agentModalEmail" name="agent-modal-email-no-autofill" autocomplete="off" value="${esc(a.email||'')}" placeholder="login@wiegand-gmbh.de" style="width:100%"></div>
     <div class="field">
       <label>Avatar-Farbe</label>
       <div class="agent-color-swatches" id="agentModalColorSwatches">
@@ -2939,7 +2939,7 @@ function renderLeadModal(){
           <div class="field-row-2">
             <div><label>E-Mail</label>
               <div style="display:flex;gap:6px">
-                <input type="email" id="fEmail" value="${esc(draftLead.email)}" oninput="draftLead.email=this.value;checkDuplicateLead()" style="flex:1">
+                <input type="email" id="fEmail" name="lead-contact-email-no-autofill" autocomplete="off" value="${esc(draftLead.email)}" oninput="draftLead.email=this.value;checkDuplicateLead()" style="flex:1">
                 <button class="btn btn-sm" onclick="emailCustomer()" title="Mail an Kunden (Outlook)"><i class="ti ti-mail"></i></button>
               </div>
             </div>
