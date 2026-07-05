@@ -2630,10 +2630,14 @@ function renderLeadModal(){
     </div>`;
   }).join('')||`<div class="activity-item" style="padding-left:0">${activityFeedFilter==='comments'?'Noch keine Kommentare.':activityFeedFilter==='activity'?'Noch keine Aktivität.':'Noch keine Kommentare oder Aktivität.'}</div>`;
 
-  const filesHtml=(draftLead.files||[]).map(f=>`<div class="file-row">
-      <a href="${f.dataUrl}" download="${esc(f.name)}"><i class="ti ti-file"></i>${esc(f.name)} <span style="color:var(--text3)">(${formatBytes(f.size)})</span></a>
-      <button class="check-item-del" onclick="removeFile(${f.id})"><i class="ti ti-x"></i></button>
-    </div>`).join('')||`<div class="activity-item" style="padding-left:0">Noch keine Dateien angehängt.</div>`;
+  const filesHtml=(draftLead.files||[]).map(f=>`<div class="comment-item">
+      <div class="comment-av" style="background:var(--bg3);color:var(--text2)"><i class="ti ti-paperclip"></i></div>
+      <div class="comment-bubble" style="display:flex;align-items:center;gap:8px">
+        <a href="${f.dataUrl}" download="${esc(f.name)}" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;color:var(--text)"><i class="ti ti-file" style="margin-right:4px"></i>${esc(f.name)}</a>
+        <span style="font-size:11px;color:var(--text3);flex-shrink:0">${formatBytes(f.size)}</span>
+        <button class="icon-btn icon-btn-danger" onclick="removeFile(${f.id})" title="Entfernen"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`).join('')||`<div class="activity-item" style="padding-left:0">Noch keine Anhänge.</div>`;
 
   const sortedTasks=[...(draftLead.tasks||[])].sort((a,b)=>{
     if(a.done!==b.done)return a.done?1:-1;
@@ -2647,13 +2651,16 @@ function renderLeadModal(){
       const dlabel=d<0?`${Math.abs(d)}T überfällig`:(d===0?'heute':fmtDate(t.dueDate));
       dueBadge=`<span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${dlabel}</span>`;
     }
-    return `<div class="check-item-row" style="align-items:flex-start">
-      <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask(${t.id})" style="margin-top:2px">
-      <div style="flex:1">
-        <span class="check-item-text ${t.done?'done':''}">${esc(t.text)}</span>
-        ${dueBadge?`<div style="margin-top:4px">${dueBadge}</div>`:''}
+    return `<div class="comment-item">
+      <div class="comment-av" style="background:${t.done?'var(--green-bg)':'var(--bg3)'};color:${t.done?'var(--green-dark)':'var(--text2)'}"><i class="ti ti-${t.done?'check':'list-check'}"></i></div>
+      <div class="comment-bubble" style="display:flex;align-items:flex-start;gap:8px">
+        <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask(${t.id})" style="margin-top:3px;flex-shrink:0">
+        <div style="flex:1;min-width:0">
+          <span class="check-item-text ${t.done?'done':''}" style="font-size:13px">${esc(t.text)}</span>
+          ${dueBadge?`<div style="margin-top:4px">${dueBadge}</div>`:''}
+        </div>
+        <button class="icon-btn icon-btn-danger" onclick="deleteTask(${t.id})" title="Löschen"><i class="ti ti-trash"></i></button>
       </div>
-      <button class="check-item-del" onclick="deleteTask(${t.id})"><i class="ti ti-x"></i></button>
     </div>`;
   }).join('')||`<div class="activity-item" style="padding-left:0">Noch keine Aufgaben.</div>`;
   const openTaskCount=(draftLead.tasks||[]).filter(t=>!t.done).length;
@@ -2663,7 +2670,7 @@ function renderLeadModal(){
   const diffVal=actualComputedNow-forecastComputedNow;
   const compareStripHtml=`<div class="compare-strip">
     <div class="compare-item"><span>Forecast</span><strong style="color:var(--purple)">${fmtEur(forecastComputedNow)||'0 €'}</strong></div>
-    <div class="compare-item"><span>Tatsächlich</span><strong style="color:var(--green-dark)">${fmtEur(actualComputedNow)||'0 €'}</strong></div>
+    <div class="compare-item"><span>Auftrag</span><strong style="color:var(--green-dark)">${fmtEur(actualComputedNow)||'0 €'}</strong></div>
     <div class="compare-item"><span>Differenz</span><strong style="color:${diffVal>=0?'var(--green-dark)':'var(--red)'}">${diffVal>=0?'+':''}${fmtEur(diffVal)||'0 €'}</strong></div>
   </div>`;
 
@@ -2727,12 +2734,12 @@ function renderLeadModal(){
   }else if(rightTab==='files'){
     rightContentHtml=`<div style="overflow-y:auto;flex:1">
       <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Datei hochladen</div>
+        <div class="section-hdr" style="margin-top:0">Anhang hochladen</div>
         <input type="file" id="fileInput" multiple onchange="handleFileUpload(event)" style="width:100%;font-size:12px">
-        <p style="font-size:11px;color:var(--text3);margin-top:8px">Hinweis: Dateien liegen aktuell nur im Browser-Speicher dieser Sitzung, bis die Datenbank-Anbindung fertig ist.</p>
+        <p style="font-size:11px;color:var(--text3);margin-top:8px">Hinweis: Anhänge liegen aktuell nur im Browser-Speicher dieser Sitzung, bis die Datenbank-Anbindung fertig ist.</p>
       </div>
       <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Angehängte Dateien</div>
+        <div class="section-hdr" style="margin-top:0">Anhänge</div>
         ${filesHtml}
       </div>
     </div>`;
@@ -2901,10 +2908,10 @@ function renderLeadModal(){
       <div class="modal-right">
         <div class="tab-bar">
           <button class="tab-btn ${rightTab==='forecast'?'active':''}" onclick="setRightTab('forecast')">Forecast</button>
-          <button class="tab-btn ${rightTab==='actual'?'active':''}" onclick="setRightTab('actual')">Tatsächlich</button>
+          <button class="tab-btn ${rightTab==='actual'?'active':''}" onclick="setRightTab('actual')">Auftrag</button>
           <button class="tab-btn ${rightTab==='comments'?'active':''}" onclick="setRightTab('comments')">Kommentare &amp; Aktivität</button>
           <button class="tab-btn ${rightTab==='tasks'?'active':''}" onclick="setRightTab('tasks')">Aufgaben</button>
-          <button class="tab-btn ${rightTab==='files'?'active':''}" onclick="setRightTab('files')">Dateien</button>
+          <button class="tab-btn ${rightTab==='files'?'active':''}" onclick="setRightTab('files')">Anhänge</button>
         </div>
         ${rightContentHtml}
       </div>
