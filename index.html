@@ -125,6 +125,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .dash-lead-row:last-child{border-bottom:none;}
 .dash-lead-row:hover{background:var(--bg2);margin:0 -8px;padding:8px 8px;border-radius:6px;}
 .settings-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
+.switch-toggle{position:relative;display:inline-block;width:38px;height:22px;flex-shrink:0;cursor:pointer;}
+.switch-toggle input{opacity:0;width:0;height:0;}
+.switch-slider{position:absolute;inset:0;background:var(--border2);border-radius:22px;transition:.15s;}
+.switch-slider::before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s;}
+.switch-toggle input:checked+.switch-slider{background:var(--purple);}
+.switch-toggle input:checked+.switch-slider::before{transform:translateX(16px);}
 .role-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:12px;white-space:nowrap;text-transform:uppercase;letter-spacing:.02em;}
 .role-badge.role-admin{background:var(--purple-bg);color:var(--purple-dark);}
 .role-badge.role-sales{background:var(--teal-bg);color:var(--teal-dark);}
@@ -591,6 +597,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         <button class="page-tab-btn" id="settingsTabBtn_board" onclick="setSettingsTab('board')"><i class="ti ti-layout-kanban"></i> Board</button>
         <button class="page-tab-btn" id="settingsTabBtn_project" onclick="setSettingsTab('project')"><i class="ti ti-target-arrow"></i> Projekt</button>
         <button class="page-tab-btn" id="settingsTabBtn_system" onclick="setSettingsTab('system')"><i class="ti ti-database"></i> System</button>
+        <button class="page-tab-btn" id="settingsTabBtn_notify" onclick="setSettingsTab('notify')"><i class="ti ti-mail"></i> Auto. Benachrichtigungen</button>
       </div>
       <div class="view-scroll" id="settingsContent"></div>
     </div>
@@ -667,10 +674,17 @@ let PROJECT={
   risks:[
     {id:1,text:'Lieferant liefert Toner nicht rechtzeitig',severity:'high',open:true},
     {id:2,text:'Team-Kapazität reicht bei Urlaubszeit nicht aus',severity:'medium',open:true},
+  ],
+  notificationsEnabled:true,
+  notificationRules:[
+    {id:1,columnName:'AM: Auftrag',email:'d.piepenburg@wiegand-gmbh.de',active:true},
+    {id:2,columnName:'AM: Angebot',email:'d.piepenburg@wiegand-gmbh.de',active:true},
+    {id:3,columnName:'AM: Kundenauftrag',email:'d.piepenburg@wiegand-gmbh.de',active:true},
   ]
 };
 let nextMilestoneId=4;
 let nextRiskId=3;
+let nextNotifyRuleId=4;
 
 // ── PERSISTENZ (localStorage – Zwischenlösung bis Supabase angebunden ist) ──
 const STORAGE_KEY='toner_kanban_state_v1';
@@ -730,7 +744,7 @@ let sbPushTimer=null;
 let sbSuppressPush=true;     // bis der erste Abgleich gelaufen ist, nichts hochschieben
 
 function buildStatePayload(){
-  return {leads, COLUMNS, LABELS, AGENTS, ARTICLES, PROJECT, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId, nextArticleId, nextMilestoneId, nextRiskId};
+  return {leads, COLUMNS, LABELS, AGENTS, ARTICLES, PROJECT, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId, nextArticleId, nextMilestoneId, nextRiskId, nextNotifyRuleId};
 }
 function applyStateData(data){
   if(data.leads)leads=data.leads;
@@ -738,7 +752,7 @@ function applyStateData(data){
   if(data.LABELS)LABELS=data.LABELS;
   if(data.AGENTS)AGENTS=data.AGENTS;
   if(data.ARTICLES)ARTICLES=data.ARTICLES;
-  if(data.PROJECT)PROJECT=Object.assign({milestones:[],risks:[]},data.PROJECT);
+  if(data.PROJECT)PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[]},data.PROJECT);
   if(data.nextId)nextId=data.nextId;
   if(data.nextLabelId)nextLabelId=data.nextLabelId;
   if(data.nextPrinterId)nextPrinterId=data.nextPrinterId;
@@ -746,6 +760,7 @@ function applyStateData(data){
   if(data.nextAgentId)nextAgentId=data.nextAgentId;
   if(data.nextArticleId)nextArticleId=data.nextArticleId;
   if(data.nextMilestoneId)nextMilestoneId=data.nextMilestoneId;
+  if(data.nextNotifyRuleId)nextNotifyRuleId=data.nextNotifyRuleId;
   if(data.nextRiskId)nextRiskId=data.nextRiskId;
   normalizeColumns();
   normalizeAgents();
@@ -1950,7 +1965,7 @@ function setSettingsTab(tab){
   renderSettings();
 }
 function renderSettings(){
-  ['team','board','project','system'].forEach(t=>{
+  ['team','board','project','system','notify'].forEach(t=>{
     const btn=document.getElementById('settingsTabBtn_'+t);
     if(btn)btn.classList.toggle('active',settingsTab===t);
   });
@@ -2031,6 +2046,17 @@ function renderSettings(){
       <input type="checkbox" ${!r.open?'checked':''} onchange="toggleRisk(${r.id})" title="Erledigt/behoben" style="width:16px;height:16px">
       <button class="check-item-del" onclick="deleteRisk(${r.id})"><i class="ti ti-trash"></i></button>
     </div>`).join('')||'<p style="font-size:12px;color:var(--text3)">Keine Risiken erfasst.</p>';
+
+  const notifyRulesHtml=(PROJECT.notificationRules||[]).map(r=>`
+    <div class="settings-row">
+      <label class="switch-toggle"><input type="checkbox" ${r.active?'checked':''} onchange="toggleNotifyRule(${r.id})"><span class="switch-slider"></span></label>
+      <select style="width:200px" onchange="setNotifyRuleColumn(${r.id},this.value)">
+        ${COLUMNS.map(c=>`<option value="${esc(c.name)}" ${r.columnName===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}
+      </select>
+      <span style="color:var(--text3)">→</span>
+      <input type="email" style="flex:1" value="${esc(r.email)}" placeholder="empfaenger@wiegand-gmbh.de" onchange="setNotifyRuleEmail(${r.id},this.value)">
+      <button class="check-item-del" onclick="deleteNotifyRule(${r.id})" title="Regel löschen"><i class="ti ti-trash"></i></button>
+    </div>`).join('')||'<p style="font-size:12px;color:var(--text3)">Noch keine Regeln angelegt.</p>';
 
   const tabContent={
     team:`
@@ -2122,6 +2148,26 @@ function renderSettings(){
         <div class="section-hdr" style="margin-top:0;color:var(--red)"><i class="ti ti-alert-triangle"></i> Gefahrenzone</div>
         <p style="font-size:12px;color:var(--text2);line-height:1.6">Löscht <strong>alle Leads</strong> unwiderruflich. Die Board-Struktur (Listen/Spalten, Labels, Mitarbeiter, Projekt-Einstellungen) bleibt vollständig erhalten – nur die Kundendaten selbst werden entfernt. Nur für Admins verfügbar.</p>
         <button class="btn btn-sm" style="margin-top:8px;background:var(--red-bg);color:var(--red-dark);border-color:var(--red)" onclick="deleteAllLeads()"><i class="ti ti-trash"></i> Alle Leads löschen</button>
+      </div>`,
+    notify:`
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0;display:flex;align-items:center;justify-content:space-between">
+          <span>Automatische E-Mail-Benachrichtigungen</span>
+          <label class="switch-toggle"><input type="checkbox" ${PROJECT.notificationsEnabled?'checked':''} onchange="toggleNotificationsEnabled()"><span class="switch-slider"></span></label>
+        </div>
+        <p style="font-size:11px;color:var(--text3);margin:-4px 0 10px">Der Schalter oben schaltet <strong>alle</strong> Benachrichtigungen auf einmal ein/aus. Einzelne Regeln können unabhängig davon aktiviert/deaktiviert werden.</p>
+        <p style="font-size:12px;color:var(--text2);line-height:1.6">Sobald ein Lead per Drag &amp; Drop oder im Lead-Fenster in eine hinterlegte Liste verschoben wird, geht automatisch eine E-Mail mit Listenname, Kundennummer sowie Drucker &amp; Patronen (Versand, SKU I–IV) an die hinterlegte Adresse.</p>
+      </div>
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Regeln</div>
+        ${notifyRulesHtml}
+        <div class="add-check-row" style="margin-top:10px;flex-wrap:wrap;gap:6px">
+          <select id="newNotifyColumn" style="width:200px">
+            ${COLUMNS.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('')}
+          </select>
+          <input type="email" id="newNotifyEmail" placeholder="empfaenger@wiegand-gmbh.de" style="flex:1;min-width:200px">
+          <button class="btn btn-sm btn-primary" onclick="createNotifyRule()"><i class="ti ti-plus"></i> Regel hinzufügen</button>
+        </div>
       </div>`,
   };
   document.getElementById('settingsContent').innerHTML=tabContent[settingsTab]||tabContent.team;
@@ -2227,24 +2273,29 @@ function setAgentEmail(id,email){
 // ── Admin-Nutzerverwaltung ueber die Edge Function (sicheres Passwort-Setzen/Anlegen) ──
 const ADMIN_USERS_FUNCTION_URL=`${SUPABASE_URL}/functions/v1/admin-manage-users`;
 // ── Automatische E-Mail-Benachrichtigung bei Verschieben in bestimmte Listen ──
-const NOTIFY_ON_LIST_NAMES=['AM: Auftrag','AM: Angebot','AM: Kundenauftrag'];
 const NOTIFY_FUNCTION_URL=`${SUPABASE_URL}/functions/v1/send-lead-notification`;
 function maybeSendListNotification(lead,oldStatus,newStatus){
   if(oldStatus===newStatus)return;
+  if(!PROJECT.notificationsEnabled)return;
   const col=colById(newStatus);
-  if(!col||!NOTIFY_ON_LIST_NAMES.includes(col.name.trim()))return;
+  if(!col)return;
+  const matchingRules=(PROJECT.notificationRules||[]).filter(r=>r.active&&r.columnName.trim()===col.name.trim());
+  if(!matchingRules.length)return;
   if(!isSbSessionValid())return; // ohne Anmeldung kein sicherer Funktionsaufruf moeglich
-  fetch(NOTIFY_FUNCTION_URL,{
-    method:'POST',
-    headers:{'Authorization':'Bearer '+sbSession.access_token,'Content-Type':'application/json','apikey':SUPABASE_KEY},
-    body:JSON.stringify({
-      listName:col.name,
-      company:lead.company,
-      customerNumber:lead.customerNumber,
-      printerModel:lead.shipPrinter.model,
-      skus:lead.shipPrinter.skus.map(s=>s.sku)
-    })
-  }).catch(e=>console.warn('Benachrichtigungs-Mail fehlgeschlagen:',e));
+  matchingRules.forEach(rule=>{
+    fetch(NOTIFY_FUNCTION_URL,{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+sbSession.access_token,'Content-Type':'application/json','apikey':SUPABASE_KEY},
+      body:JSON.stringify({
+        to:rule.email,
+        listName:col.name,
+        company:lead.company,
+        customerNumber:lead.customerNumber,
+        printerModel:lead.shipPrinter.model,
+        skus:lead.shipPrinter.skus.map(s=>s.sku)
+      })
+    }).catch(e=>console.warn('Benachrichtigungs-Mail fehlgeschlagen:',e));
+  });
 }
 async function callAdminUsersFunction(payload){
   if(!isSbSessionValid()){
@@ -3509,6 +3560,42 @@ function deleteRisk(id){
   renderSettings();
 }
 
+// ── Automatische Benachrichtigungen: Regel-Verwaltung ──
+function toggleNotificationsEnabled(){
+  PROJECT.notificationsEnabled=!PROJECT.notificationsEnabled;
+  saveState();
+  renderSettings();
+}
+function toggleNotifyRule(id){
+  const r=PROJECT.notificationRules.find(x=>x.id===id);
+  if(r)r.active=!r.active;
+  saveState();
+  renderSettings();
+}
+function setNotifyRuleColumn(id,val){
+  const r=PROJECT.notificationRules.find(x=>x.id===id);
+  if(r)r.columnName=val;
+  saveState();
+}
+function setNotifyRuleEmail(id,val){
+  const r=PROJECT.notificationRules.find(x=>x.id===id);
+  if(r)r.email=val.trim();
+  saveState();
+}
+function deleteNotifyRule(id){
+  PROJECT.notificationRules=PROJECT.notificationRules.filter(x=>x.id!==id);
+  saveState();
+  renderSettings();
+}
+function createNotifyRule(){
+  const colEl=document.getElementById('newNotifyColumn');
+  const emailEl=document.getElementById('newNotifyEmail');
+  const email=emailEl.value.trim();
+  if(!email){alert('Bitte eine E-Mail-Adresse eintragen.');return;}
+  PROJECT.notificationRules.push({id:genId(),columnName:colEl.value,email,active:true});
+  saveState();
+  renderSettings();
+}
 function deleteAllLeads(){
   if(!requireAdmin('alle Leads löschen'))return;
   if(leads.length===0){alert('Es sind bereits keine Leads vorhanden.');return;}
@@ -3526,7 +3613,7 @@ function exportFullBackup(){
   const backup={
     exportedAt:nowISO(),
     leads,COLUMNS,LABELS,AGENTS,ARTICLES,PROJECT,
-    nextId,nextLabelId,nextPrinterId,nextColId,nextAgentId,nextArticleId,nextMilestoneId,nextRiskId
+    nextId,nextLabelId,nextPrinterId,nextColId,nextAgentId,nextArticleId,nextMilestoneId,nextRiskId,nextNotifyRuleId
   };
   const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
