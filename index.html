@@ -2226,6 +2226,26 @@ function setAgentEmail(id,email){
 }
 // ── Admin-Nutzerverwaltung ueber die Edge Function (sicheres Passwort-Setzen/Anlegen) ──
 const ADMIN_USERS_FUNCTION_URL=`${SUPABASE_URL}/functions/v1/admin-manage-users`;
+// ── Automatische E-Mail-Benachrichtigung bei Verschieben in bestimmte Listen ──
+const NOTIFY_ON_LIST_NAMES=['AM: Auftrag','AM: Angebot','AM: Kundenauftrag'];
+const NOTIFY_FUNCTION_URL=`${SUPABASE_URL}/functions/v1/send-lead-notification`;
+function maybeSendListNotification(lead,oldStatus,newStatus){
+  if(oldStatus===newStatus)return;
+  const col=colById(newStatus);
+  if(!col||!NOTIFY_ON_LIST_NAMES.includes(col.name.trim()))return;
+  if(!isSbSessionValid())return; // ohne Anmeldung kein sicherer Funktionsaufruf moeglich
+  fetch(NOTIFY_FUNCTION_URL,{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+sbSession.access_token,'Content-Type':'application/json','apikey':SUPABASE_KEY},
+    body:JSON.stringify({
+      listName:col.name,
+      company:lead.company,
+      customerNumber:lead.customerNumber,
+      printerModel:lead.shipPrinter.model,
+      skus:lead.shipPrinter.skus.map(s=>s.sku)
+    })
+  }).catch(e=>console.warn('Benachrichtigungs-Mail fehlgeschlagen:',e));
+}
 async function callAdminUsersFunction(payload){
   if(!isSbSessionValid()){
     throw new Error('Du musst angemeldet sein, um Nutzer zu verwalten.');
@@ -2421,7 +2441,7 @@ function onCardDrop(e,targetId){
   if(dragged.status!==target.status){
     const oldName=colById(dragged.status).name,newName=colById(target.status).name;
     dragged.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
-    trackClosedStage(dragged,dragged.status,target.status);trackStatusSince(dragged,dragged.status,target.status);
+    trackClosedStage(dragged,dragged.status,target.status);trackStatusSince(dragged,dragged.status,target.status);maybeSendListNotification(dragged,dragged.status,target.status);
   }
   dragged.status=target.status;
   let colCards=leads.filter(x=>x.status===target.status&&x.id!==dragged.id).sort((a,b)=>(a.order||0)-(b.order||0));
@@ -2458,7 +2478,7 @@ function onDrop(e,colId){
     }
     const oldName=colById(l.status).name,newName=colById(colId).name;
     l.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
-    trackClosedStage(l,l.status,colId);trackStatusSince(l,l.status,colId);
+    trackClosedStage(l,l.status,colId);trackStatusSince(l,l.status,colId);maybeSendListNotification(l,l.status,colId);
     l.status=colId;
     l.order=Date.now();
     saveState();
@@ -3411,7 +3431,7 @@ function saveLead(){
     }
     if(original.status!==draftLead.status){
       draftLead.activity.unshift({id:Date.now()+1,type:'activity',author:currentUser,text:`Status geändert: ${colById(original.status).name} → ${colById(draftLead.status).name}`,date:nowISO()});
-      trackClosedStage(draftLead,original.status,draftLead.status);trackStatusSince(draftLead,original.status,draftLead.status);
+      trackClosedStage(draftLead,original.status,draftLead.status);trackStatusSince(draftLead,original.status,draftLead.status);maybeSendListNotification(draftLead,original.status,draftLead.status);
     }
     if(original.followup!==draftLead.followup&&draftLead.followup){
       draftLead.followupHistory=[...(draftLead.followupHistory||[]),{date:draftLead.followup,setAt:nowISO()}];
