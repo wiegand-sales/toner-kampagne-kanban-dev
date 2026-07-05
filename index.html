@@ -3411,10 +3411,10 @@ function importCSVFile(file){
   reader.onload=e=>{
     try{
       let text=e.target.result;
-      if(text.charCodeAt(0)===0xFEFF)text=text.slice(1); // BOM entfernen
+      text=text.replace(/^\uFEFF/,'').replace(/\uFEFF/g,''); // BOM entfernen (auch falls es sich in eine Zelle verirrt hat)
       const rows=parseCSV(text);
       if(rows.length<2){alert('Die Datei enthält keine Datenzeilen (nur Kopfzeile oder leer).');return;}
-      const headers=rows[0].map(h=>h.trim().toLowerCase());
+      const headers=rows[0].map(h=>h.replace(/\uFEFF/g,'').replace(/^["']|["']$/g,'').trim().toLowerCase());
       // Spalten-Zuordnung aufbauen
       const colMap={};
       Object.entries(CSV_FIELD_ALIASES).forEach(([field,aliases])=>{
