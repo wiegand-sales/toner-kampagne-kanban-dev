@@ -2839,7 +2839,6 @@ function renderLeadModal(){
   const shipPrinterHtml=`
     <div class="field" style="margin-bottom:8px;position:relative">
       <input type="text" id="shipPrinterModelInput" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${draftLead.shipPrinter.model}" oninput="handlePrinterModelInput(this,'ship',null)" onblur="setTimeout(closePrinterModelPopover,150)" style="width:100%">
-      ${printerModelPopoverTarget&&printerModelPopoverTarget.type==='ship'?printerModelPopoverHtml():''}
     </div>
     <div class="sku-grid">
       ${['I','II','III','IV'].map((rn,i)=>`<div><label>SKU ${rn}</label><input type="text" placeholder="SKU ${rn}" value="${draftLead.shipPrinter.skus[i].sku||''}" oninput="updateShipPrinterSku(${i},'sku',this.value)" style="width:100%"></div>`).join('')}
@@ -2864,7 +2863,6 @@ function renderLeadModal(){
       </div>
       <div class="field" style="margin-bottom:8px;position:relative">
         <input type="text" id="printerModelInput_demand_${p.id}" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${esc(p.model)}" oninput="handlePrinterModelInput(this,'demand',${p.id})" onblur="setTimeout(closePrinterModelPopover,150)" style="width:100%">
-        ${printerModelPopoverTarget&&printerModelPopoverTarget.type==='demand'&&printerModelPopoverTarget.id===p.id?printerModelPopoverHtml():''}
       </div>
       <div class="sku-grid">
         ${['I','II','III','IV'].map((rn,i)=>`<div><label>SKU ${rn}</label><input type="text" placeholder="SKU ${rn}" value="${esc(p.skus[i].sku||'')}" oninput="updateDemandPrinterSku(${p.id},${i},'sku',this.value)" style="width:100%"></div>`).join('')}
@@ -2885,7 +2883,6 @@ function renderLeadModal(){
       </div>
       <div class="field" style="margin-bottom:8px;position:relative">
         <input type="text" id="printerModelInput_actual_${p.id}" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${esc(p.model)}" oninput="handlePrinterModelInput(this,'actual',${p.id})" onblur="setTimeout(closePrinterModelPopover,150)" style="width:100%">
-        ${printerModelPopoverTarget&&printerModelPopoverTarget.type==='actual'&&printerModelPopoverTarget.id===p.id?printerModelPopoverHtml():''}
       </div>
       <div class="sku-grid">
         ${['I','II','III','IV'].map((rn,i)=>`<div><label>SKU ${rn}</label><input type="text" placeholder="SKU ${rn}" value="${esc(p.skus[i].sku||'')}" oninput="updateActualPrinterSku(${p.id},${i},'sku',this.value)" style="width:100%"></div>`).join('')}
@@ -3250,43 +3247,61 @@ const PRINTER_MODELS=[
   'Ricoh SP 230DNw','Ricoh MP C2504','Ricoh Aficio MP 2014',
   'Samsung Xpress M2835DW','Samsung ProXpress M4020ND',
 ];
-let printerModelPopoverTarget=null; // {type:'ship'|'demand'|'actual', id}
-let printerModelMatches=[];
+let printerModelActiveInputId=null; // id des aktuell fokussierten Modell-Feldes
+function ensurePrinterPopoverEl(){
+  let el=document.getElementById('printerModelFloatingPopover');
+  if(!el){
+    el=document.createElement('div');
+    el.id='printerModelFloatingPopover';
+    el.className='mention-popover';
+    el.style.position='fixed';
+    el.style.display='none';
+    el.style.zIndex='2000';
+    el.onmousedown=e=>e.preventDefault(); // verhindert, dass das Feld beim Klicken auf einen Vorschlag den Fokus verliert
+    document.body.appendChild(el);
+  }
+  return el;
+}
 function handlePrinterModelInput(el,type,id){
   const val=el.value;
   if(type==='ship')updateShipPrinterModel(val);
   else if(type==='demand')updateDemandPrinterModel(id,val);
   else if(type==='actual')updateActualPrinterModel(id,val);
+  const popover=ensurePrinterPopoverEl();
   if(val.trim().length<2){
-    printerModelPopoverTarget=null;
-    renderLeadModal();
+    popover.style.display='none';
     return;
   }
   const q=val.toLowerCase();
-  printerModelMatches=PRINTER_MODELS.filter(m=>m.toLowerCase().includes(q)).slice(0,8);
-  printerModelPopoverTarget={type,id};
-  renderLeadModal();
-  const sel=type==='ship'?'#shipPrinterModelInput':`#printerModelInput_${type}_${id}`;
-  const el2=document.querySelector(sel);
-  if(el2){el2.focus();el2.selectionStart=el2.selectionEnd=val.length;}
+  const matches=PRINTER_MODELS.filter(m=>m.toLowerCase().includes(q)).slice(0,8);
+  printerModelActiveInputId=el.id;
+  popover.innerHTML=matches.length?matches.map(m=>`<div class="mention-item" onclick="selectPrinterModel('${m.replace(/'/g,"\\'")}')"><i class="ti ti-printer" style="color:var(--text3)"></i>${esc(m)}</div>`).join(''):'<div class="mention-item" style="color:var(--text3);cursor:default">Keine Treffer</div>';
+  const rect=el.getBoundingClientRect();
+  popover.style.left=rect.left+'px';
+  popover.style.top=(rect.bottom+2)+'px';
+  popover.style.width=rect.width+'px';
+  popover.style.display='block';
 }
 function selectPrinterModel(model){
-  if(!printerModelPopoverTarget)return;
-  const {type,id}=printerModelPopoverTarget;
-  if(type==='ship')updateShipPrinterModel(model);
-  else if(type==='demand')updateDemandPrinterModel(id,model);
-  else if(type==='actual')updateActualPrinterModel(id,model);
-  printerModelPopoverTarget=null;
-  renderLeadModal();
+  const el=document.getElementById(printerModelActiveInputId);
+  if(!el)return;
+  el.value=model;
+  const idAttr=el.id; // 'shipPrinterModelInput' oder 'printerModelInput_demand_123' / 'printerModelInput_actual_123'
+  if(idAttr==='shipPrinterModelInput'){
+    updateShipPrinterModel(model);
+  }else{
+    const parts=idAttr.split('_'); // ['printerModelInput','demand'|'actual','<id>']
+    const type=parts[1],pid=parseInt(parts[2]);
+    if(type==='demand')updateDemandPrinterModel(pid,model);
+    else if(type==='actual')updateActualPrinterModel(pid,model);
+  }
+  const popover=document.getElementById('printerModelFloatingPopover');
+  if(popover)popover.style.display='none';
+  el.focus();
 }
 function closePrinterModelPopover(){
-  printerModelPopoverTarget=null;
-  renderLeadModal();
-}
-function printerModelPopoverHtml(){
-  return `<div class="mention-popover" onmousedown="event.preventDefault()">
-    ${printerModelMatches.length?printerModelMatches.map(m=>`<div class="mention-item" onclick="selectPrinterModel('${m.replace(/'/g,"\\'")}')"><i class="ti ti-printer" style="color:var(--text3)"></i>${esc(m)}</div>`).join(''):'<div class="mention-item" style="color:var(--text3);cursor:default">Keine Treffer</div>'}
-  </div>`;
+  const popover=document.getElementById('printerModelFloatingPopover');
+  if(popover)popover.style.display='none';
 }
 function updateShipPrinterModel(val){draftLead.shipPrinter.model=val;}
 function updateShipPrinterSku(idx,field,val){draftLead.shipPrinter.skus[idx][field]=val;}
