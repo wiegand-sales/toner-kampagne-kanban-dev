@@ -2445,7 +2445,7 @@ function cardHtml(l,isFirst,isLast){
   const isSelected=bulkSelected.has(l.id);
   const clickAction=bulkMode?`toggleBulkSelect(${l.id})`:`openLeadModal(${l.id})`;
   return `<div class="card ${isSelected?'card-selected':''}" style="border-top:3px solid ${COLOR_HEX[colColor]}" draggable="${!bulkMode}" data-id="${l.id}" ondragstart="onDragStart(event,${l.id})" ondragend="onDragEnd(event)" ondragover="onCardDragOver(event)" ondragleave="onCardDragLeave(event)" ondrop="onCardDrop(event,${l.id})" onclick="${clickAction}">
-    ${bulkMode?`<input type="checkbox" class="card-bulk-checkbox" ${isSelected?'checked':''} onclick="event.stopPropagation();toggleBulkSelect(${l.id})">`:`
+    ${bulkMode?`<input type="checkbox" class="card-bulk-checkbox" ${isSelected?'checked':''} onclick="event.stopPropagation();toggleBulkSelectPreserveScroll(this,${l.id})">`:`
     <div class="card-reorder" onclick="event.stopPropagation()">
       ${!isFirst?`<button onclick="event.stopPropagation();moveLeadUp(${l.id})" title="Nach oben"><i class="ti ti-chevron-up"></i></button>`:''}
       ${!isLast?`<button onclick="event.stopPropagation();moveLeadDown(${l.id})" title="Nach unten"><i class="ti ti-chevron-down"></i></button>`:''}
@@ -2475,6 +2475,15 @@ function toggleBulkMode(){
   }
   updateBulkCountLabel();
   renderBoard();
+}
+function toggleBulkSelectPreserveScroll(checkboxEl,id){
+  const colBody=checkboxEl.closest('.col-body');
+  const scrollTop=colBody?colBody.scrollTop:null;
+  toggleBulkSelect(id);
+  if(colBody&&scrollTop!==null){
+    colBody.scrollTop=scrollTop;
+    requestAnimationFrame(()=>{colBody.scrollTop=scrollTop;});
+  }
 }
 function toggleBulkSelect(id){
   if(bulkSelected.has(id))bulkSelected.delete(id);else bulkSelected.add(id);
@@ -2804,6 +2813,8 @@ function openLeadModal(id){
 }
 
 function renderLeadModal(){
+  const modalLeftBefore=document.querySelector('#leadModalInner .modal-left');
+  const savedScrollTop=modalLeftBefore?modalLeftBefore.scrollTop:0;
   const isEdit=!!editingLeadId;
   const checkTotal=draftLead.checklist.length;
   const checkDone=draftLead.checklist.filter(c=>c.done).length;
@@ -3281,6 +3292,8 @@ function renderLeadModal(){
         <button class="btn btn-primary" onclick="saveLead(false)"><i class="ti ti-check"></i> Speichern &amp; schließen</button>
       </div>
     </div>`;
+  const modalLeftAfter=document.querySelector('#leadModalInner .modal-left');
+  if(modalLeftAfter)modalLeftAfter.scrollTop=savedScrollTop;
 }
 
 // Versand-Drucker (links, EIN Drucker, mit Einkaufspreis je SKU)
