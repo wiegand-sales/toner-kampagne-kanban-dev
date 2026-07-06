@@ -1945,6 +1945,12 @@ function renderActivityTrendChart(entries){
   const avgPerDay=(total/buckets.length).toFixed(1);
   const periodBtns=[['7','7 Tage'],['30','30 Tage'],['90','90 Tage'],['all','Alle']]
     .map(([v,l])=>`<span class="chip ${activityPeriod===v?'active':''}" onclick="setActivityFilter('period','${v}')">${l}</span>`).join('');
+  // Punkte je Tag: ein kleiner sichtbarer Punkt + eine groessere unsichtbare Trefferflaeche fuer den Hover-Tooltip
+  const dotsHtml=buckets.map((b,i)=>{
+    const [x,y]=pts[i];
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8" fill="transparent" style="cursor:pointer" onmouseenter="showActivityTooltip(this,'${fmtDate(b.key)}',${b.count})" onmouseleave="hideActivityTooltip()"/>
+      <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="var(--purple)" style="pointer-events:none"/>`;
+  }).join('');
   return `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
       <div class="section-hdr" style="margin-top:0">Aktivitäten pro Tag <span style="font-weight:400;color:var(--text3);font-size:11px">Gesamt: ${total} · Ø ${avgPerDay}/Tag</span></div>
@@ -1958,6 +1964,7 @@ function renderActivityTrendChart(entries){
       <line x1="${padL}" y1="${padT+plotH}" x2="${padL+plotW}" y2="${padT+plotH}" stroke="var(--border)" stroke-width="1" vector-effect="non-scaling-stroke"/>
       <path d="${areaPath}" fill="url(#actTrendGrad)"/>
       <path d="${linePath}" fill="none" stroke="var(--purple)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+      ${dotsHtml}
     </svg>
     <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:4px">
       <span>${fmtDate(buckets[0].key)}</span>
@@ -3324,6 +3331,41 @@ const PRINTER_MODELS=[
   'Samsung Xpress M2835DW','Samsung ProXpress M4020ND',
 ];
 let printerModelActiveInputId=null; // id des aktuell fokussierten Modell-Feldes
+// Hover-Tooltip fuer die Punkte im Aktivitaeten-Chart
+function ensureActivityTooltipEl(){
+  let el=document.getElementById('activityChartTooltip');
+  if(!el){
+    el=document.createElement('div');
+    el.id='activityChartTooltip';
+    el.style.position='fixed';
+    el.style.display='none';
+    el.style.zIndex='2000';
+    el.style.background='var(--text)';
+    el.style.color='var(--bg)';
+    el.style.padding='5px 9px';
+    el.style.borderRadius='6px';
+    el.style.fontSize='12px';
+    el.style.fontWeight='600';
+    el.style.whiteSpace='nowrap';
+    el.style.pointerEvents='none';
+    el.style.boxShadow='0 2px 8px rgba(0,0,0,.18)';
+    document.body.appendChild(el);
+  }
+  return el;
+}
+function showActivityTooltip(circleEl,dateLabel,count){
+  const tip=ensureActivityTooltipEl();
+  tip.textContent=`${dateLabel}: ${count} Aktivität${count===1?'':'en'}`;
+  const rect=circleEl.getBoundingClientRect();
+  tip.style.display='block';
+  tip.style.left=(rect.left+rect.width/2)+'px';
+  tip.style.top=(rect.top-8)+'px';
+  tip.style.transform='translate(-50%,-100%)';
+}
+function hideActivityTooltip(){
+  const tip=document.getElementById('activityChartTooltip');
+  if(tip)tip.style.display='none';
+}
 function ensurePrinterPopoverEl(){
   let el=document.getElementById('printerModelFloatingPopover');
   if(!el){
