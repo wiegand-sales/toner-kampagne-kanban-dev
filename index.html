@@ -96,6 +96,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg3);color:var(--text);font
 .impact-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;}
 .compare-strip{display:flex;justify-content:space-between;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:12px;}
 .compare-item{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.compare-col{display:flex;flex-direction:column;align-items:center;gap:1px;}
+.compare-col-title{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px;}
+.compare-umsatz{font-size:16px;font-weight:700;line-height:1.2;}
+.compare-marge{font-size:11px;font-weight:600;line-height:1.3;}
 .compare-item span{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;}
 .compare-item strong{font-size:15px;}
 .impact-row:last-of-type{border-bottom:none;}
@@ -2992,12 +2996,23 @@ function renderLeadModal(){
   const forecastMarginNow=draftLead.demandPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0))*(parseFloat(x.qty)||0),0),0);
   const actualMarginNow=draftLead.actualPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0))*(parseFloat(x.qty)||0),0),0);
   const diffVal=actualComputedNow-forecastComputedNow;
+  const marginDiffVal=actualMarginNow-forecastMarginNow;
   const compareStripHtml=`<div class="compare-strip">
-    <div class="compare-item"><span>Forecast</span><strong style="color:var(--purple)">${fmtEur(forecastComputedNow)||'0 €'}</strong></div>
-    <div class="compare-item"><span>Marge Forecast</span><strong style="color:${forecastMarginNow>=0?'var(--green-dark)':'var(--red)'}">${fmtEur(forecastMarginNow)||'0 €'}</strong></div>
-    <div class="compare-item"><span>Auftrag</span><strong style="color:var(--green-dark)">${fmtEur(actualComputedNow)||'0 €'}</strong></div>
-    <div class="compare-item"><span>Marge Auftrag</span><strong style="color:${actualMarginNow>=0?'var(--green-dark)':'var(--red)'}">${fmtEur(actualMarginNow)||'0 €'}</strong></div>
-    <div class="compare-item"><span>Differenz</span><strong style="color:${diffVal>=0?'var(--green-dark)':'var(--red)'}">${diffVal>=0?'+':''}${fmtEur(diffVal)||'0 €'}</strong></div>
+    <div class="compare-col">
+      <span class="compare-col-title">Forecast</span>
+      <strong class="compare-umsatz" style="color:var(--purple)">${fmtEur(forecastComputedNow)||'0 €'}</strong>
+      <span class="compare-marge" style="color:${forecastMarginNow>=0?'var(--green-dark)':'var(--red)'}">Marge ${fmtEur(forecastMarginNow)||'0 €'}</span>
+    </div>
+    <div class="compare-col">
+      <span class="compare-col-title">Auftrag</span>
+      <strong class="compare-umsatz" style="color:var(--green-dark)">${fmtEur(actualComputedNow)||'0 €'}</strong>
+      <span class="compare-marge" style="color:${actualMarginNow>=0?'var(--green-dark)':'var(--red)'}">Marge ${fmtEur(actualMarginNow)||'0 €'}</span>
+    </div>
+    <div class="compare-col">
+      <span class="compare-col-title">Differenz</span>
+      <strong class="compare-umsatz" style="color:${diffVal>=0?'var(--green-dark)':'var(--red)'}">${diffVal>=0?'+':''}${fmtEur(diffVal)||'0 €'}</strong>
+      <span class="compare-marge" style="color:${marginDiffVal>=0?'var(--green-dark)':'var(--red)'}">Marge ${marginDiffVal>=0?'+':''}${fmtEur(marginDiffVal)||'0 €'}</span>
+    </div>
   </div>`;
 
   let rightContentHtml='';
