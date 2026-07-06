@@ -3125,13 +3125,6 @@ function renderLeadModal(){
         </div>
 
         <div class="info-section">
-          <div class="section-hdr">
-            <span>Top 3 Gekaufte Artikel</span>
-          </div>
-          ${topArticlesHtml}
-        </div>
-
-        <div class="info-section">
           <div class="section-hdr">Lead-Status</div>
           <div style="margin-bottom:12px">
             <span class="small-label">Zeitstrahl</span>
@@ -3197,6 +3190,13 @@ function renderLeadModal(){
               <button class="btn btn-sm" onclick="addChecklistItem()"><i class="ti ti-plus"></i></button>
             </div>
           </div>
+        </div>
+
+        <div class="info-section" style="margin-bottom:0">
+          <div class="section-hdr">
+            <span>Top 3 Gekaufte Artikel</span>
+          </div>
+          ${topArticlesHtml}
         </div>
       </div>
 
@@ -3821,6 +3821,15 @@ const CSV_FIELD_ALIASES={
   notes:['notizen','notiz','notes','bemerkung','kommentar'],
   firstContact:['datum erstkontakt','erstkontakt'],
   followup:['follow-up-datum','followup','follow-up','wiedervorlage'],
+  topSkuOem1:['sku oem 1','top artikel 1 sku oem','artikel 1 sku oem'],
+  topSkuKompa1:['sku kompa 1','top artikel 1 sku kompa','artikel 1 sku kompa'],
+  topTitle1:['titel 1','top artikel 1 titel','artikel 1 titel'],
+  topSkuOem2:['sku oem 2','top artikel 2 sku oem','artikel 2 sku oem'],
+  topSkuKompa2:['sku kompa 2','top artikel 2 sku kompa','artikel 2 sku kompa'],
+  topTitle2:['titel 2','top artikel 2 titel','artikel 2 titel'],
+  topSkuOem3:['sku oem 3','top artikel 3 sku oem','artikel 3 sku oem'],
+  topSkuKompa3:['sku kompa 3','top artikel 3 sku kompa','artikel 3 sku kompa'],
+  topTitle3:['titel 3','top artikel 3 titel','artikel 3 titel'],
 };
 function importCSVFile(file){
   const reader=new FileReader();
@@ -3882,6 +3891,11 @@ function importCSVFile(file){
         nl.notes=get('notes');
         nl.firstContact=get('firstContact');
         nl.followup=get('followup');
+        nl.topArticles=[1,2,3].map(n=>({
+          skuOem:get('topSkuOem'+n),
+          skuKompa:get('topSkuKompa'+n),
+          title:get('topTitle'+n)
+        }));
         const art=get('art').toUpperCase();
         if(art==='B2B'||art==='B2C')nl.art=art;
         nl.status=firstColId;
