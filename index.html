@@ -1362,8 +1362,10 @@ function renderDashboard(){
   const openRisks=PROJECT.risks.filter(r=>r.open);
 
   // Kapazitätsübersicht: offene Leads je Mitarbeiter, ueberlastet-Erkennung
-  const capData=AGENTS.map(a=>({a,openCount:leads.filter(l=>!isClosedLead(l)&&(l.members||[]).includes(a.id)).length}));
-  const capAvg=capData.length?capData.reduce((s,x)=>s+x.openCount,0)/capData.length:0;
+  // (Mitarbeiter ganz ohne offene Leads werden nicht angezeigt, um das Dashboard nicht mit 0-Werten zu ueberladen)
+  const capDataAll=AGENTS.map(a=>({a,openCount:leads.filter(l=>!isClosedLead(l)&&(l.members||[]).includes(a.id)).length}));
+  const capData=capDataAll.filter(x=>x.openCount>0);
+  const capAvg=capDataAll.length?capDataAll.reduce((s,x)=>s+x.openCount,0)/capDataAll.length:0;
   const capMax=Math.max(1,...capData.map(x=>x.openCount));
   const capHtml=capData.map(x=>{
     const overloaded=capAvg>0&&x.openCount>capAvg*1.5&&x.openCount>=3;
@@ -1371,7 +1373,7 @@ function renderDashboard(){
       <div class="funnel-label"><div class="member-av" style="position:static;margin:0;width:20px;height:20px;font-size:9px;background:${COLOR_BG[x.a.color]};color:${COLOR_TEXT[x.a.color]}">${ini(x.a.name)}</div>${esc(x.a.name)}${overloaded?' <span class="due-badge due-overdue" style="margin-left:4px">überlastet</span>':''}</div>
       <div class="funnel-track"><div class="funnel-bar" style="width:${Math.max(8,Math.round(x.openCount/capMax*100))}%;background:${overloaded?'var(--red)':COLOR_HEX[x.a.color]}">${x.openCount} offen</div></div>
     </div>`;
-  }).join('')||'<p style="font-size:12px;color:var(--text3)">Keine Mitarbeiter erfasst.</p>';
+  }).join('')||'<p style="font-size:12px;color:var(--text3)">Aktuell keine offenen Leads zugeordnet.</p>';
 
   // Trend der letzten 6 Wochen: Bewegungen und Gewinne je Woche
   const weekBuckets=[];
@@ -1418,6 +1420,7 @@ function renderDashboard(){
   const funnelMax=Math.max(1,...funnelCounts.map(x=>x.count));
   let funnelHtml='';
   funnelCounts.forEach((x,i)=>{
+    if(x.count===0)return; // Stufen ohne Leads werden nicht angezeigt, um das Dashboard nicht zu ueberladen
     const barPct=Math.max(8,Math.round(x.count/funnelMax*100));
     const ofTotalPct=total?Math.round(x.count/total*100):0;
     let convHtml='<div class="funnel-conv"></div>';
@@ -1434,14 +1437,16 @@ function renderDashboard(){
       ${convHtml}
     </div>`;
   });
+  if(!funnelHtml)funnelHtml='<p style="font-size:12px;color:var(--text3)">Keine Leads im gewählten Zeitraum/Filter.</p>';
 
   // Forecast je Mitarbeiter (Balken)
+  // (Mitarbeiter ganz ohne Leads im aktuellen Zeitraum/Filter werden nicht angezeigt, um das Dashboard nicht zu ueberladen)
   const agentPool=activeDashboardAgentFilter==='all'?AGENTS:AGENTS.filter(a=>a.id===activeDashboardAgentFilter);
   const agentData=agentPool.map(a=>{
     const agentLeads=dl.filter(l=>(l.members||[]).includes(a.id));
     const agentOverdue=agentLeads.filter(l=>l.followup&&daysUntil(l.followup)<0).length;
     return {a,count:agentLeads.length,won:agentLeads.filter(l=>isWon(l)).length,forecast:agentLeads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0),overdue:agentOverdue};
-  });
+  }).filter(x=>x.count>0);
   const agentBarHtml=agentData.map(x=>{
     const quota=x.a.quota||0;
     const pct=quota?Math.round(x.forecast/quota*100):null;
@@ -1455,7 +1460,7 @@ function renderDashboard(){
       </div>
       <div class="agent-bar-val">${fmtEur(x.forecast)||'0 €'}${quota?`<div style="font-size:10px;font-weight:400;color:var(--text3)">Ziel ${fmtEur(quota)} · ${pct}%</div>`:''}</div>
     </div>`;
-  }).join('');
+  }).join('')||'<p style="font-size:12px;color:var(--text3)">Keine Leads im gewählten Zeitraum/Filter zugeordnet.</p>';
 
   // RMA-Risiko: aktive Leads, deren Versand-SKU eine hohe Reklamationsquote hat
   const riskLeads=dl.filter(l=>!isClosedLead(l)).map(l=>{
@@ -1521,16 +1526,16 @@ function renderDashboard(){
   const investLost=lostLeads.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.priceEk)||0),0),0);
   const netEffect=forecastWon-investLost;
 
-  // B2B vs. B2C
+  // B2B vs. B2C (Kategorien ohne Leads werden nicht angezeigt)
   const artBreakdown=['B2B','B2C'].map(art=>{
     const artLeads=dl.filter(l=>l.art===art);
     const artWon=artLeads.filter(l=>isWon(l)).length;
     const artClosed=artLeads.filter(l=>isClosedLead(l)).length;
     return {art,count:artLeads.length,won:artWon,rate:artClosed?Math.round(artWon/artClosed*100):null};
-  });
+  }).filter(x=>x.count>0);
   const artHtml=artBreakdown.map(x=>`
     <div class="impact-row"><span>${x.art} <span style="color:var(--text3);font-weight:400">(${x.count} Leads)</span></span><strong>${x.rate!==null?x.rate+'% Gewinnrate':'– noch keine Abschlüsse'}</strong></div>
-  `).join('');
+  `).join('')||'<p style="font-size:12px;color:var(--text3)">Keine Leads im gewählten Zeitraum/Filter.</p>';
 
   // Verlust-Gruende (zusaetzlich zur Phasen-Auswertung)
   const reasonCounts={};
