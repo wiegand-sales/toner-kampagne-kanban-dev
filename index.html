@@ -1116,7 +1116,8 @@ function formatBytes(b){if(b<1024)return b+' B';if(b<1024*1024)return(b/1024).to
 function getFilteredLeads(){
   const q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
   return leads.filter(l=>{
-    if(activeAgentFilter!=='all'&&!l.members.includes(activeAgentFilter))return false;
+    if(activeAgentFilter==='unassigned'&&l.members.length>0)return false;
+    else if(activeAgentFilter!=='all'&&activeAgentFilter!=='unassigned'&&!l.members.includes(activeAgentFilter))return false;
     if(activeLabelFilter!=='all'&&!(l.labelIds||[]).includes(activeLabelFilter))return false;
     if(q&&!(l.company.toLowerCase().includes(q)||l.contact.toLowerCase().includes(q)||(l.customerNumber||'').toLowerCase().includes(q)))return false;
     return true;
@@ -1143,6 +1144,7 @@ function activeAgents(){return AGENTS.filter(a=>a.active!==false);}
 function renderAgentChips(){
   const el=document.getElementById('agentChips');
   let html=`<span class="chip ${activeAgentFilter==='all'?'active':''}" onclick="setAgentFilter('all')">Alle</span>`;
+  html+=`<span class="chip ${activeAgentFilter==='unassigned'?'active':''}" onclick="setAgentFilter('unassigned')" style="color:var(--text3)"><i class="ti ti-user-question" style="margin-right:3px"></i>Nicht zugeordnet</span>`;
   AGENTS.forEach(a=>{
     html+=`<span class="chip ${activeAgentFilter===a.id?'active':''}" onclick="setAgentFilter('${a.id}')">${esc(a.name)}${a.active===false?' <span style="opacity:.6">(inaktiv)</span>':''}</span>`;
   });
@@ -2476,8 +2478,14 @@ function toggleBulkMode(){
 }
 function toggleBulkSelect(id){
   if(bulkSelected.has(id))bulkSelected.delete(id);else bulkSelected.add(id);
+  const isSelected=bulkSelected.has(id);
+  const card=document.querySelector(`.card[data-id="${id}"]`);
+  if(card){
+    card.classList.toggle('card-selected',isSelected);
+    const cb=card.querySelector('.card-bulk-checkbox');
+    if(cb)cb.checked=isSelected;
+  }
   updateBulkCountLabel();
-  renderBoard();
 }
 function updateBulkCountLabel(){
   const el=document.getElementById('bulkCountLabel');
