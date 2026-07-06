@@ -3265,9 +3265,11 @@ function renderLeadModal(){
     </div>
     <div class="modal-actions">
       ${isEdit?`<button class="btn btn-danger" onclick="deleteLead()"><i class="ti ti-trash"></i> Löschen</button>`:'<div></div>'}
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="saveFlashMsg" style="display:none;font-size:12px;color:var(--green-dark);font-weight:600"><i class="ti ti-check"></i> Gespeichert</span>
         <button class="btn" onclick="closeModal('leadModal')">Abbrechen</button>
-        <button class="btn btn-primary" onclick="saveLead()"><i class="ti ti-check"></i> Speichern</button>
+        <button class="btn" onclick="saveLead(true)"><i class="ti ti-check"></i> Speichern</button>
+        <button class="btn btn-primary" onclick="saveLead(false)"><i class="ti ti-check"></i> Speichern &amp; schließen</button>
       </div>
     </div>`;
 }
@@ -3712,7 +3714,7 @@ function logFieldChanges(original,draft){
   }
   return entries;
 }
-function saveLead(){
+function saveLead(keepOpen){
   if(!draftLead.company.trim()){
     showModalError('Bitte zuerst einen Firmennamen eingeben (oben im Fenster) – erst dann lässt sich der Lead speichern.');
     const el=document.getElementById('fCompany');
@@ -3747,9 +3749,21 @@ function saveLead(){
     }
     draftLead.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:'Lead erstellt',date:nowISO()});
     leads.push(draftLead);
+    editingLeadId=draftLead.id; // wichtig: weitere Speichervorgaenge (bei "im Lead bleiben") aktualisieren jetzt diesen Lead statt neue anzulegen
   }
   saveState();
-  closeModal('leadModal');renderBoard();
+  if(keepOpen){
+    renderLeadModal();
+    renderBoard();
+    const flash=document.getElementById('saveFlashMsg');
+    if(flash){
+      flash.style.display='inline-flex';
+      clearTimeout(window._saveFlashTimer);
+      window._saveFlashTimer=setTimeout(()=>{if(flash)flash.style.display='none';},1800);
+    }
+  }else{
+    closeModal('leadModal');renderBoard();
+  }
 }
 function deleteLead(){
   if(!requireAdmin('einen Lead löschen'))return;
