@@ -952,6 +952,7 @@ function normalizeLeads(){
     if(!l.actualPrinters) l.actualPrinters=[];
     if(l.actual===undefined) l.actual='';
     if(l.competitor===undefined) l.competitor='';
+    if(!l.topArticles||l.topArticles.length<3) l.topArticles=[{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''}];
     if(l.lossReason===undefined) l.lossReason='';
     if(!l.statusSince) l.statusSince=l.firstContact||TODAY;
     if(!l.followupHistory){
@@ -1047,7 +1048,7 @@ function renderFollowupTimeline(lead){
   html+='</div>';
   return html;
 }
-function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],actualPrinters:[],contact:'',phone:'',email:'',competitor:'',status:COLUMNS[0].id,tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',followupHistory:[],forecast:'',actual:'',lossReason:'',notes:'',checklist:[],activity:[],files:[],tasks:[],order:Date.now()};}
+function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],actualPrinters:[],contact:'',phone:'',email:'',competitor:'',status:COLUMNS[0].id,tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',followupHistory:[],forecast:'',actual:'',lossReason:'',notes:'',checklist:[],activity:[],files:[],tasks:[],topArticles:[{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''}],order:Date.now()};}
 function openGoogleSearch(){
   const q=(document.getElementById('fCompany')?document.getElementById('fCompany').value:draftLead.company).trim();
   if(!q)return;
@@ -2847,6 +2848,13 @@ function renderLeadModal(){
     </div>
     ${shipInvestTotal?`<p style="font-size:11px;color:var(--text2);margin-top:8px">Investition gesamt für diesen Kunden: <strong>${fmtEur(shipInvestTotal)}</strong></p>`:''}`;
 
+  const topArticlesHtml=draftLead.topArticles.map((a,i)=>`
+    <div class="field-row-3" style="${i===draftLead.topArticles.length-1?'margin-bottom:0':''}">
+      <div><label>SKU OEM ${i+1}</label><input type="text" placeholder="SKU OEM" value="${esc(a.skuOem||'')}" oninput="updateTopArticle(${i},'skuOem',this.value)" style="width:100%"></div>
+      <div><label>SKU Kompa ${i+1}</label><input type="text" placeholder="SKU Kompa" value="${esc(a.skuKompa||'')}" oninput="updateTopArticle(${i},'skuKompa',this.value)" style="width:100%"></div>
+      <div><label>Titel ${i+1}</label><input type="text" placeholder="Artikelbezeichnung" value="${esc(a.title||'')}" oninput="updateTopArticle(${i},'title',this.value)" style="width:100%"></div>
+    </div>`).join('');
+
   const demandPrintersHtml=draftLead.demandPrinters.map((p,idx)=>`
     <div class="printer-card">
       <div class="printer-card-hdr">
@@ -3102,10 +3110,6 @@ function renderLeadModal(){
             <div><label>Anzahl Bestellungen</label><input type="number" min="0" step="1" placeholder="0" value="${draftLead.orderCount}" oninput="draftLead.orderCount=this.value" style="width:100%"></div>
             <div><label>Umsatz (EUR)</label><input type="number" min="0" step="10" placeholder="0" value="${draftLead.revenue}" oninput="draftLead.revenue=this.value" style="width:100%"></div>
           </div>
-          <div class="field">
-            <label>Wettbewerber <span style="font-weight:400;color:var(--text3)">(mit wem redet der Kunde sonst noch?)</span></label>
-            <input type="text" placeholder="z. B. Lokaler Händler XY, Amazon Business…" value="${esc(draftLead.competitor||'')}" oninput="draftLead.competitor=this.value" style="width:100%">
-          </div>
           <div class="field" style="margin-bottom:0">
             <label>Notiz</label>
             <textarea placeholder="Interne Notiz…" oninput="draftLead.notes=this.value">${esc(draftLead.notes)}</textarea>
@@ -3118,6 +3122,13 @@ function renderLeadModal(){
           </div>
           <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Welcher Drucker erhält den kostenlosen Toner – inkl. deinem Einkaufspreis je SKU (Investitionskosten).</p>
           ${shipPrinterHtml}
+        </div>
+
+        <div class="info-section">
+          <div class="section-hdr">
+            <span>Top 3 Gekaufte Artikel</span>
+          </div>
+          ${topArticlesHtml}
         </div>
 
         <div class="info-section">
@@ -3212,6 +3223,7 @@ function renderLeadModal(){
 // Versand-Drucker (links, EIN Drucker, mit Einkaufspreis je SKU)
 function updateShipPrinterModel(val){draftLead.shipPrinter.model=val;}
 function updateShipPrinterSku(idx,field,val){draftLead.shipPrinter.skus[idx][field]=val;}
+function updateTopArticle(idx,field,val){draftLead.topArticles[idx][field]=val;}
 
 // Kundenbedarf-Drucker (Forecast-Tab, mehrere Drucker, mit benötigter Anzahl je SKU)
 function addDemandPrinter(){
