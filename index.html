@@ -641,7 +641,7 @@ const COLOR_HEX={purple:'var(--purple)',teal:'var(--teal)',amber:'var(--amber)',
 const COLOR_BG={purple:'var(--purple-bg)',teal:'var(--teal-bg)',amber:'var(--amber-bg)',gray:'var(--gray-bg)',green:'var(--green-bg)',red:'var(--red-bg)'};
 const COLOR_TEXT={purple:'var(--purple-dark)',teal:'var(--teal-dark)',amber:'var(--amber-dark)',gray:'var(--gray-dark)',green:'var(--green-dark)',red:'var(--red-dark)'};
 const LABEL_PALETTE=['#206A72','#32A8B4','#7ED2DB','#D94109','#ED8B4C','#F5C69A','#BD2D29','#676660','#0F3D42'];
-const TODAY='2026-07-02';
+const TODAY=new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Berlin'});
 
 // ── STATE (in-memory, kein Backend – Vorstufe fuer Supabase) ──
 let LABELS=[
@@ -1836,17 +1836,18 @@ function renderCrRma(){
     return 0;
   });
   const sortArrow=key=>crrmaSortKey===key?(crrmaSortDir===1?' ▲':' ▼'):'';
+  const fmt2=v=>(v===''||v===null||v===undefined||isNaN(parseFloat(v)))?'':parseFloat(v).toFixed(2);
   const rowsHtml=filtered.map(a=>{
     const margin=(parseFloat(a.vk)||0)-(parseFloat(a.ek)||0);
     return `
     <div class="crrma-row">
       <input type="text" value="${esc(a.sku)}" placeholder="SKU" oninput="updateArticleField(${a.id},'sku',this.value);saveState()">
       <input type="text" value="${esc(a.title)}" placeholder="Titel" oninput="updateArticleField(${a.id},'title',this.value);saveState()">
-      <input type="number" step="0.01" value="${a.ek}" placeholder="0.00" onchange="updateArticleField(${a.id},'ek',this.value);saveState();renderCrRma()">
-      <input type="number" step="0.01" value="${a.vk}" placeholder="0.00" onchange="updateArticleField(${a.id},'vk',this.value);saveState();renderCrRma()">
+      <input type="number" step="0.01" value="${fmt2(a.ek)}" placeholder="0.00" onchange="updateArticleField(${a.id},'ek',this.value);saveState();renderCrRma()">
+      <input type="number" step="0.01" value="${fmt2(a.vk)}" placeholder="0.00" onchange="updateArticleField(${a.id},'vk',this.value);saveState();renderCrRma()">
       <input type="number" step="0.01" class="crrma-margin-input" style="color:${margin>=0?'var(--green-dark)':'var(--red)'}" value="${margin.toFixed(2)}" title="Marge ändern → VK wird automatisch neu berechnet (EK bleibt fix)" onchange="updateArticleMargin(${a.id},this.value)">
-      <input type="number" step="0.1" class="${crRmaCellClass(a.crRma)}" value="${a.crRma}" placeholder="0.0" oninput="updateArticleField(${a.id},'crRma',this.value);saveState();this.className=crRmaCellClass(parseFloat(this.value))">
-      <input type="number" step="0.1" class="${crRmaCellClass(a.crRga)}" value="${a.crRga}" placeholder="0.0" oninput="updateArticleField(${a.id},'crRga',this.value);saveState();this.className=crRmaCellClass(parseFloat(this.value))">
+      <input type="number" step="0.01" class="${crRmaCellClass(a.crRma)}" value="${fmt2(a.crRma)}" placeholder="0.00" oninput="updateArticleField(${a.id},'crRma',this.value);saveState();this.className=crRmaCellClass(parseFloat(this.value))">
+      <input type="number" step="0.01" class="${crRmaCellClass(a.crRga)}" value="${fmt2(a.crRga)}" placeholder="0.00" oninput="updateArticleField(${a.id},'crRga',this.value);saveState();this.className=crRmaCellClass(parseFloat(this.value))">
       <button class="check-item-del" onclick="deleteArticle(${a.id})" title="Löschen"><i class="ti ti-trash"></i></button>
     </div>`;
   }).join('');
@@ -2017,7 +2018,7 @@ function renderActivities(){
   }).join(''):'<p style="font-size:12px;color:var(--text3)">Keine Einträge im gewählten Zeitraum/Filter gefunden.</p>';
 
   document.getElementById('activitiesContent').innerHTML=`
-    ${q?`<div class="dash-grid" style="margin-bottom:16px">${leadCardsHtml}</div>`:''}
+    ${q?`<div class="${matchingLeads.length===1?'':'dash-grid'}" style="margin-bottom:16px">${leadCardsHtml}</div>`:''}
     <div class="info-section">
       ${chartHtml}
     </div>
