@@ -936,13 +936,23 @@ function normalizeLeads(){
       const first = oldPrinters[0];
       l.shipPrinter = {
         model: first ? first.model : '',
-        skus: first ? first.skus.map(s=>({sku:s||'',price:''})) : [{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]
+        skus: first ? first.skus.map(s=>({sku:s||'',priceEk:'',priceVk:''})) : [{sku:'',priceEk:'',priceVk:''},{sku:'',priceEk:'',priceVk:''},{sku:'',priceEk:'',priceVk:''},{sku:'',priceEk:'',priceVk:''}]
       };
     }
+    // Migration: altes einheitliches "price"-Feld wird zu "priceEk" (Einkaufspreis), "priceVk" (Verkaufspreis) neu ergaenzt
+    l.shipPrinter.skus.forEach(s=>{
+      if(s.price!==undefined){s.priceEk=s.price;delete s.price;}
+      if(s.priceEk===undefined)s.priceEk='';
+      if(s.priceVk===undefined)s.priceVk='';
+    });
     if(!l.demandPrinters){
-      l.demandPrinters = oldPrinters.map(p=>({id:genId(),model:p.model,skus:p.skus.map(s=>({sku:s||'',qty:'',price:''}))}));
+      l.demandPrinters = oldPrinters.map(p=>({id:genId(),model:p.model,skus:p.skus.map(s=>({sku:s||'',qty:'',priceEk:'',priceVk:''}))}));
     }
-    l.demandPrinters.forEach(p=>p.skus.forEach(s=>{if(s.price===undefined)s.price='';}));
+    l.demandPrinters.forEach(p=>p.skus.forEach(s=>{
+      if(s.price!==undefined){s.priceEk=s.price;delete s.price;}
+      if(s.priceEk===undefined)s.priceEk='';
+      if(s.priceVk===undefined)s.priceVk='';
+    }));
     delete l.printers; delete l.printerModel; delete l.sku; delete l.annualVolume;
     if(l.address===undefined) l.address='';
     if(l.orderCount===undefined) l.orderCount='';
@@ -950,6 +960,11 @@ function normalizeLeads(){
     if(!l.files) l.files=[];
     if(!l.tasks) l.tasks=[];
     if(!l.actualPrinters) l.actualPrinters=[];
+    l.actualPrinters.forEach(p=>p.skus.forEach(s=>{
+      if(s.price!==undefined){s.priceEk=s.price;delete s.price;}
+      if(s.priceEk===undefined)s.priceEk='';
+      if(s.priceVk===undefined)s.priceVk='';
+    }));
     if(l.actual===undefined) l.actual='';
     if(l.competitor===undefined) l.competitor='';
     if(!l.topArticles||l.topArticles.length<3) l.topArticles=[{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''}];
@@ -1048,7 +1063,7 @@ function renderFollowupTimeline(lead){
   html+='</div>';
   return html;
 }
-function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',price:''},{sku:'',price:''},{sku:'',price:''},{sku:'',price:''}]},demandPrinters:[],actualPrinters:[],contact:'',phone:'',email:'',competitor:'',status:COLUMNS[0].id,tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',followupHistory:[],forecast:'',actual:'',lossReason:'',notes:'',checklist:[],activity:[],files:[],tasks:[],topArticles:[{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''}],order:Date.now()};}
+function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',priceEk:'',priceVk:''},{sku:'',priceEk:'',priceVk:''},{sku:'',priceEk:'',priceVk:''},{sku:'',priceEk:'',priceVk:''}]},demandPrinters:[],actualPrinters:[],contact:'',phone:'',email:'',competitor:'',status:COLUMNS[0].id,tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',followupHistory:[],forecast:'',actual:'',lossReason:'',notes:'',checklist:[],activity:[],files:[],tasks:[],topArticles:[{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''}],order:Date.now()};}
 function openGoogleSearch(){
   const q=(document.getElementById('fCompany')?document.getElementById('fCompany').value:draftLead.company).trim();
   if(!q)return;
@@ -1315,7 +1330,7 @@ function renderDashboard(){
   const closedCount=won+lost;
   const winRateClosed=closedCount?Math.round(won/closedCount*100):null;
   const forecastSum=dl.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
-  const investSum=dl.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.price)||0),0),0);
+  const investSum=dl.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.priceEk)||0),0),0);
 
   // Vertriebszyklus-Laenge: Tage von Erstkontakt bis Abschluss (gewonnen/verloren)
   const cycleDays=dl.filter(l=>isClosedLead(l)&&l.firstContact&&l.closedAt)
@@ -1329,7 +1344,7 @@ function renderDashboard(){
   const daysElapsed=Math.max(0,Math.round((today-projStart)/86400000));
   const timeProgress=Math.min(100,Math.round(daysElapsed/daysTotal*100));
   const daysRemaining=Math.round((projEnd-today)/86400000);
-  const allInvestSum=leads.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.price)||0),0),0);
+  const allInvestSum=leads.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.priceEk)||0),0),0);
   const budgetProgress=PROJECT.budget?Math.round(allInvestSum/PROJECT.budget*100):0;
   const overdueMilestones=PROJECT.milestones.filter(m=>!m.done&&daysUntil(m.targetDate)<0);
   const doneMilestones=PROJECT.milestones.filter(m=>m.done).length;
@@ -1497,7 +1512,7 @@ function renderDashboard(){
   // Finanzielle Auswirkung: Forecast gewonnen vs. verloren, Investition gesamt vs. in verlorene Leads, Netto-Effekt
   const forecastWon=dl.filter(l=>isWon(l)).reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
   const forecastLost=lostLeads.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
-  const investLost=lostLeads.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.price)||0),0),0);
+  const investLost=lostLeads.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.priceEk)||0),0),0);
   const netEffect=forecastWon-investLost;
 
   // B2B vs. B2C
@@ -2835,7 +2850,8 @@ function renderLeadModal(){
     <button class="check-item-del" onclick="deleteCheckItem(${c.id})"><i class="ti ti-x"></i></button>
   </div>`).join('');
 
-  const shipInvestTotal=draftLead.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.price)||0),0);
+  const shipInvestTotal=draftLead.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.priceEk)||0),0);
+  const shipMarginTotal=draftLead.shipPrinter.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0)),0);
   const shipPrinterHtml=`
     <div class="field" style="margin-bottom:8px;position:relative">
       <input type="text" id="shipPrinterModelInput" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${draftLead.shipPrinter.model}" oninput="handlePrinterModelInput(this,'ship',null)" onblur="setTimeout(closePrinterModelPopover,150)" style="width:100%">
@@ -2844,9 +2860,12 @@ function renderLeadModal(){
       ${['I','II','III','IV'].map((rn,i)=>`<div><label>SKU ${rn}</label><input type="text" placeholder="SKU ${rn}" value="${draftLead.shipPrinter.skus[i].sku||''}" oninput="updateShipPrinterSku(${i},'sku',this.value)" style="width:100%"></div>`).join('')}
     </div>
     <div class="sku-grid" style="margin-top:6px">
-      ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${draftLead.shipPrinter.skus[i].price||''}" oninput="updateShipPrinterSku(${i},'price',this.value)" style="width:100%"></div>`).join('')}
+      ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis EK ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${draftLead.shipPrinter.skus[i].priceEk||''}" oninput="updateShipPrinterSku(${i},'priceEk',this.value)" style="width:100%"></div>`).join('')}
     </div>
-    ${shipInvestTotal?`<p style="font-size:11px;color:var(--text2);margin-top:8px">Investition gesamt für diesen Kunden: <strong>${fmtEur(shipInvestTotal)}</strong></p>`:''}`;
+    <div class="sku-grid" style="margin-top:6px">
+      ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis VK ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${draftLead.shipPrinter.skus[i].priceVk||''}" oninput="updateShipPrinterSku(${i},'priceVk',this.value)" style="width:100%"></div>`).join('')}
+    </div>
+    ${(shipInvestTotal||shipMarginTotal)?`<p style="font-size:11px;color:var(--text2);margin-top:8px">Investition (EK gesamt): <strong>${fmtEur(shipInvestTotal)}</strong> &nbsp;·&nbsp; Marge gesamt: <strong style="color:${shipMarginTotal>=0?'var(--green-dark)':'var(--red)'}">${fmtEur(shipMarginTotal)}</strong></p>`:''}`;
 
   const topArticlesHtml=draftLead.topArticles.map((a,i)=>`
     <div class="field-row-3" style="${i===draftLead.topArticles.length-1?'margin-bottom:0':''}">
@@ -2855,7 +2874,9 @@ function renderLeadModal(){
       <div><label>Titel ${i+1}</label><input type="text" placeholder="Artikelbezeichnung" value="${esc(a.title||'')}" oninput="updateTopArticle(${i},'title',this.value)" style="width:100%"></div>
     </div>`).join('');
 
-  const demandPrintersHtml=draftLead.demandPrinters.map((p,idx)=>`
+  const demandPrintersHtml=draftLead.demandPrinters.map((p,idx)=>{
+    const pMargin=p.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0))*(parseFloat(x.qty)||0),0);
+    return `
     <div class="printer-card">
       <div class="printer-card-hdr">
         <span class="small-label" style="margin:0">Drucker ${idx+1}</span>
@@ -2871,11 +2892,18 @@ function renderLeadModal(){
         ${['I','II','III','IV'].map((rn,i)=>`<div><label>Anzahl ${rn}</label><input type="number" min="0" step="1" placeholder="0" value="${esc(p.skus[i].qty||'')}" oninput="updateDemandPrinterSku(${p.id},${i},'qty',this.value)" style="width:100%"></div>`).join('')}
       </div>
       <div class="sku-grid" style="margin-top:6px">
-        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${esc(p.skus[i].price||'')}" oninput="updateDemandPrinterSku(${p.id},${i},'price',this.value)" style="width:100%"></div>`).join('')}
+        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis EK ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${esc(p.skus[i].priceEk||'')}" oninput="updateDemandPrinterSku(${p.id},${i},'priceEk',this.value)" style="width:100%"></div>`).join('')}
       </div>
-    </div>`).join('');
+      <div class="sku-grid" style="margin-top:6px">
+        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis VK ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${esc(p.skus[i].priceVk||'')}" oninput="updateDemandPrinterSku(${p.id},${i},'priceVk',this.value)" style="width:100%"></div>`).join('')}
+      </div>
+      ${pMargin?`<p style="font-size:11px;color:var(--text2);margin-top:8px">Marge dieser Position: <strong style="color:${pMargin>=0?'var(--green-dark)':'var(--red)'}">${fmtEur(pMargin)}</strong></p>`:''}
+    </div>`;
+  }).join('');
 
-  const actualPrintersHtml=draftLead.actualPrinters.map((p,idx)=>`
+  const actualPrintersHtml=draftLead.actualPrinters.map((p,idx)=>{
+    const pMargin=p.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0))*(parseFloat(x.qty)||0),0);
+    return `
     <div class="printer-card">
       <div class="printer-card-hdr">
         <span class="small-label" style="margin:0">Drucker ${idx+1}</span>
@@ -2891,9 +2919,14 @@ function renderLeadModal(){
         ${['I','II','III','IV'].map((rn,i)=>`<div><label>Anzahl ${rn}</label><input type="number" min="0" step="1" placeholder="0" value="${esc(p.skus[i].qty||'')}" oninput="updateActualPrinterSku(${p.id},${i},'qty',this.value)" style="width:100%"></div>`).join('')}
       </div>
       <div class="sku-grid" style="margin-top:6px">
-        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${esc(p.skus[i].price||'')}" oninput="updateActualPrinterSku(${p.id},${i},'price',this.value)" style="width:100%"></div>`).join('')}
+        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis EK ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${esc(p.skus[i].priceEk||'')}" oninput="updateActualPrinterSku(${p.id},${i},'priceEk',this.value)" style="width:100%"></div>`).join('')}
       </div>
-    </div>`).join('');
+      <div class="sku-grid" style="margin-top:6px">
+        ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis VK ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${esc(p.skus[i].priceVk||'')}" oninput="updateActualPrinterSku(${p.id},${i},'priceVk',this.value)" style="width:100%"></div>`).join('')}
+      </div>
+      ${pMargin?`<p style="font-size:11px;color:var(--text2);margin-top:8px">Marge dieser Position: <strong style="color:${pMargin>=0?'var(--green-dark)':'var(--red)'}">${fmtEur(pMargin)}</strong></p>`:''}
+    </div>`;
+  }).join('');
 
   const feedItemsRaw=[...draftLead.activity].sort((a,b)=>new Date(b.date)-new Date(a.date));
   const feedItems=activityFeedFilter==='all'?feedItemsRaw:feedItemsRaw.filter(i=>activityFeedFilter==='comments'?i.type==='comment':i.type==='activity');
@@ -2954,8 +2987,10 @@ function renderLeadModal(){
   }).join('')||`<div class="activity-item" style="padding-left:0">Noch keine Aufgaben.</div>`;
   const openTaskCount=(draftLead.tasks||[]).filter(t=>!t.done).length;
 
-  const forecastComputedNow=draftLead.demandPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+(parseFloat(x.price)||0)*(parseFloat(x.qty)||0),0),0);
-  const actualComputedNow=draftLead.actualPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+(parseFloat(x.price)||0)*(parseFloat(x.qty)||0),0),0);
+  const forecastComputedNow=draftLead.demandPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+(parseFloat(x.priceVk)||0)*(parseFloat(x.qty)||0),0),0);
+  const actualComputedNow=draftLead.actualPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+(parseFloat(x.priceVk)||0)*(parseFloat(x.qty)||0),0),0);
+  const forecastMarginNow=draftLead.demandPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0))*(parseFloat(x.qty)||0),0),0);
+  const actualMarginNow=draftLead.actualPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0))*(parseFloat(x.qty)||0),0),0);
   const diffVal=actualComputedNow-forecastComputedNow;
   const compareStripHtml=`<div class="compare-strip">
     <div class="compare-item"><span>Forecast</span><strong style="color:var(--purple)">${fmtEur(forecastComputedNow)||'0 €'}</strong></div>
@@ -2970,12 +3005,12 @@ function renderLeadModal(){
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Forecast (automatisch berechnet)</div>
         <div id="forecastComputedValue" style="font-size:26px;font-weight:700;color:var(--purple)">${fmtEur(forecastComputedNow)||'0 €'}</div>
-        <p style="font-size:11px;color:var(--text3);margin-top:6px">Ergibt sich aus Preis × Anzahl, summiert über alle SKUs mit Wert (siehe unten).</p>
+        <p style="font-size:11px;color:var(--text3);margin-top:6px">Umsatz (VK × Anzahl) · Marge (VK − EK) × Anzahl: <strong id="forecastMarginValue" style="color:${forecastMarginNow>=0?'var(--green-dark)':'var(--red)'}">${fmtEur(forecastMarginNow)||'0 €'}</strong></p>
       </div>
 
       <div class="info-section">
         <div class="section-hdr">Kundenbedarf: Drucker &amp; Patronen</div>
-        <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Alle Drucker des Kunden inkl. benötigter Anzahl und Preis je SKU – Basis für den Forecast.</p>
+        <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Alle Drucker des Kunden inkl. benötigter Anzahl, Einkaufspreis (EK) und Verkaufspreis (VK) je SKU – Basis für Forecast und Marge.</p>
         ${demandPrintersHtml}
         <button class="pill-btn" onclick="addDemandPrinter()"><i class="ti ti-plus"></i> Drucker hinzufügen</button>
       </div>
@@ -2986,7 +3021,7 @@ function renderLeadModal(){
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Tatsächliches Ergebnis (automatisch berechnet)</div>
         <div id="actualComputedValue" style="font-size:26px;font-weight:700;color:var(--green-dark)">${fmtEur(actualComputedNow)||'0 €'}</div>
-        <p style="font-size:11px;color:var(--text3);margin-top:6px">Ergibt sich aus Preis × Anzahl, summiert über alle SKUs mit Wert (siehe unten).</p>
+        <p style="font-size:11px;color:var(--text3);margin-top:6px">Umsatz (VK × Anzahl) · Marge (VK − EK) × Anzahl: <strong id="actualMarginValue" style="color:${actualMarginNow>=0?'var(--green-dark)':'var(--red)'}">${fmtEur(actualMarginNow)||'0 €'}</strong></p>
       </div>
 
       <div class="info-section">
@@ -3309,7 +3344,7 @@ function updateTopArticle(idx,field,val){draftLead.topArticles[idx][field]=val;}
 
 // Kundenbedarf-Drucker (Forecast-Tab, mehrere Drucker, mit benötigter Anzahl je SKU)
 function addDemandPrinter(){
-  draftLead.demandPrinters.push({id:genId(),model:'',skus:[{sku:'',qty:'',price:''},{sku:'',qty:'',price:''},{sku:'',qty:'',price:''},{sku:'',qty:'',price:''}]});
+  draftLead.demandPrinters.push({id:genId(),model:'',skus:[{sku:'',qty:'',priceEk:'',priceVk:''},{sku:'',qty:'',priceEk:'',priceVk:''},{sku:'',qty:'',priceEk:'',priceVk:''},{sku:'',qty:'',priceEk:'',priceVk:''}]});
   renderLeadModal();
 }
 function removeDemandPrinter(id){
@@ -3327,17 +3362,20 @@ function updateDemandPrinterSku(id,idx,field,val){
   recomputeForecast();
 }
 function recomputeForecast(){
-  const total=draftLead.demandPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+(parseFloat(x.price)||0)*(parseFloat(x.qty)||0),0),0);
+  const total=draftLead.demandPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+(parseFloat(x.priceVk)||0)*(parseFloat(x.qty)||0),0),0);
+  const margin=draftLead.demandPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0))*(parseFloat(x.qty)||0),0),0);
   draftLead.forecast=total;
   const el=document.getElementById('forecastComputedValue');
   if(el)el.textContent=fmtEur(total)||'0 €';
+  const marginEl=document.getElementById('forecastMarginValue');
+  if(marginEl){marginEl.textContent=fmtEur(margin)||'0 €';marginEl.style.color=margin>=0?'var(--green-dark)':'var(--red)';}
   const statEl=document.getElementById('statsBar');
   if(statEl)renderStats();
 }
 
 // Tatsächliches Ergebnis (Spiegelbild vom Forecast, mit dem, was der Kunde wirklich gekauft hat)
 function addActualPrinter(){
-  draftLead.actualPrinters.push({id:genId(),model:'',skus:[{sku:'',qty:'',price:''},{sku:'',qty:'',price:''},{sku:'',qty:'',price:''},{sku:'',qty:'',price:''}]});
+  draftLead.actualPrinters.push({id:genId(),model:'',skus:[{sku:'',qty:'',priceEk:'',priceVk:''},{sku:'',qty:'',priceEk:'',priceVk:''},{sku:'',qty:'',priceEk:'',priceVk:''},{sku:'',qty:'',priceEk:'',priceVk:''}]});
   renderLeadModal();
 }
 function removeActualPrinter(id){
@@ -3355,17 +3393,20 @@ function updateActualPrinterSku(id,idx,field,val){
   recomputeActual();
 }
 function recomputeActual(){
-  const total=draftLead.actualPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+(parseFloat(x.price)||0)*(parseFloat(x.qty)||0),0),0);
+  const total=draftLead.actualPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+(parseFloat(x.priceVk)||0)*(parseFloat(x.qty)||0),0),0);
+  const margin=draftLead.actualPrinters.reduce((sum,p)=>sum+p.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0))*(parseFloat(x.qty)||0),0),0);
   draftLead.actual=total;
   const el=document.getElementById('actualComputedValue');
   if(el)el.textContent=fmtEur(total)||'0 €';
+  const marginEl=document.getElementById('actualMarginValue');
+  if(marginEl){marginEl.textContent=fmtEur(margin)||'0 €';marginEl.style.color=margin>=0?'var(--green-dark)':'var(--red)';}
 }
 function copyForecastToActual(){
   if(draftLead.actualPrinters.length&&!confirm('Bereits vorhandene Angaben bei "Tatsächlich" werden dabei überschrieben. Fortfahren?'))return;
   draftLead.actualPrinters=draftLead.demandPrinters.map(p=>({
     id:genId(),
     model:p.model,
-    skus:p.skus.map(s=>({sku:s.sku,qty:s.qty,price:s.price}))
+    skus:p.skus.map(s=>({sku:s.sku,qty:s.qty,priceEk:s.priceEk,priceVk:s.priceVk}))
   }));
   recomputeActual();
   renderLeadModal();
@@ -3817,24 +3858,25 @@ function exportFullBackup(){
 }
 function exportCSV(){
   const headers=['Firmenname','Kundennummer','Art','Adresse','Anzahl Bestellungen','Umsatz (EUR)',
-    'Versand-Drucker','Versand-SKUs (Preis)','Investition gesamt (EUR)',
-    'Forecast: Drucker & SKU-Details (Menge, Einzelpreis, Summe)',
-    'Auftrag: Drucker & SKU-Details (Menge, Einzelpreis, Summe)',
+    'Versand-Drucker','Versand-SKUs (EK/VK)','Investition gesamt EK (EUR)','Marge Versand gesamt (EUR)',
+    'Forecast: Drucker & SKU-Details (Menge, EK, VK, Marge)',
+    'Auftrag: Drucker & SKU-Details (Menge, EK, VK, Marge)',
     'Ansprechpartner','Telefonnummer','E-Mail','Wettbewerber',
     'Mitglieder','Status','Seit wann in dieser Liste','Free Toner verschickt','Datum Erstkontakt',
     'Follow-up-Datum','Forecast (EUR)','Tatsächliches Ergebnis (EUR)','Verlust-Grund','Labels',
     'Anzahl Kommentare','Offene Aufgaben','Aufgaben gesamt','Anzahl Anhänge','Notizen'];
-  // Baut je Drucker eine Detailzeile mit jeder einzelnen SKU inkl. Menge, Einzelpreis und Zeilensumme
+  // Baut je Drucker eine Detailzeile mit jeder einzelnen SKU inkl. Menge, EK, VK und Margen-Zeilensumme
   const formatPrinterDetails=printers=>(printers||[]).map(p=>{
     const skuParts=p.skus.filter(s=>s.sku).map(s=>{
-      const qty=parseFloat(s.qty)||0,price=parseFloat(s.price)||0;
-      return `${s.sku} (${qty} Stk. x ${fmtEur(price)||'0 €'} = ${fmtEur(qty*price)||'0 €'})`;
+      const qty=parseFloat(s.qty)||0,ek=parseFloat(s.priceEk)||0,vk=parseFloat(s.priceVk)||0;
+      return `${s.sku} (${qty} Stk. · EK ${fmtEur(ek)||'0 €'} · VK ${fmtEur(vk)||'0 €'} · Marge ${fmtEur(qty*(vk-ek))||'0 €'})`;
     }).join('; ');
     return `${p.model||'(ohne Modell)'}: ${skuParts||'keine SKUs'}`;
   }).join(' | ');
   const rows=leads.map(l=>{
-    const shipSkus=l.shipPrinter.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.price?` (${fmtEur(s.price)})`:''}`).join(', ');
-    const investTotal=l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.price)||0),0);
+    const shipSkus=l.shipPrinter.skus.filter(s=>s.sku).map(s=>`${s.sku}${(s.priceEk||s.priceVk)?` (EK ${fmtEur(s.priceEk)||'0 €'} / VK ${fmtEur(s.priceVk)||'0 €'})`:''}`).join(', ');
+    const investTotal=l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.priceEk)||0),0);
+    const shipMargin=l.shipPrinter.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0)),0);
     const demandDetails=formatPrinterDetails(l.demandPrinters);
     const actualDetails=formatPrinterDetails(l.actualPrinters);
     const commentCount=(l.activity||[]).filter(a=>a.type==='comment').length;
@@ -3842,7 +3884,7 @@ function exportCSV(){
     const tasksOpen=(l.tasks||[]).filter(t=>!t.done).length;
     return [
       l.company,l.customerNumber,l.art,l.address,l.orderCount,l.revenue,
-      l.shipPrinter.model,shipSkus,investTotal||'',demandDetails,actualDetails,
+      l.shipPrinter.model,shipSkus,investTotal||'',shipMargin||'',demandDetails,actualDetails,
       l.contact,l.phone,l.email,l.competitor||'',
       l.members.map(id=>agentById(id)?.name).filter(Boolean).join('; '),
       colById(l.status).name,fmtDate(l.statusSince)||'',l.tonerSent,l.firstContact,l.followup,
