@@ -2837,8 +2837,9 @@ function renderLeadModal(){
 
   const shipInvestTotal=draftLead.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.price)||0),0);
   const shipPrinterHtml=`
-    <div class="field" style="margin-bottom:8px">
-      <input type="text" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${draftLead.shipPrinter.model}" oninput="updateShipPrinterModel(this.value)" style="width:100%">
+    <div class="field" style="margin-bottom:8px;position:relative">
+      <input type="text" id="shipPrinterModelInput" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${draftLead.shipPrinter.model}" oninput="handlePrinterModelInput(this,'ship',null)" onblur="setTimeout(closePrinterModelPopover,150)" style="width:100%">
+      ${printerModelPopoverTarget&&printerModelPopoverTarget.type==='ship'?printerModelPopoverHtml():''}
     </div>
     <div class="sku-grid">
       ${['I','II','III','IV'].map((rn,i)=>`<div><label>SKU ${rn}</label><input type="text" placeholder="SKU ${rn}" value="${draftLead.shipPrinter.skus[i].sku||''}" oninput="updateShipPrinterSku(${i},'sku',this.value)" style="width:100%"></div>`).join('')}
@@ -2861,8 +2862,9 @@ function renderLeadModal(){
         <span class="small-label" style="margin:0">Drucker ${idx+1}</span>
         <button class="check-item-del" onclick="removeDemandPrinter(${p.id})" title="Drucker entfernen"><i class="ti ti-trash"></i></button>
       </div>
-      <div class="field" style="margin-bottom:8px">
-        <input type="text" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${esc(p.model)}" oninput="updateDemandPrinterModel(${p.id},this.value)" style="width:100%">
+      <div class="field" style="margin-bottom:8px;position:relative">
+        <input type="text" id="printerModelInput_demand_${p.id}" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${esc(p.model)}" oninput="handlePrinterModelInput(this,'demand',${p.id})" onblur="setTimeout(closePrinterModelPopover,150)" style="width:100%">
+        ${printerModelPopoverTarget&&printerModelPopoverTarget.type==='demand'&&printerModelPopoverTarget.id===p.id?printerModelPopoverHtml():''}
       </div>
       <div class="sku-grid">
         ${['I','II','III','IV'].map((rn,i)=>`<div><label>SKU ${rn}</label><input type="text" placeholder="SKU ${rn}" value="${esc(p.skus[i].sku||'')}" oninput="updateDemandPrinterSku(${p.id},${i},'sku',this.value)" style="width:100%"></div>`).join('')}
@@ -2881,8 +2883,9 @@ function renderLeadModal(){
         <span class="small-label" style="margin:0">Drucker ${idx+1}</span>
         <button class="check-item-del" onclick="removeActualPrinter(${p.id})" title="Drucker entfernen"><i class="ti ti-trash"></i></button>
       </div>
-      <div class="field" style="margin-bottom:8px">
-        <input type="text" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${esc(p.model)}" oninput="updateActualPrinterModel(${p.id},this.value)" style="width:100%">
+      <div class="field" style="margin-bottom:8px;position:relative">
+        <input type="text" id="printerModelInput_actual_${p.id}" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${esc(p.model)}" oninput="handlePrinterModelInput(this,'actual',${p.id})" onblur="setTimeout(closePrinterModelPopover,150)" style="width:100%">
+        ${printerModelPopoverTarget&&printerModelPopoverTarget.type==='actual'&&printerModelPopoverTarget.id===p.id?printerModelPopoverHtml():''}
       </div>
       <div class="sku-grid">
         ${['I','II','III','IV'].map((rn,i)=>`<div><label>SKU ${rn}</label><input type="text" placeholder="SKU ${rn}" value="${esc(p.skus[i].sku||'')}" oninput="updateActualPrinterSku(${p.id},${i},'sku',this.value)" style="width:100%"></div>`).join('')}
@@ -3221,6 +3224,70 @@ function renderLeadModal(){
 }
 
 // Versand-Drucker (links, EIN Drucker, mit Einkaufspreis je SKU)
+// Kuratierte Liste gaengiger BueRo-/Laserdrucker-Modelle fuer die Autovervollstaendigung
+const PRINTER_MODELS=[
+  'HP LaserJet Pro M15w','HP LaserJet Pro M118dw','HP LaserJet Pro M404dn','HP LaserJet Pro M404dw',
+  'HP LaserJet Pro M428fdw','HP LaserJet Pro M501dn','HP LaserJet Pro M15a',
+  'HP LaserJet Enterprise M406dn','HP LaserJet Enterprise M507dn','HP LaserJet Enterprise M528dn',
+  'HP Color LaserJet Pro M255dw','HP Color LaserJet Pro M454dw','HP Color LaserJet Pro M479fdw',
+  'HP Color LaserJet Enterprise M455dn','HP Color LaserJet Enterprise M652dn',
+  'HP OfficeJet Pro 9010','HP OfficeJet Pro 9020','HP OfficeJet Pro 8720',
+  'HP LaserJet MFP M234dwe','HP LaserJet MFP M283fdw',
+  'Canon i-SENSYS LBP226dw','Canon i-SENSYS LBP236dw','Canon i-SENSYS MF445dw','Canon i-SENSYS MF botanical452dw',
+  'Canon i-SENSYS MF651Cw','Canon i-SENSYS MF752Cdw','Canon imageRUNNER 1643i','Canon imageRUNNER ADVANCE C3330i',
+  'Canon imageCLASS MF264dw','Canon imageCLASS LBP226dw',
+  'Brother HL-L2350DW','Brother HL-L2370DN','Brother HL-L2375DW','Brother HL-L5100DN','Brother HL-L6300DW',
+  'Brother HL-L8360CDW','Brother MFC-L2750DW','Brother MFC-L3770CDW','Brother MFC-L8900CDW',
+  'Brother DCP-L2550DN',
+  'Epson EcoTank ET-2820','Epson EcoTank ET-4850','Epson EcoTank ET-5850','Epson WorkForce Pro WF-4830',
+  'Epson WorkForce Pro WF-C5790','Epson AcuLaser M2400',
+  'Kyocera ECOSYS P2235dn','Kyocera ECOSYS P2040dn','Kyocera ECOSYS M2735dw','Kyocera ECOSYS M3145dn',
+  'Kyocera ECOSYS P6230cdn','Kyocera TASKalfa 2554ci',
+  'Konica Minolta bizhub C258','Konica Minolta bizhub C308','Konica Minolta bizhub C4050i',
+  'Konica Minolta bizhub 4050i','Konica Minolta bizhub 20',
+  'Lexmark MS431dw','Lexmark MS621dn','Lexmark MC3224dwe','Lexmark CS431dw','Lexmark CX625adhe',
+  'Xerox VersaLink B400','Xerox VersaLink C405','Xerox WorkCentre 6515','Xerox Phaser 6510',
+  'Ricoh SP 230DNw','Ricoh MP C2504','Ricoh Aficio MP 2014',
+  'Samsung Xpress M2835DW','Samsung ProXpress M4020ND',
+];
+let printerModelPopoverTarget=null; // {type:'ship'|'demand'|'actual', id}
+let printerModelMatches=[];
+function handlePrinterModelInput(el,type,id){
+  const val=el.value;
+  if(type==='ship')updateShipPrinterModel(val);
+  else if(type==='demand')updateDemandPrinterModel(id,val);
+  else if(type==='actual')updateActualPrinterModel(id,val);
+  if(val.trim().length<2){
+    printerModelPopoverTarget=null;
+    renderLeadModal();
+    return;
+  }
+  const q=val.toLowerCase();
+  printerModelMatches=PRINTER_MODELS.filter(m=>m.toLowerCase().includes(q)).slice(0,8);
+  printerModelPopoverTarget={type,id};
+  renderLeadModal();
+  const sel=type==='ship'?'#shipPrinterModelInput':`#printerModelInput_${type}_${id}`;
+  const el2=document.querySelector(sel);
+  if(el2){el2.focus();el2.selectionStart=el2.selectionEnd=val.length;}
+}
+function selectPrinterModel(model){
+  if(!printerModelPopoverTarget)return;
+  const {type,id}=printerModelPopoverTarget;
+  if(type==='ship')updateShipPrinterModel(model);
+  else if(type==='demand')updateDemandPrinterModel(id,model);
+  else if(type==='actual')updateActualPrinterModel(id,model);
+  printerModelPopoverTarget=null;
+  renderLeadModal();
+}
+function closePrinterModelPopover(){
+  printerModelPopoverTarget=null;
+  renderLeadModal();
+}
+function printerModelPopoverHtml(){
+  return `<div class="mention-popover" onmousedown="event.preventDefault()">
+    ${printerModelMatches.length?printerModelMatches.map(m=>`<div class="mention-item" onclick="selectPrinterModel('${m.replace(/'/g,"\\'")}')"><i class="ti ti-printer" style="color:var(--text3)"></i>${esc(m)}</div>`).join(''):'<div class="mention-item" style="color:var(--text3);cursor:default">Keine Treffer</div>'}
+  </div>`;
+}
 function updateShipPrinterModel(val){draftLead.shipPrinter.model=val;}
 function updateShipPrinterSku(idx,field,val){draftLead.shipPrinter.skus[idx][field]=val;}
 function updateTopArticle(idx,field,val){draftLead.topArticles[idx][field]=val;}
