@@ -339,6 +339,9 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .pill-btn{font-size:11px;padding:4px 10px;border-radius:20px;border:1px dashed var(--border2);background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;}
 .pill-btn:hover{border-color:var(--purple);color:var(--text);}
 .label-row-editor,.member-row-editor{display:flex;flex-wrap:wrap;gap:6px;align-items:center;position:relative;}
+.mention-popover{position:absolute;top:100%;left:0;right:0;margin-top:2px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r-md);box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:50;max-height:200px;overflow-y:auto;}
+.mention-item{display:flex;align-items:center;gap:8px;padding:8px 10px;font-size:13px;cursor:pointer;}
+.mention-item:hover{background:var(--bg2);}
 .member-chip{display:flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:3px 9px 3px 3px;font-size:12px;}
 .checklist-progress-track{height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:8px;}
 .lead-timeline{display:flex;align-items:flex-start;overflow-x:auto;padding:8px 2px 4px;}
@@ -1693,6 +1696,50 @@ function setTasksAgentFilter(id){
   renderTasksAgentChips();
   renderTasksView();
 }
+function assignedTasksHtml(){
+  let items=[];
+  leads.forEach(l=>{
+    (l.tasks||[]).forEach(t=>{
+      if(t.assigneeId)items.push(Object.assign({},t,{lead:l}));
+    });
+  });
+  if(activeTasksAgentFilter!=='all')items=items.filter(t=>t.assigneeId===activeTasksAgentFilter);
+  items.sort((a,b)=>{
+    if(a.done!==b.done)return a.done?1:-1;
+    return (a.dueDate||'9999-99-99').localeCompare(b.dueDate||'9999-99-99');
+  });
+  const openCount=items.filter(t=>!t.done).length;
+  const rows=items.length?items.map(t=>{
+    const a=agentById(t.assigneeId);
+    let dueBadge='';
+    if(t.dueDate){
+      const d=daysUntil(t.dueDate);
+      const cls=t.done?'due-ok':(d<0?'due-overdue':(d<=2?'due-soon':'due-ok'));
+      const dlabel=d<0?`${Math.abs(d)}T überfällig`:(d===0?'heute':fmtDate(t.dueDate));
+      dueBadge=`<span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${dlabel}</span>`;
+    }
+    return `<div class="task-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${t.lead.id})},50)">
+      <input type="checkbox" ${t.done?'checked':''} onclick="event.stopPropagation();toggleAssignedTask(${t.lead.id},${t.id})" style="flex-shrink:0">
+      <div class="member-av" style="position:static;margin:0;background:${COLOR_BG[a?a.color:'gray']};color:${COLOR_TEXT[a?a.color:'gray']}" title="${a?esc(a.name):''}">${a?ini(a.name):'?'}</div>
+      <div style="flex:1;min-width:0">
+        <div class="task-row-text ${t.done?'done':''}">${esc(t.text)}</div>
+        <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.lead.company)}</div>
+      </div>
+      ${dueBadge}
+    </div>`;
+  }).join(''):'<div class="task-row-empty">Keine zugewiesenen Aufgaben.</div>';
+  return `<div class="info-section">
+    <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-user-check" style="color:var(--purple);font-size:16px"></i>Zugewiesene Aufgaben</span> <span class="task-group-count">${openCount} offen</span></div>
+    ${rows}
+  </div>`;
+}
+function toggleAssignedTask(leadId,taskId){
+  const l=leads.find(x=>x.id===leadId);
+  const t=l&&l.tasks.find(x=>x.id===taskId);
+  if(t)t.done=!t.done;
+  saveState();
+  renderTasksView();
+}
 function renderTasksView(){
   let withFollowup=leads.filter(l=>l.followup);
   if(activeTasksAgentFilter!=='all')withFollowup=withFollowup.filter(l=>(l.members||[]).includes(activeTasksAgentFilter));
@@ -1710,7 +1757,8 @@ function renderTasksView(){
     ${followupGroupHtml('Überfällig',buckets.overdue,'var(--red)','alert-triangle','followup-kpi-overdue')}
     ${followupGroupHtml('Heute',buckets.today,'var(--amber-dark)','sun','followup-kpi-today')}
     ${followupGroupHtml('Diese Woche',buckets.week,'var(--green-dark)','calendar-week','followup-kpi-week')}
-    ${followupGroupHtml('Nächste Woche',buckets.nextweek,'var(--purple)','calendar-plus','followup-kpi-nextweek')}`;
+    ${followupGroupHtml('Nächste Woche',buckets.nextweek,'var(--purple)','calendar-plus','followup-kpi-nextweek')}
+    ${assignedTasksHtml()}`;
   document.getElementById('tasksViewContent').innerHTML=html;
 }
 // ── CR RMA: Artikel-Stammdaten ──
@@ -2718,7 +2766,7 @@ function autoPersistIfEditing(){
 function openLeadModal(id){
   editingLeadId=id;
   draftLead=id?JSON.parse(JSON.stringify(leads.find(x=>x.id===id))):blankLead();
-  labelPopoverOpen=false;memberPopoverOpen=false;activityFeedFilter='all';
+  labelPopoverOpen=false;memberPopoverOpen=false;activityFeedFilter='all';taskMentionPopoverOpen=false;pendingTaskAssigneeId=null;draftTaskText='';
   recomputeForecast();
   recomputeActual();
   renderLeadModal();
@@ -2882,13 +2930,15 @@ function renderLeadModal(){
       const dlabel=d<0?`${Math.abs(d)}T überfällig`:(d===0?'heute':fmtDate(t.dueDate));
       dueBadge=`<span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${dlabel}</span>`;
     }
+    const assignee=t.assigneeId?agentById(t.assigneeId):null;
+    const assigneeBadge=assignee?`<span class="due-badge due-ok" style="background:${COLOR_BG[assignee.color]};color:${COLOR_TEXT[assignee.color]}"><i class="ti ti-user" style="font-size:11px"></i>${esc(assignee.name)}</span>`:'';
     return `<div class="comment-item">
       <div class="comment-av" style="background:${t.done?'var(--green-bg)':'var(--bg3)'};color:${t.done?'var(--green-dark)':'var(--text2)'}"><i class="ti ti-${t.done?'check':'list-check'}"></i></div>
       <div class="comment-bubble" style="display:flex;align-items:flex-start;gap:8px">
         <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask(${t.id})" style="margin-top:3px;flex-shrink:0">
         <div style="flex:1;min-width:0">
           <span class="check-item-text ${t.done?'done':''}" style="font-size:13px">${esc(t.text)}</span>
-          ${dueBadge?`<div style="margin-top:4px">${dueBadge}</div>`:''}
+          ${(dueBadge||assigneeBadge)?`<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">${assigneeBadge}${dueBadge}</div>`:''}
         </div>
         <button class="icon-btn icon-btn-danger" onclick="deleteTask(${t.id})" title="Löschen"><i class="ti ti-trash"></i></button>
       </div>
@@ -2945,8 +2995,11 @@ function renderLeadModal(){
     rightContentHtml=`<div style="overflow-y:auto;flex:1">
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Neue Aufgabe</div>
-        <div class="field" style="margin-bottom:10px">
-          <textarea id="newTaskText" placeholder="Aufgabe beschreiben… (Strg+Enter zum Erstellen)" style="min-height:44px" onkeydown="if((event.key==='Enter')&&(event.ctrlKey||event.metaKey))addTask()" oninput="clearTaskFormError()"></textarea>
+        <div class="field" style="margin-bottom:10px;position:relative">
+          <textarea id="newTaskText" placeholder="Aufgabe beschreiben… mit @Name einer Person zuweisen (Strg+Enter zum Erstellen)" style="min-height:44px" onkeydown="if((event.key==='Enter')&&(event.ctrlKey||event.metaKey))addTask()" oninput="clearTaskFormError();handleTaskMentionInput(this)">${esc(draftTaskText)}</textarea>
+          ${taskMentionPopoverOpen?`<div class="mention-popover" onclick="event.stopPropagation()">
+            ${taskMentionMatches.length?taskMentionMatches.map(a=>`<div class="mention-item" onclick="selectTaskMention('${a.id}')"><div class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</div>${esc(a.name)}</div>`).join(''):'<div class="mention-item" style="color:var(--text3);cursor:default">Keine Treffer</div>'}
+          </div>`:''}
         </div>
         <div id="taskFormError" style="display:none;color:var(--red);font-size:11px;margin-bottom:6px"></div>
         <div class="field-row-2" style="margin-bottom:0;align-items:end">
@@ -3255,6 +3308,46 @@ function clearTaskFormError(){
   const ta=document.getElementById('newTaskText');
   if(ta)ta.classList.remove('input-error');
 }
+let taskMentionPopoverOpen=false;
+let taskMentionMatches=[];
+let pendingTaskAssigneeId=null;
+let draftTaskText='';
+function handleTaskMentionInput(el){
+  draftTaskText=el.value;
+  const val=el.value;
+  const caret=el.selectionStart;
+  const uptoCaret=val.slice(0,caret);
+  const match=uptoCaret.match(/@([^\s@]*)$/);
+  if(!match){
+    taskMentionPopoverOpen=false;
+    renderLeadModal();
+    return;
+  }
+  const query=match[1].toLowerCase();
+  taskMentionMatches=activeAgents().filter(a=>a.name.toLowerCase().includes(query));
+  taskMentionPopoverOpen=true;
+  renderLeadModal();
+  const ta=document.getElementById('newTaskText');
+  if(ta){ta.focus();ta.selectionStart=ta.selectionEnd=caret;}
+}
+function selectTaskMention(agentId){
+  const a=agentById(agentId);
+  const ta=document.getElementById('newTaskText');
+  let newCaret=null;
+  if(ta&&a){
+    const caret=ta.selectionStart;
+    const val=ta.value;
+    const uptoCaret=val.slice(0,caret);
+    const newUpto=uptoCaret.replace(/@([^\s@]*)$/,`@${a.name} `);
+    draftTaskText=newUpto+val.slice(caret);
+    newCaret=newUpto.length;
+  }
+  pendingTaskAssigneeId=agentId;
+  taskMentionPopoverOpen=false;
+  renderLeadModal();
+  const ta2=document.getElementById('newTaskText');
+  if(ta2&&newCaret!==null){ta2.focus();ta2.selectionStart=ta2.selectionEnd=newCaret;}
+}
 function addTask(){
   const textEl=document.getElementById('newTaskText');
   const dueEl=document.getElementById('newTaskDue');
@@ -3267,9 +3360,12 @@ function addTask(){
     return;
   }
   clearTaskFormError();
-  draftLead.tasks.push({id:Date.now(),text,dueDate:dueEl.value,done:false,createdBy:currentUser,createdAt:nowISO()});
+  draftLead.tasks.push({id:genId(),text,dueDate:dueEl.value,done:false,createdBy:currentUser,createdAt:nowISO(),assigneeId:pendingTaskAssigneeId||null});
   textEl.value='';
   dueEl.value='';
+  pendingTaskAssigneeId=null;
+  draftTaskText='';
+  taskMentionPopoverOpen=false;
   autoPersistIfEditing();
   renderLeadModal();
 }
