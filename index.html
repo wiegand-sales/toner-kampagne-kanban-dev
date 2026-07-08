@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T18:25:08.227Z';
+const BUILD_VERSION='2026-07-08T18:39:05.982Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3428,9 +3428,10 @@ function renderLeadModal(){
           </div>
         </div>`;
       }
+      const isLossComment=/^Verlust-Grund \(/.test(item.text||'');
       return `<div class="comment-item">
         <div class="comment-av" style="background:${COLOR_BG[a?a.color:'gray']};color:${COLOR_TEXT[a?a.color:'gray']}">${a?ini(a.name):'?'}</div>
-        <div class="comment-bubble">
+        <div class="comment-bubble" ${isLossComment?'style="background:#FADBD8;border:1px solid #F1948A"':''}>
           <span class="comment-author">${a?a.name:'Unbekannt'}</span><span class="comment-date">${fmtDateTime(item.date)}</span>${item.backdated?'<span class="backdated-tag" title="Nachträglich mit vergangenem Datum erfasst"><i class="ti ti-history" style="font-size:10px"></i> nacherfasst</span>':''}${item.edited?'<span class="backdated-tag" title="Von einem Admin bearbeitet"><i class="ti ti-pencil" style="font-size:10px"></i> bearbeitet</span>':''}
           ${isAdmin()?`<span style="float:right;display:flex;gap:4px"><button class="icon-btn" style="width:22px;height:22px" onclick="startEditComment(${item.id})" title="Kommentar bearbeiten"><i class="ti ti-pencil" style="font-size:13px"></i></button><button class="icon-btn icon-btn-danger" style="width:22px;height:22px" onclick="deleteComment(${item.id})" title="Kommentar löschen"><i class="ti ti-trash" style="font-size:13px"></i></button></span>`:''}
           <div class="comment-text">${esc(item.text)}</div>
