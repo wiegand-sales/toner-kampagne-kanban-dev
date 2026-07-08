@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T13:19:45.800Z';
+const BUILD_VERSION='2026-07-08T13:24:31.849Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1123,6 +1123,22 @@ function repairSwappedCompanyCustomerNumber(){
   return fixed;
 }
 normalizeLeads();
+// Manueller Datenintegritaets-Check fuer Admins: fuehrt beide Selbstheilungen sofort aus
+// und meldet transparent, was gefunden/behoben wurde - statt nur unbemerkt im Hintergrund
+// zu laufen. Nuetzlich um zu pruefen, ob ein gemeldetes Problem (z.B. doppelte IDs nach
+// einem Massenimport) jetzt wirklich dauerhaft behoben ist.
+function runDataIntegrityCheck(){
+  if(!requireAdmin('die Datenintegrität prüfen'))return;
+  const fixedIds=repairDuplicateLeadIds();
+  const fixedSwaps=repairSwappedCompanyCustomerNumber();
+  if(fixedIds>0||fixedSwaps>0){
+    saveState();
+    renderBoard();
+    alert(`Prüfung abgeschlossen - es wurde etwas gefunden und behoben:\n\n${fixedIds>0?`• ${fixedIds} Lead(s) mit doppelter interner ID → neue, eindeutige ID vergeben\n`:''}${fixedSwaps>0?`• ${fixedSwaps} Lead(s) mit vertauschtem Firmenname/Kundennummer → zurückgetauscht\n`:''}\nDie Korrektur wurde soeben gespeichert und in die Cloud hochgeladen.`);
+  }else{
+    alert('Prüfung abgeschlossen: Keine doppelten IDs und keine vertauschten Firmenname/Kundennummer-Werte gefunden. Alles in Ordnung.');
+  }
+}
 let activeAgentFilter='all';
 let activeLabelFilter='all';
 let activeTasksAgentFilter='all';
@@ -2417,6 +2433,7 @@ function renderSettings(){
         <div class="section-hdr" style="margin-top:0">Datenspeicherung</div>
         <p style="font-size:12px;color:var(--text2);line-height:1.6">Alle Daten liegen in einer gemeinsamen Cloud-Datenbank (Supabase) – alle Mitarbeiter sehen denselben Stand, egal an welchem Gerät. Der Status oben links in der Seitenleiste zeigt, ob die Verbindung gerade aktiv ist. Bei fehlender Internetverbindung wird lokal weitergearbeitet und automatisch synchronisiert, sobald die Verbindung zurück ist.</p>
         <button class="btn btn-sm" style="margin-top:8px" onclick="exportFullBackup()"><i class="ti ti-database-export"></i> Alle Daten als Backup exportieren (JSON)</button>
+        <button class="btn btn-sm" style="margin-top:8px;margin-left:8px" onclick="runDataIntegrityCheck()"><i class="ti ti-stethoscope"></i> Datenintegrität jetzt prüfen</button>
       </div>
       <div class="info-section" style="border-color:var(--red)">
         <div class="section-hdr" style="margin-top:0;color:var(--red)"><i class="ti ti-alert-triangle"></i> Gefahrenzone</div>
