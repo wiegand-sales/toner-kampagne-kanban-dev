@@ -933,7 +933,17 @@ let nextId=13;
 // Kollisionssichere ID: verhindert, dass zwei Geraete beim gleichzeitigen Anlegen
 // (bevor synchronisiert wurde) versehentlich dieselbe ID vergeben und sich damit
 // gegenseitig ueberschreiben. Zeitstempel (ms) + Zufallszahl statt hochzaehlender Nummer.
-function genId(){return Date.now()*1000+Math.floor(Math.random()*1000);}
+// Zusaetzlich strikt monoton: bei sehr schnellen Aufrufen in Serie (z.B. CSV-Import mit
+// vielen Zeilen in derselben Millisekunde) wuerde der Zufallsanteil allein nicht reichen
+// (nur 1000 moegliche Werte -> bei 50+ Zeilen realistische Kollisionsgefahr). Deshalb wird
+// zusaetzlich sichergestellt, dass jede neue ID groesser ist als die zuletzt vergebene.
+let _lastGenId=0;
+function genId(){
+  let id=Date.now()*1000+Math.floor(Math.random()*1000);
+  if(id<=_lastGenId)id=_lastGenId+1;
+  _lastGenId=id;
+  return id;
+}
 let nextLabelId=5;
 let nextPrinterId=1;
 
