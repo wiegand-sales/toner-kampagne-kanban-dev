@@ -2167,15 +2167,15 @@ function renderSettings(){
         </select>
       </td>
       <td style="padding:6px">
-        <select style="width:100%" ${overwriteDisabled?'disabled title="Nur möglich, wenn das Feld auch importiert wird"':''} onchange="setCsvFieldOverwriteActive(${idx},this.value==='ja')">
-          <option value="nein" ${!f.overwriteActive?'selected':''}>Nein</option>
-          <option value="ja" ${f.overwriteActive?'selected':''} ${overwriteDisabled?'disabled':''}>Ja</option>
-        </select>
-      </td>
-      <td style="padding:6px">
         <select style="width:100%" onchange="setCsvFieldExportActive(${idx},this.value==='ja')">
           <option value="nein" ${!f.exportActive?'selected':''}>Nein</option>
           <option value="ja" ${f.exportActive?'selected':''}>Ja</option>
+        </select>
+      </td>
+      <td style="padding:6px">
+        <select style="width:100%" ${overwriteDisabled?'disabled title="Nur möglich, wenn das Feld auch importiert wird"':''} onchange="setCsvFieldOverwriteActive(${idx},this.value==='ja')">
+          <option value="nein" ${!f.overwriteActive?'selected':''}>Nein</option>
+          <option value="ja" ${f.overwriteActive?'selected':''} ${overwriteDisabled?'disabled':''}>Ja</option>
         </select>
       </td>
       <td style="padding:6px;text-align:center"><button class="check-item-del" onclick="removeCsvField(${idx})" title="Feld entfernen"><i class="ti ti-trash"></i></button></td>
@@ -2289,13 +2289,14 @@ function renderSettings(){
         <div class="section-hdr" style="margin-top:0">CSV-Feldkonfiguration</div>
         <p style="font-size:12px;color:var(--text2);line-height:1.6">Legt pro Datenfeld fest, ob es beim <strong>CSV-Import</strong> und/oder <strong>CSV-Export</strong> verwendet wird, sowie unter welchem Spaltennamen. Berechnete Felder (Marge, Status, Anzahl Aufgaben etc.) lassen sich nur exportieren – "Import" ist dort deaktiviert. Eine Spalte wird beim Import erkannt, wenn ihre Kopfzeile (Groß-/Kleinschreibung egal) mit dem hier hinterlegten Namen übereinstimmt.</p>
         <p style="font-size:12px;color:var(--text2);line-height:1.6"><strong>Bereits vorhandene Leads werden erkannt</strong> an Kundennummer, Firmenname, Telefonnummer oder E-Mail. Was dann passiert, steuerst du pro Feld über die Spalte <strong>"Bei Duplikat überschreiben?"</strong>: Felder mit "Ja" werden bei einem gefundenen Duplikat aus der CSV aktualisiert (nur wenn die Zelle nicht leer ist), alle anderen Felder des bestehenden Leads bleiben unangetastet. Steht bei keinem Feld "Ja", wird die Zeile wie bisher komplett übersprungen.</p>
+        <p style="font-size:12px;color:var(--text2);line-height:1.6"><strong>Die Kundennummer bleibt immer eindeutig:</strong> Selbst wenn "Kundennummer" auf "überschreiben = Ja" steht, wird eine Kundennummer nie übernommen, wenn sie bereits bei einem anderen Lead vergeben ist. In dem Fall bleibt nur dieses eine Feld unverändert, alle übrigen freigegebenen Felder werden trotzdem aktualisiert – im Import-Protokoll siehst du genau, wo das passiert ist.</p>
         <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:8px">
           <tr style="text-align:left;color:var(--text2)">
             <th style="padding:4px 6px;font-weight:600">Datenfeld</th>
             <th style="padding:4px 6px;font-weight:600">CSV-Spaltenname</th>
             <th style="padding:4px 6px;font-weight:600;width:90px">Import</th>
-            <th style="padding:4px 6px;font-weight:600;width:110px">Bei Duplikat überschreiben?</th>
             <th style="padding:4px 6px;font-weight:600;width:90px">Export</th>
+            <th style="padding:4px 6px;font-weight:600;width:110px">Bei Duplikat überschreiben?</th>
             <th style="padding:4px 6px;width:40px"></th>
           </tr>
           ${csvFieldsHtml}
@@ -4285,6 +4286,7 @@ function importCSVFile(file){
       let added=0,updated=0,skippedDup=0,skippedEmpty=0;
       const dupDetails=[];
       const overwriteKeys=getCsvFields().filter(f=>f.importActive&&f.overwriteActive&&FIELD_REGISTRY[f.key]?.set).map(f=>f.key);
+      const collisionBlocked=[];
       const seenInFile=new Set(); // erkennt Duplikate auch INNERHALB der hochgeladenen Datei
       const firstColId=COLUMNS[0].id;
       rows.slice(1).forEach((r,rowIdx)=>{
@@ -4301,11 +4303,22 @@ function importCSVFile(file){
         const fileKey=custNo?'kdnr:'+norm(custNo):'firma:'+norm(company);
         if(existingMatch||seenInFile.has(fileKey)){
           if(existingMatch&&overwriteKeys.length){
-            // Nur die dafuer freigegebenen Felder aktualisieren, alles andere am bestehenden Lead bleibt unangetastet
+            // Nur die dafuer freigegebenen Felder aktualisieren, alles andere am bestehenden Lead bleibt unangetastet.
+            // Sonderfall Kundennummer: sie ist die eindeutige Referenz-ID und darf durch das Ueberschreiben
+            // NIE mit der Kundennummer eines ANDEREN Leads kollidieren - in dem Fall wird nur dieses eine
+            // Feld uebersprungen (alle anderen freigegebenen Felder werden trotzdem aktualisiert).
             const changedFields=[];
             overwriteKeys.forEach(key=>{
               const val=get(key);
-              if(val!==''){FIELD_REGISTRY[key].set(existingMatch,val);changedFields.push(FIELD_REGISTRY[key].label);}
+              if(val==='')return;
+              if(key==='customerNumber'){
+                const collision=leads.find(l=>l!==existingMatch&&norm(l.customerNumber)===norm(val));
+                if(collision){
+                  collisionBlocked.push(`Zeile ${rowIdx+2}: Kundennummer "${val}" ist bereits bei "${collision.company}" vergeben – Kundennummer von "${existingMatch.company}" wurde NICHT geändert.`);
+                  return;
+                }
+              }
+              FIELD_REGISTRY[key].set(existingMatch,val);changedFields.push(FIELD_REGISTRY[key].label);
             });
             if(changedFields.length){
               existingMatch.activity=existingMatch.activity||[];
@@ -4348,9 +4361,14 @@ function importCSVFile(file){
       let msg=`CSV-Import abgeschlossen:\n\n✓ ${added} neue Leads angelegt (in "${COLUMNS[0].name}")`;
       if(overwriteKeys.length)msg+=`\n✎ ${updated} bestehende Leads aktualisiert (freigegebene Felder)`;
       msg+=`\n↷ ${skippedDup} übersprungen (bereits vorhanden, keine Änderung, oder doppelt in der Datei)\n∅ ${skippedEmpty} übersprungen (kein Firmenname)`;
+      if(collisionBlocked.length)msg+=`\n⚠ ${collisionBlocked.length} Kundennummer(n) NICHT übernommen, da sie bereits bei einem anderen Lead vergeben sind`;
       if(dupDetails.length){
         msg+='\n\nÜbersprungene Zeilen im Detail:\n'+dupDetails.slice(0,25).join('\n');
         if(dupDetails.length>25)msg+=`\n… und ${dupDetails.length-25} weitere`;
+      }
+      if(collisionBlocked.length){
+        msg+='\n\nKundennummer-Konflikte im Detail:\n'+collisionBlocked.slice(0,25).join('\n');
+        if(collisionBlocked.length>25)msg+=`\n… und ${collisionBlocked.length-25} weitere`;
       }
       alert(msg);
     }catch(err){
