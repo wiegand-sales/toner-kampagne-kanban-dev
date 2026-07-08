@@ -2142,12 +2142,21 @@ function renderSettings(){
       <button class="check-item-del" onclick="deleteRisk(${r.id})"><i class="ti ti-trash"></i></button>
     </div>`).join('')||'<p style="font-size:12px;color:var(--text3)">Keine Risiken erfasst.</p>';
 
+  let lastGroup=null;
   const csvFieldsHtml=getCsvFields().map((f,idx)=>{
     const reg=FIELD_REGISTRY[f.key];
-    const optionsHtml=Object.entries(FIELD_REGISTRY).map(([key,r])=>
-      `<option value="${key}" ${f.key===key?'selected':''}>${esc(r.label)}</option>`).join('');
+    const optionsHtml=GROUP_ORDER.map(group=>{
+      const opts=Object.entries(FIELD_REGISTRY).filter(([,r])=>r.group===group)
+        .map(([key,r])=>`<option value="${key}" ${f.key===key?'selected':''}>${esc(r.label)}</option>`).join('');
+      return `<optgroup label="${esc(group)}">${opts}</optgroup>`;
+    }).join('');
     const importDisabled=!reg||!reg.importable;
-    return `<tr style="border-top:0.5px solid var(--border-c,#e5e5e0)">
+    let dividerHtml='';
+    if(reg&&reg.group!==lastGroup){
+      lastGroup=reg.group;
+      dividerHtml=`<tr style="background:var(--surface-1,#f6f7f5)"><td colspan="5" style="padding:5px 8px;font-weight:600;font-size:12px">${esc(reg.group)}</td></tr>`;
+    }
+    return dividerHtml+`<tr style="border-top:0.5px solid var(--border-c,#e5e5e0)">
       <td style="padding:6px"><select style="width:100%" onchange="setCsvFieldKey(${idx},this.value)">${optionsHtml}</select></td>
       <td style="padding:6px"><input type="text" value="${esc(f.csvName)}" style="width:100%" onchange="setCsvFieldName(${idx},this.value)"></td>
       <td style="padding:6px">
@@ -4069,58 +4078,59 @@ function formatPrinterDetails(printers){
 // (einfache, direkt setzbare Werte). Berechnete/aggregierte Felder sind nur exportierbar.
 // aliases = zusaetzliche, alte Spaltennamen die beim Import weiterhin erkannt werden (Abwaertskompatibilitaet).
 const FIELD_REGISTRY={
-  company:{label:'Firmenname',importable:true,aliases:['firmenname','firma','company','unternehmen','name','kundenname'],example:'Musterfirma GmbH',get:l=>l.company,set:(l,v)=>l.company=v},
-  customerNumber:{label:'Kundennummer',importable:true,aliases:['kundennummer','kd-nr','kdnr','kundennr','customer number'],example:'K-10099',get:l=>l.customerNumber,set:(l,v)=>l.customerNumber=v},
-  art:{label:'Art',importable:true,aliases:['art','typ','type','kundentyp'],example:'B2B',get:l=>l.art,set:(l,v)=>{const u=(v||'').toUpperCase();if(u==='B2B'||u==='B2C')l.art=u;}},
-  address:{label:'Adresse',importable:true,aliases:['adresse','address','anschrift'],example:'Musterstraße 1, 12345 Musterstadt',get:l=>l.address,set:(l,v)=>l.address=v},
-  orderCount:{label:'Anzahl Bestellungen',importable:true,aliases:['anzahl bestellungen','bestellungen','anzahl'],example:'3',get:l=>l.orderCount,set:(l,v)=>l.orderCount=v},
-  revenue:{label:'Umsatz (EUR)',importable:true,aliases:['umsatz (eur)','umsatz','revenue'],example:'1500',get:l=>l.revenue,set:(l,v)=>l.revenue=v},
-  contact:{label:'Ansprechpartner',importable:true,aliases:['ansprechpartner','kontakt','contact','ansprechperson'],example:'Max Mustermann',get:l=>l.contact,set:(l,v)=>l.contact=v},
-  phone:{label:'Telefonnummer',importable:true,aliases:['telefonnummer','telefon','phone','tel','rufnummer'],example:'+49 89 1234567',get:l=>l.phone,set:(l,v)=>l.phone=v},
-  email:{label:'E-Mail',importable:true,aliases:['e-mail','email','mail'],example:'max@musterfirma.de',get:l=>l.email,set:(l,v)=>l.email=v},
-  competitor:{label:'Wettbewerber',importable:true,aliases:['wettbewerber','competitor'],example:'Wettbewerber GmbH',get:l=>l.competitor||'',set:(l,v)=>l.competitor=v},
-  notes:{label:'Notizen',importable:true,aliases:['notizen','notiz','notes','bemerkung','kommentar'],example:'Interessiert, ruft nächste Woche zurück',get:l=>l.notes,set:(l,v)=>l.notes=v},
-  firstContact:{label:'Datum Erstkontakt',importable:true,aliases:['datum erstkontakt','erstkontakt'],example:'2026-07-01',get:l=>l.firstContact,set:(l,v)=>l.firstContact=v},
-  followup:{label:'Follow-up-Datum',importable:true,aliases:['follow-up-datum','followup','follow-up','wiedervorlage'],example:'2026-07-15',get:l=>l.followup,set:(l,v)=>l.followup=v},
-  forecast:{label:'Forecast (EUR)',importable:true,aliases:['forecast (eur)','forecast'],example:'2000',get:l=>l.forecast,set:(l,v)=>l.forecast=v},
-  actual:{label:'Tatsächliches Ergebnis (EUR)',importable:true,aliases:['tatsächliches ergebnis (eur)'],example:'1800',get:l=>l.actual||'',set:(l,v)=>l.actual=v},
-  lossReason:{label:'Verlust-Grund',importable:true,aliases:['verlust-grund'],example:'Preis zu hoch',get:l=>l.lossReason||'',set:(l,v)=>l.lossReason=v},
-  tonerSent:{label:'Free Toner verschickt',importable:true,aliases:['free toner verschickt'],example:'Ja',get:l=>l.tonerSent,set:(l,v)=>{if(v)l.tonerSent=v;}},
-  topSkuOem1:{label:'SKU OEM 1',importable:true,aliases:['sku oem 1','top artikel 1 sku oem','artikel 1 sku oem'],example:'OEM-1234',get:l=>l.topArticles[0]?.skuOem||'',set:(l,v)=>l.topArticles[0].skuOem=v},
-  topSkuKompa1:{label:'SKU Kompa 1',importable:true,aliases:['sku kompa 1','top artikel 1 sku kompa','artikel 1 sku kompa'],example:'KOMPA-1234',get:l=>l.topArticles[0]?.skuKompa||'',set:(l,v)=>l.topArticles[0].skuKompa=v},
-  topTitle1:{label:'Titel 1',importable:true,aliases:['titel 1','top artikel 1 titel','artikel 1 titel'],example:'HP LaserJet Toner Schwarz',get:l=>l.topArticles[0]?.title||'',set:(l,v)=>l.topArticles[0].title=v},
-  topSkuOem2:{label:'SKU OEM 2',importable:true,aliases:['sku oem 2','top artikel 2 sku oem','artikel 2 sku oem'],example:'',get:l=>l.topArticles[1]?.skuOem||'',set:(l,v)=>l.topArticles[1].skuOem=v},
-  topSkuKompa2:{label:'SKU Kompa 2',importable:true,aliases:['sku kompa 2','top artikel 2 sku kompa','artikel 2 sku kompa'],example:'',get:l=>l.topArticles[1]?.skuKompa||'',set:(l,v)=>l.topArticles[1].skuKompa=v},
-  topTitle2:{label:'Titel 2',importable:true,aliases:['titel 2','top artikel 2 titel','artikel 2 titel'],example:'',get:l=>l.topArticles[1]?.title||'',set:(l,v)=>l.topArticles[1].title=v},
-  topSkuOem3:{label:'SKU OEM 3',importable:true,aliases:['sku oem 3','top artikel 3 sku oem','artikel 3 sku oem'],example:'',get:l=>l.topArticles[2]?.skuOem||'',set:(l,v)=>l.topArticles[2].skuOem=v},
-  topSkuKompa3:{label:'SKU Kompa 3',importable:true,aliases:['sku kompa 3','top artikel 3 sku kompa','artikel 3 sku kompa'],example:'',get:l=>l.topArticles[2]?.skuKompa||'',set:(l,v)=>l.topArticles[2].skuKompa=v},
-  topTitle3:{label:'Titel 3',importable:true,aliases:['titel 3','top artikel 3 titel','artikel 3 titel'],example:'',get:l=>l.topArticles[2]?.title||'',set:(l,v)=>l.topArticles[2].title=v},
-  shipPrinterModel:{label:'Versand-Drucker',importable:false,get:l=>l.shipPrinter.model},
-  shipSkus:{label:'Versand-SKUs (EK/VK)',importable:false,get:l=>l.shipPrinter.skus.filter(s=>s.sku).map(s=>`${s.sku}${(s.priceEk||s.priceVk)?` (EK ${fmtEur(s.priceEk)||'0 €'} / VK ${fmtEur(s.priceVk)||'0 €'})`:''}`).join(', ')},
-  investTotal:{label:'Investition gesamt EK (EUR)',importable:false,get:l=>l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.priceEk)||0),0)||''},
-  shipMargin:{label:'Marge Versand gesamt (EUR)',importable:false,get:l=>l.shipPrinter.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0)),0)||''},
-  demandDetails:{label:'Forecast: Drucker & SKU-Details (Menge, EK, VK, Marge)',importable:false,get:l=>formatPrinterDetails(l.demandPrinters)},
-  actualDetails:{label:'Auftrag: Drucker & SKU-Details (Menge, EK, VK, Marge)',importable:false,get:l=>formatPrinterDetails(l.actualPrinters)},
-  membersNames:{label:'Mitglieder',importable:false,get:l=>l.members.map(id=>agentById(id)?.name).filter(Boolean).join('; ')},
-  statusName:{label:'Status',importable:false,get:l=>colById(l.status).name},
-  statusSince:{label:'Seit wann in dieser Liste',importable:false,get:l=>fmtDate(l.statusSince)||''},
-  labelsNames:{label:'Labels',importable:false,get:l=>l.labelIds.map(id=>labelById(id)?.name).filter(Boolean).join('; ')},
-  checklistItems:{label:'Checkliste',importable:false,get:l=>(l.checklist||[]).map(c=>`${c.done?'[x]':'[ ]'} ${c.text}`).join('; ')},
-  commentCount:{label:'Anzahl Kommentare',importable:false,get:l=>(l.activity||[]).filter(a=>a.type==='comment').length},
-  tasksOpen:{label:'Offene Aufgaben',importable:false,get:l=>(l.tasks||[]).filter(t=>!t.done).length},
-  tasksTotal:{label:'Aufgaben gesamt',importable:false,get:l=>(l.tasks||[]).length},
-  filesCount:{label:'Anzahl Anhänge',importable:false,get:l=>(l.files||[]).length},
+  company:{label:'Firmenname',group:'Kundeninformationen',importable:true,aliases:['firmenname','firma','company','unternehmen','name','kundenname'],example:'Musterfirma GmbH',get:l=>l.company,set:(l,v)=>l.company=v},
+  customerNumber:{label:'Kundennummer',group:'Kundeninformationen',importable:true,aliases:['kundennummer','kd-nr','kdnr','kundennr','customer number'],example:'K-10099',get:l=>l.customerNumber,set:(l,v)=>l.customerNumber=v},
+  art:{label:'Art',group:'Kundeninformationen',importable:true,aliases:['art','typ','type','kundentyp'],example:'B2B',get:l=>l.art,set:(l,v)=>{const u=(v||'').toUpperCase();if(u==='B2B'||u==='B2C')l.art=u;}},
+  address:{label:'Adresse',group:'Kundeninformationen',importable:true,aliases:['adresse','address','anschrift'],example:'Musterstraße 1, 12345 Musterstadt',get:l=>l.address,set:(l,v)=>l.address=v},
+  orderCount:{label:'Anzahl Bestellungen',group:'Kundeninformationen',importable:true,aliases:['anzahl bestellungen','bestellungen','anzahl'],example:'3',get:l=>l.orderCount,set:(l,v)=>l.orderCount=v},
+  revenue:{label:'Umsatz (EUR)',group:'Kundeninformationen',importable:true,aliases:['umsatz (eur)','umsatz','revenue'],example:'1500',get:l=>l.revenue,set:(l,v)=>l.revenue=v},
+  contact:{label:'Ansprechpartner',group:'Kundeninformationen',importable:true,aliases:['ansprechpartner','kontakt','contact','ansprechperson'],example:'Max Mustermann',get:l=>l.contact,set:(l,v)=>l.contact=v},
+  phone:{label:'Telefonnummer',group:'Kundeninformationen',importable:true,aliases:['telefonnummer','telefon','phone','tel','rufnummer'],example:'+49 89 1234567',get:l=>l.phone,set:(l,v)=>l.phone=v},
+  email:{label:'E-Mail',group:'Kundeninformationen',importable:true,aliases:['e-mail','email','mail'],example:'max@musterfirma.de',get:l=>l.email,set:(l,v)=>l.email=v},
+  competitor:{label:'Wettbewerber',group:'Kundeninformationen',importable:true,aliases:['wettbewerber','competitor'],example:'Wettbewerber GmbH',get:l=>l.competitor||'',set:(l,v)=>l.competitor=v},
+  notes:{label:'Notizen',group:'Kundeninformationen',importable:true,aliases:['notizen','notiz','notes','bemerkung','kommentar'],example:'Interessiert, ruft nächste Woche zurück',get:l=>l.notes,set:(l,v)=>l.notes=v},
+  shipPrinterModel:{label:'Versand-Drucker',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.shipPrinter.model},
+  shipSkus:{label:'Versand-SKUs (EK/VK)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.shipPrinter.skus.filter(s=>s.sku).map(s=>`${s.sku}${(s.priceEk||s.priceVk)?` (EK ${fmtEur(s.priceEk)||'0 €'} / VK ${fmtEur(s.priceVk)||'0 €'})`:''}`).join(', ')},
+  investTotal:{label:'Investition gesamt EK (EUR)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.priceEk)||0),0)||''},
+  shipMargin:{label:'Marge Versand gesamt (EUR)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.shipPrinter.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0)),0)||''},
+  tonerSent:{label:'Free Toner verschickt',group:'Drucker & Patronen (Versand)',importable:true,aliases:['free toner verschickt'],example:'Ja',get:l=>l.tonerSent,set:(l,v)=>{if(v)l.tonerSent=v;}},
+  statusName:{label:'Status',group:'Lead-Status',importable:false,get:l=>colById(l.status).name},
+  statusSince:{label:'Seit wann in dieser Liste',group:'Lead-Status',importable:false,get:l=>fmtDate(l.statusSince)||''},
+  firstContact:{label:'Datum Erstkontakt',group:'Lead-Status',importable:true,aliases:['datum erstkontakt','erstkontakt'],example:'2026-07-01',get:l=>l.firstContact,set:(l,v)=>l.firstContact=v},
+  followup:{label:'Follow-up-Datum',group:'Lead-Status',importable:true,aliases:['follow-up-datum','followup','follow-up','wiedervorlage'],example:'2026-07-15',get:l=>l.followup,set:(l,v)=>l.followup=v},
+  membersNames:{label:'Mitglieder',group:'Lead-Status',importable:false,get:l=>l.members.map(id=>agentById(id)?.name).filter(Boolean).join('; ')},
+  labelsNames:{label:'Labels',group:'Lead-Status',importable:false,get:l=>l.labelIds.map(id=>labelById(id)?.name).filter(Boolean).join('; ')},
+  checklistItems:{label:'Checkliste',group:'Lead-Status',importable:false,get:l=>(l.checklist||[]).map(c=>`${c.done?'[x]':'[ ]'} ${c.text}`).join('; ')},
+  commentCount:{label:'Anzahl Kommentare',group:'Lead-Status',importable:false,get:l=>(l.activity||[]).filter(a=>a.type==='comment').length},
+  tasksOpen:{label:'Offene Aufgaben',group:'Lead-Status',importable:false,get:l=>(l.tasks||[]).filter(t=>!t.done).length},
+  tasksTotal:{label:'Aufgaben gesamt',group:'Lead-Status',importable:false,get:l=>(l.tasks||[]).length},
+  filesCount:{label:'Anzahl Anhänge',group:'Lead-Status',importable:false,get:l=>(l.files||[]).length},
+  lossReason:{label:'Verlust-Grund',group:'Lead-Status',importable:true,aliases:['verlust-grund'],example:'Preis zu hoch',get:l=>l.lossReason||'',set:(l,v)=>l.lossReason=v},
+  topSkuOem1:{label:'SKU OEM 1',group:'Top 3 Gekaufte Artikel',importable:true,aliases:['sku oem 1','top artikel 1 sku oem','artikel 1 sku oem'],example:'OEM-1234',get:l=>l.topArticles[0]?.skuOem||'',set:(l,v)=>l.topArticles[0].skuOem=v},
+  topSkuKompa1:{label:'SKU Kompa 1',group:'Top 3 Gekaufte Artikel',importable:true,aliases:['sku kompa 1','top artikel 1 sku kompa','artikel 1 sku kompa'],example:'KOMPA-1234',get:l=>l.topArticles[0]?.skuKompa||'',set:(l,v)=>l.topArticles[0].skuKompa=v},
+  topTitle1:{label:'Titel 1',group:'Top 3 Gekaufte Artikel',importable:true,aliases:['titel 1','top artikel 1 titel','artikel 1 titel'],example:'HP LaserJet Toner Schwarz',get:l=>l.topArticles[0]?.title||'',set:(l,v)=>l.topArticles[0].title=v},
+  topSkuOem2:{label:'SKU OEM 2',group:'Top 3 Gekaufte Artikel',importable:true,aliases:['sku oem 2','top artikel 2 sku oem','artikel 2 sku oem'],example:'',get:l=>l.topArticles[1]?.skuOem||'',set:(l,v)=>l.topArticles[1].skuOem=v},
+  topSkuKompa2:{label:'SKU Kompa 2',group:'Top 3 Gekaufte Artikel',importable:true,aliases:['sku kompa 2','top artikel 2 sku kompa','artikel 2 sku kompa'],example:'',get:l=>l.topArticles[1]?.skuKompa||'',set:(l,v)=>l.topArticles[1].skuKompa=v},
+  topTitle2:{label:'Titel 2',group:'Top 3 Gekaufte Artikel',importable:true,aliases:['titel 2','top artikel 2 titel','artikel 2 titel'],example:'',get:l=>l.topArticles[1]?.title||'',set:(l,v)=>l.topArticles[1].title=v},
+  topSkuOem3:{label:'SKU OEM 3',group:'Top 3 Gekaufte Artikel',importable:true,aliases:['sku oem 3','top artikel 3 sku oem','artikel 3 sku oem'],example:'',get:l=>l.topArticles[2]?.skuOem||'',set:(l,v)=>l.topArticles[2].skuOem=v},
+  topSkuKompa3:{label:'SKU Kompa 3',group:'Top 3 Gekaufte Artikel',importable:true,aliases:['sku kompa 3','top artikel 3 sku kompa','artikel 3 sku kompa'],example:'',get:l=>l.topArticles[2]?.skuKompa||'',set:(l,v)=>l.topArticles[2].skuKompa=v},
+  topTitle3:{label:'Titel 3',group:'Top 3 Gekaufte Artikel',importable:true,aliases:['titel 3','top artikel 3 titel','artikel 3 titel'],example:'',get:l=>l.topArticles[2]?.title||'',set:(l,v)=>l.topArticles[2].title=v},
+  forecast:{label:'Forecast (EUR)',group:'Forecast',importable:true,aliases:['forecast (eur)','forecast'],example:'2000',get:l=>l.forecast,set:(l,v)=>l.forecast=v},
+  demandDetails:{label:'Drucker & SKU-Details (Menge, EK, VK, Marge)',group:'Forecast',importable:false,get:l=>formatPrinterDetails(l.demandPrinters)},
+  actual:{label:'Tatsächliches Ergebnis (EUR)',group:'Auftrag',importable:true,aliases:['tatsächliches ergebnis (eur)'],example:'1800',get:l=>l.actual||'',set:(l,v)=>l.actual=v},
+  actualDetails:{label:'Drucker & SKU-Details (Menge, EK, VK, Marge)',group:'Auftrag',importable:false,get:l=>formatPrinterDetails(l.actualPrinters)},
 };
+const GROUP_ORDER=['Kundeninformationen','Drucker & Patronen (Versand)','Lead-Status','Top 3 Gekaufte Artikel','Forecast','Auftrag'];
 // Eine gemeinsame Feldliste, pro Feld getrennt steuerbar ob es beim Import bzw. Export
 // verwendet wird (statt eines einzelnen "Aktiv"-Schalters oder zweier getrennter Listen).
-const FIELD_ORDER=['company','customerNumber','art','address','orderCount','revenue',
-  'shipPrinterModel','shipSkus','investTotal','shipMargin','demandDetails','actualDetails',
-  'contact','phone','email','competitor','membersNames','statusName','statusSince','tonerSent',
-  'firstContact','followup','forecast','actual','lossReason','labelsNames','checklistItems',
-  'commentCount','tasksOpen','tasksTotal','filesCount','notes',
-  'topSkuOem1','topSkuKompa1','topTitle1','topSkuOem2','topSkuKompa2','topTitle2','topSkuOem3','topSkuKompa3','topTitle3'];
+// Feldreihenfolge wird automatisch aus der Gruppenreihenfolge (GROUP_ORDER) abgeleitet:
+// innerhalb jeder Gruppe bleibt die Deklarationsreihenfolge im FIELD_REGISTRY erhalten.
+const FIELD_ORDER=GROUP_ORDER.flatMap(group=>Object.keys(FIELD_REGISTRY).filter(k=>FIELD_REGISTRY[k].group===group));
 function defaultCsvFields(){
-  return FIELD_ORDER.map(key=>({key,csvName:FIELD_REGISTRY[key].label,importActive:!!FIELD_REGISTRY[key].importable,exportActive:true}));
+  return FIELD_ORDER.map(key=>{
+    const r=FIELD_REGISTRY[key];
+    return{key,csvName:`${r.group} – ${r.label}`,importActive:!!r.importable,exportActive:true};
+  });
 }
 // Migriert Konfigurationen aus Vorversionen (getrennte Export-/Import-Listen, oder eine
 // einzelne Liste mit nur einem "Aktiv"-Flag) in das aktuelle Format.
@@ -4147,15 +4157,16 @@ function unusedFieldKeys(){
   const used=new Set(getCsvFields().map(f=>f.key));
   return Object.keys(FIELD_REGISTRY).filter(k=>!used.has(k));
 }
+function csvNameFor(key){const r=FIELD_REGISTRY[key];return `${r.group} – ${r.label}`;}
 function addCsvField(){
   const free=unusedFieldKeys();
   if(!free.length){alert('Alle verfügbaren Felder sind bereits in der Liste.');return;}
-  getCsvFields().push({key:free[0],csvName:FIELD_REGISTRY[free[0]].label,importActive:!!FIELD_REGISTRY[free[0]].importable,exportActive:true});
+  getCsvFields().push({key:free[0],csvName:csvNameFor(free[0]),importActive:!!FIELD_REGISTRY[free[0]].importable,exportActive:true});
   saveState();renderSettings();
 }
 function removeCsvField(idx){getCsvFields().splice(idx,1);saveState();renderSettings();}
 function setCsvFieldKey(idx,key){
-  const f=getCsvFields()[idx];f.key=key;f.csvName=FIELD_REGISTRY[key].label;
+  const f=getCsvFields()[idx];f.key=key;f.csvName=csvNameFor(key);
   if(!FIELD_REGISTRY[key].importable)f.importActive=false;
   saveState();renderSettings();
 }
