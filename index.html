@@ -2628,6 +2628,18 @@ function blocksLeavingFirstColumn(lead,newStatus){
 function warnMissingFirstContact(company){
   alert(`"${company}" kann "${COLUMNS[0].name}" erst verlassen, wenn ein Erstkontakt-Datum eingetragen ist.\n\nDas Fenster öffnet sich jetzt, bitte trage das Datum im Feld "Datum Erstkontakt" ein und speichere erneut.`);
 }
+function warnMissingLossReason(company){
+  alert(`"${company}" kann nicht direkt per Drag & Drop nach "Verloren" verschoben werden.\n\nDas Fenster öffnet sich jetzt – bitte Verlust-Grund und einen kurzen Kommentar eintragen und speichern.`);
+}
+// Öffnet das Lead-Fenster und stellt den Status direkt auf die per Drag&Drop anvisierte
+// "Verloren"-Liste, damit nur noch Verlust-Grund + Kommentar ausgefuellt werden muessen
+function openLeadModalForLostStatus(id,targetStatus){
+  openLeadModal(id);
+  draftLead.status=targetStatus;
+  renderLeadModal();
+  const el=document.getElementById('fLossComment');
+  if(el)el.focus();
+}
 function onCardDrop(e,targetId){
   if(!dragCardId)return;
   e.preventDefault();
@@ -2642,6 +2654,11 @@ function onCardDrop(e,targetId){
   if(blocksLeavingFirstColumn(dragged,target.status)){
     warnMissingFirstContact(dragged.company);
     openLeadModal(dragged.id);
+    return;
+  }
+  if(colById(target.status)&&colById(target.status).outcome==='lost'&&dragged.status!==target.status){
+    warnMissingLossReason(dragged.company);
+    openLeadModalForLostStatus(dragged.id,target.status);
     return;
   }
   if(dragged.status!==target.status){
@@ -2680,6 +2697,12 @@ function onDrop(e,colId){
       dragCardId=null;
       warnMissingFirstContact(l.company);
       openLeadModal(l.id);
+      return;
+    }
+    if(colById(colId)&&colById(colId).outcome==='lost'){
+      dragCardId=null;
+      warnMissingLossReason(l.company);
+      openLeadModalForLostStatus(l.id,colId);
       return;
     }
     const oldName=colById(l.status).name,newName=colById(colId).name;
@@ -3286,7 +3309,7 @@ function renderLeadModal(){
           </div>
           ${(colById(draftLead.status)&&colById(draftLead.status).outcome==='lost')?`
           <div class="field" style="background:var(--red-bg);border-radius:8px;padding:10px 12px;margin-bottom:10px">
-            <label style="color:var(--red-dark)">Verlust-Grund <span style="font-weight:400">(hilft bei der Auswertung im Dashboard)</span></label>
+            <label style="color:var(--red-dark)">Verlust-Grund <span style="font-weight:400">(Pflichtfeld, hilft bei der Auswertung im Dashboard)</span></label>
             <select style="width:100%" onchange="draftLead.lossReason=this.value">
               <option value="">– Bitte auswählen –</option>
               <option value="Preis zu hoch" ${draftLead.lossReason==='Preis zu hoch'?'selected':''}>Preis zu hoch</option>
@@ -3295,6 +3318,8 @@ function renderLeadModal(){
               <option value="Nicht erreichbar" ${draftLead.lossReason==='Nicht erreichbar'?'selected':''}>Nicht erreichbar</option>
               <option value="Sonstiges" ${draftLead.lossReason==='Sonstiges'?'selected':''}>Sonstiges</option>
             </select>
+            <label style="color:var(--red-dark);margin-top:8px">Kommentar zum Verlust <span style="font-weight:400">(Pflichtfeld, erscheint im Verlauf)</span></label>
+            <textarea id="fLossComment" style="width:100%;min-height:60px" placeholder="Kurz beschreiben, was zum Verlust geführt hat…" onchange="draftLead._lossComment=this.value" oninput="draftLead._lossComment=this.value">${esc(draftLead._lossComment||'')}</textarea>
           </div>`:''}
           <div class="field-row-2">
             <div><label>Datum Erstkontakt</label><input type="date" id="firstContactInput" value="${draftLead.firstContact}" onchange="draftLead.firstContact=this.value" style="width:100%"></div>
@@ -3856,10 +3881,26 @@ function saveLead(keepOpen){
       if(el)el.focus();
       return;
     }
+    if(original.status!==draftLead.status&&colById(draftLead.status)&&colById(draftLead.status).outcome==='lost'){
+      if(!draftLead.lossReason){
+        showModalError('Bitte zuerst einen Verlust-Grund auswählen, bevor der Lead als "Verloren" gespeichert werden kann.');
+        return;
+      }
+      if(!(draftLead._lossComment||'').trim()){
+        showModalError('Bitte zuerst einen kurzen Kommentar zum Verlust eintragen, bevor der Lead als "Verloren" gespeichert werden kann.');
+        const el=document.getElementById('fLossComment');
+        if(el)el.focus();
+        return;
+      }
+    }
     if(original.status!==draftLead.status){
       draftLead.activity.unshift({id:Date.now()+1,type:'activity',author:currentUser,text:`Status geändert: ${colById(original.status).name} → ${colById(draftLead.status).name}`,date:nowISO()});
       trackClosedStage(draftLead,original.status,draftLead.status);trackStatusSince(draftLead,original.status,draftLead.status);maybeSendListNotification(draftLead,original.status,draftLead.status);
+      if(colById(draftLead.status)&&colById(draftLead.status).outcome==='lost'&&(draftLead._lossComment||'').trim()){
+        draftLead.activity.unshift({id:Date.now()+3,type:'comment',author:currentUser,text:`Verlust-Grund (${draftLead.lossReason}): ${draftLead._lossComment.trim()}`,date:nowISO()});
+      }
     }
+    delete draftLead._lossComment;
     if(original.followup!==draftLead.followup&&draftLead.followup){
       draftLead.followupHistory=[...(draftLead.followupHistory||[]),{date:draftLead.followup,setAt:nowISO()}];
       draftLead.activity.unshift({id:Date.now()+2,type:'activity',author:currentUser,text:`Follow-up-Datum geändert: "${fmtDate(original.followup)||'–'}" → "${fmtDate(draftLead.followup)}"`,date:nowISO()});
