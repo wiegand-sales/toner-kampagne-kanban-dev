@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T20:19:07.814Z';
+const BUILD_VERSION='2026-07-08T20:27:47.539Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3733,6 +3733,7 @@ function renderLeadModal(){
   document.getElementById('leadModalInner').innerHTML=`
     <div class="modal-topline">
       <input type="text" class="modal-title-input" id="fCompany" placeholder="Firmenname" value="${esc(draftLead.company)}" ${modalReadOnly?'readonly':''} oninput="draftLead.company=this.value;clearModalError();checkDuplicateLead()">
+      <button class="modal-close" title="Termineinladung für Kunde erstellen (Outlook)" onclick="downloadCalendarInvite()"><i class="ti ti-calendar-event"></i></button>
       <button class="modal-close" title="Firma bei Google suchen" onclick="openGoogleSearch()"><i class="ti ti-brand-google"></i></button>
       <button class="modal-close" onclick="closeModal('leadModal')"><i class="ti ti-x"></i></button>
     </div>
@@ -3835,7 +3836,6 @@ function renderLeadModal(){
             <div><label>Datum Erstkontakt</label><input type="date" id="firstContactInput" value="${draftLead.firstContact}" onchange="draftLead.firstContact=this.value" style="width:100%"></div>
             <div><label>Follow-up-Datum</label><input type="date" id="followupInput" value="${draftLead.followup}" onchange="draftLead.followup=this.value" style="width:100%"></div>
           </div>
-          <button class="btn btn-sm" style="width:100%;justify-content:center;margin-top:8px" onclick="downloadCalendarInvite()" title="Lädt eine Kalendereinladung (.ics) herunter - per Doppelklick in Outlook öffnen und an den Kunden senden"><i class="ti ti-calendar-event"></i> Termineinladung für Kunde erstellen (Outlook)</button>
 
           <div class="label-row-editor" style="margin-top:10px">
             <span class="small-label" style="width:100%;margin-bottom:0">Labels</span>
