@@ -446,6 +446,12 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
   </div>
 </div>
 
+<div id="syncFailureBanner" class="hidden" style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#BD2D29;color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:center;gap:16px;font-size:14px;box-shadow:0 2px 12px rgba(0,0,0,.25)">
+  <i class="ti ti-cloud-off" style="font-size:18px"></i>
+  <span id="syncFailureBannerText">Speichern fehlgeschlagen.</span>
+  <button class="btn btn-sm" style="background:#fff;color:#BD2D29" onclick="document.getElementById('syncFailureBanner').classList.add('hidden')">Ausblenden</button>
+</div>
+
 <div id="newVersionBanner" class="hidden" style="position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1a1a1a;color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:center;gap:16px;font-size:14px;box-shadow:0 -2px 12px rgba(0,0,0,.25)">
   <i class="ti ti-refresh-alert" style="font-size:18px;color:#D9A509"></i>
   <span>Eine neuere Version von SalesOS ist verfügbar. Bitte lade die Seite neu, um sicherzustellen, dass keine veralteten Daten gespeichert werden.</span>
@@ -722,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T13:05:58.329Z';
+const BUILD_VERSION='2026-07-08T13:19:45.800Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -770,9 +776,21 @@ function isSbSessionValid(){
 }
 let sbStatus='connecting';   // connecting | online | offline
 let sbStatusDetail='';
+const PENDING_PUSH_KEY='toner_kanban_pending_push_v1';
 let sbLastUpdatedAt=null;    // Zeitstempel des zuletzt bekannten Cloud-Stands
 let sbPushTimer=null;
 let sbSuppressPush=true;     // bis der erste Abgleich gelaufen ist, nichts hochschieben
+let pendingPushWhileSuppressed=false; // merkt sich einen Speicherwunsch, der waehrend der Sperrzeit ankam
+function setSbSuppressPush(v){
+  sbSuppressPush=v;
+  if(!v&&pendingPushWhileSuppressed){
+    pendingPushWhileSuppressed=false;
+    scheduleSbPush();
+  }
+}
+function markPendingPush(){try{localStorage.setItem(PENDING_PUSH_KEY,'1');}catch(e){}}
+function clearPendingPush(){try{localStorage.removeItem(PENDING_PUSH_KEY);}catch(e){}}
+function hasPendingPush(){try{return localStorage.getItem(PENDING_PUSH_KEY)==='1';}catch(e){return false;}}
 
 function buildStatePayload(){
   return {leads, COLUMNS, LABELS, AGENTS, ARTICLES, PROJECT, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId, nextArticleId, nextMilestoneId, nextRiskId, nextNotifyRuleId};
@@ -815,11 +833,14 @@ function setSbStatus(status,detail){
   if(wrap)wrap.title=detail||m.text;
 }
 function scheduleSbPush(){
-  if(sbSuppressPush)return;
+  markPendingPush(); // merken: es gibt eine Aenderung, die noch bestaetigt hochgeladen werden muss
+  if(sbSuppressPush){pendingPushWhileSuppressed=true;return;}
   clearTimeout(sbPushTimer);
   sbPushTimer=setTimeout(sbPush,1500);
 }
 async function sbPush(){
+  sbPushTimer=null; // Timer ist jetzt abgelaufen/ausgefuehrt - Markierung zuruecksetzen, sonst denkt
+                     // sbPoll() faelschlich dauerhaft "es steht noch ein Push aus" und pollt nie wieder
   try{
     // Absicherung gegen "alter Tab ueberschreibt neuere Aenderung": bevor der eigene Stand
     // hochgeladen wird, kurz pruefen ob die Cloud sich zwischenzeitlich (durch ein anderes
@@ -852,10 +873,16 @@ async function sbPush(){
     const rows=await res.json();
     if(rows&&rows[0]&&rows[0].updated_at)sbLastUpdatedAt=rows[0].updated_at;
     else sbLastUpdatedAt=ts;
+    clearPendingPush(); // erfolgreich in der Cloud angekommen - Markierung kann weg
+    const failBanner=document.getElementById('syncFailureBanner');
+    if(failBanner)failBanner.classList.add('hidden');
     setSbStatus('online');
   }catch(e){
     console.warn('Cloud-Push fehlgeschlagen:',e);
     setSbStatus('offline','Letzter Push fehlgeschlagen: '+e.message+' – Daten sind lokal gesichert, Sync wird erneut versucht.');
+    showSyncFailureBanner('Deine letzte Änderung konnte nicht in die Cloud hochgeladen werden ('+e.message+'). Sie ist lokal in diesem Browser gesichert und wird automatisch erneut versucht - bitte lade die Seite währenddessen NICHT neu und schließe diesen Tab nicht.');
+    // Erneuter Versuch in 10s, solange die Markierung "pending" noch gesetzt ist
+    setTimeout(()=>{if(hasPendingPush())scheduleSbPush();},10000);
   }
 }
 async function sbPull(){
@@ -877,24 +904,33 @@ function refreshCurrentView(){
 }
 async function sbInitialSync(){
   try{
+    // Falls beim letzten Mal eine Aenderung lokal gespeichert, aber nie bestaetigt in der
+    // Cloud angekommen ist (z.B. weil die Seite genau in dem Moment neu geladen wurde),
+    // wird sie JETZT ZUERST hochgeladen - bevor der Cloud-Stand (der diese Aenderung noch
+    // nicht kennt) blind uebernommen und die Aenderung dadurch unbemerkt verworfen wuerde.
+    if(hasPendingPush()){
+      setSbSuppressPush(false);
+      await sbPush();
+    }
     const remote=await sbPull();
     if(remote){
       // Cloud hat Daten -> Cloud gewinnt (fuehrende Quelle fuer das Team)
       applyStateData(remote.data);
       sbLastUpdatedAt=remote.updated_at;
       try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
-      sbSuppressPush=false;
+      setSbSuppressPush(false);
       setSbStatus('online');
       refreshCurrentView();
     }else{
       // Tabelle existiert, aber noch leer -> lokalen Stand als Startpunkt hochladen
-      sbSuppressPush=false;
+      setSbSuppressPush(false);
       await sbPush();
     }
   }catch(e){
     console.warn('Cloud-Verbindung fehlgeschlagen:',e);
-    sbSuppressPush=false;
+    setSbSuppressPush(false);
     setSbStatus('offline','Verbindung fehlgeschlagen: '+e.message);
+    if(hasPendingPush())showSyncFailureBanner('Es gibt eine noch nicht in der Cloud gesicherte Änderung, und die Verbindung ist gerade gestört. Bitte lade die Seite NICHT neu, bis die Verbindung wieder da ist - sonst könnte die Änderung verloren gehen.');
   }
 }
 async function sbPoll(){
@@ -907,11 +943,11 @@ async function sbPoll(){
   try{
     const remote=await sbPull();
     if(remote&&remote.updated_at!==sbLastUpdatedAt){
-      sbSuppressPush=true;
+      setSbSuppressPush(true);
       applyStateData(remote.data);
       sbLastUpdatedAt=remote.updated_at;
       try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
-      sbSuppressPush=false;
+      setSbSuppressPush(false);
       refreshCurrentView();
     }
     setSbStatus('online');
@@ -4668,6 +4704,12 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('.col-hdr-wrap')&&colMenuOpenId){colMenuOpenId=null;renderBoard();}
 });
 
+function showSyncFailureBanner(msg){
+  const banner=document.getElementById('syncFailureBanner');
+  const text=document.getElementById('syncFailureBannerText');
+  if(text)text.textContent=msg;
+  if(banner)banner.classList.remove('hidden');
+}
 let newVersionDetected=false;
 // Prueft, ob die aktuell online liegende index.html eine neuere BUILD_VERSION hat als die,
 // mit der dieser Tab gerade laeuft. Falls ja: unuebersehbares Banner einblenden, das zum
