@@ -2151,10 +2151,11 @@ function renderSettings(){
       return `<optgroup label="${esc(group)}">${opts}</optgroup>`;
     }).join('');
     const importDisabled=!reg||!reg.importable;
+    const overwriteDisabled=importDisabled||!f.importActive;
     let dividerHtml='';
     if(reg&&reg.group!==lastGroup){
       lastGroup=reg.group;
-      dividerHtml=`<tr style="background:var(--surface-1,#f6f7f5)"><td colspan="5" style="padding:5px 8px;font-weight:600;font-size:12px">${esc(reg.group)}</td></tr>`;
+      dividerHtml=`<tr style="background:var(--surface-1,#f6f7f5)"><td colspan="6" style="padding:5px 8px;font-weight:600;font-size:12px">${esc(reg.group)}</td></tr>`;
     }
     return dividerHtml+`<tr style="border-top:0.5px solid var(--border-c,#e5e5e0)">
       <td style="padding:6px"><select style="width:100%" onchange="setCsvFieldKey(${idx},this.value)">${optionsHtml}</select></td>
@@ -2163,6 +2164,12 @@ function renderSettings(){
         <select style="width:100%" ${importDisabled?'disabled title="Berechnetes Feld, kann nicht importiert werden"':''} onchange="setCsvFieldImportActive(${idx},this.value==='ja')">
           <option value="nein" ${!f.importActive?'selected':''}>Nein</option>
           <option value="ja" ${f.importActive?'selected':''} ${importDisabled?'disabled':''}>Ja</option>
+        </select>
+      </td>
+      <td style="padding:6px">
+        <select style="width:100%" ${overwriteDisabled?'disabled title="Nur möglich, wenn das Feld auch importiert wird"':''} onchange="setCsvFieldOverwriteActive(${idx},this.value==='ja')">
+          <option value="nein" ${!f.overwriteActive?'selected':''}>Nein</option>
+          <option value="ja" ${f.overwriteActive?'selected':''} ${overwriteDisabled?'disabled':''}>Ja</option>
         </select>
       </td>
       <td style="padding:6px">
@@ -2281,12 +2288,13 @@ function renderSettings(){
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">CSV-Feldkonfiguration</div>
         <p style="font-size:12px;color:var(--text2);line-height:1.6">Legt pro Datenfeld fest, ob es beim <strong>CSV-Import</strong> und/oder <strong>CSV-Export</strong> verwendet wird, sowie unter welchem Spaltennamen. Berechnete Felder (Marge, Status, Anzahl Aufgaben etc.) lassen sich nur exportieren – "Import" ist dort deaktiviert. Eine Spalte wird beim Import erkannt, wenn ihre Kopfzeile (Groß-/Kleinschreibung egal) mit dem hier hinterlegten Namen übereinstimmt.</p>
-        <p style="font-size:12px;color:var(--text2);line-height:1.6"><strong>Bereits vorhandene Leads werden nie überschrieben</strong> – erkannt an Kundennummer, Firmenname, Telefonnummer oder E-Mail, solche Zeilen werden beim Import automatisch übersprungen.</p>
+        <p style="font-size:12px;color:var(--text2);line-height:1.6"><strong>Bereits vorhandene Leads werden erkannt</strong> an Kundennummer, Firmenname, Telefonnummer oder E-Mail. Was dann passiert, steuerst du pro Feld über die Spalte <strong>"Bei Duplikat überschreiben?"</strong>: Felder mit "Ja" werden bei einem gefundenen Duplikat aus der CSV aktualisiert (nur wenn die Zelle nicht leer ist), alle anderen Felder des bestehenden Leads bleiben unangetastet. Steht bei keinem Feld "Ja", wird die Zeile wie bisher komplett übersprungen.</p>
         <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:8px">
           <tr style="text-align:left;color:var(--text2)">
             <th style="padding:4px 6px;font-weight:600">Datenfeld</th>
             <th style="padding:4px 6px;font-weight:600">CSV-Spaltenname</th>
             <th style="padding:4px 6px;font-weight:600;width:90px">Import</th>
+            <th style="padding:4px 6px;font-weight:600;width:110px">Bei Duplikat überschreiben?</th>
             <th style="padding:4px 6px;font-weight:600;width:90px">Export</th>
             <th style="padding:4px 6px;width:40px"></th>
           </tr>
@@ -4129,7 +4137,7 @@ const FIELD_ORDER=GROUP_ORDER.flatMap(group=>Object.keys(FIELD_REGISTRY).filter(
 function defaultCsvFields(){
   return FIELD_ORDER.map(key=>{
     const r=FIELD_REGISTRY[key];
-    return{key,csvName:`${r.group} – ${r.label}`,importActive:!!r.importable,exportActive:true};
+    return{key,csvName:`${r.group} – ${r.label}`,importActive:!!r.importable,exportActive:true,overwriteActive:false};
   });
 }
 // Migriert Konfigurationen aus Vorversionen (getrennte Export-/Import-Listen, oder eine
@@ -4140,12 +4148,17 @@ function migrateLegacyCsvFields(){
     const keys=[...new Set([...expList.map(f=>f.key),...impList.map(f=>f.key)])];
     PROJECT.csvFields=keys.map(key=>{
       const e=expList.find(f=>f.key===key),i=impList.find(f=>f.key===key);
-      return{key,csvName:(e&&e.csvName)||(i&&i.csvName)||FIELD_REGISTRY[key]?.label||key,importActive:!!(i&&i.active),exportActive:!!(e&&e.active)};
+      return{key,csvName:(e&&e.csvName)||(i&&i.csvName)||FIELD_REGISTRY[key]?.label||key,importActive:!!(i&&i.active),exportActive:!!(e&&e.active),overwriteActive:false};
     });
     delete PROJECT.csvExportFields;delete PROJECT.csvImportFields;
   }
   if(PROJECT.csvFields&&PROJECT.csvFields.length&&PROJECT.csvFields[0].importActive===undefined){
-    PROJECT.csvFields=PROJECT.csvFields.map(f=>({key:f.key,csvName:f.csvName,importActive:!!(f.active&&FIELD_REGISTRY[f.key]?.importable),exportActive:!!f.active}));
+    PROJECT.csvFields=PROJECT.csvFields.map(f=>({key:f.key,csvName:f.csvName,importActive:!!(f.active&&FIELD_REGISTRY[f.key]?.importable),exportActive:!!f.active,overwriteActive:false}));
+  }
+  // Bestandslisten (vor Einfuehrung der Ueberschreiben-Option) um das neue Flag ergaenzen,
+  // Standard bewusst "Nein" damit sich das bisherige Verhalten (nie ueberschreiben) nicht aendert
+  if(PROJECT.csvFields&&PROJECT.csvFields.length&&PROJECT.csvFields[0].overwriteActive===undefined){
+    PROJECT.csvFields=PROJECT.csvFields.map(f=>({...f,overwriteActive:false}));
   }
 }
 function getCsvFields(){
@@ -4161,22 +4174,29 @@ function csvNameFor(key){const r=FIELD_REGISTRY[key];return `${r.group} – ${r.
 function addCsvField(){
   const free=unusedFieldKeys();
   if(!free.length){alert('Alle verfügbaren Felder sind bereits in der Liste.');return;}
-  getCsvFields().push({key:free[0],csvName:csvNameFor(free[0]),importActive:!!FIELD_REGISTRY[free[0]].importable,exportActive:true});
+  getCsvFields().push({key:free[0],csvName:csvNameFor(free[0]),importActive:!!FIELD_REGISTRY[free[0]].importable,exportActive:true,overwriteActive:false});
   saveState();renderSettings();
 }
 function removeCsvField(idx){getCsvFields().splice(idx,1);saveState();renderSettings();}
 function setCsvFieldKey(idx,key){
   const f=getCsvFields()[idx];f.key=key;f.csvName=csvNameFor(key);
-  if(!FIELD_REGISTRY[key].importable)f.importActive=false;
+  if(!FIELD_REGISTRY[key].importable){f.importActive=false;f.overwriteActive=false;}
   saveState();renderSettings();
 }
 function setCsvFieldName(idx,val){getCsvFields()[idx].csvName=val;saveState();}
 function setCsvFieldImportActive(idx,val){
   const f=getCsvFields()[idx];
   if(val&&!FIELD_REGISTRY[f.key]?.importable)return; // berechnete Felder koennen nicht importiert werden
-  f.importActive=val;saveState();renderSettings();
+  f.importActive=val;
+  if(!val)f.overwriteActive=false; // ohne Import macht "ueberschreiben" keinen Sinn
+  saveState();renderSettings();
 }
 function setCsvFieldExportActive(idx,val){getCsvFields()[idx].exportActive=val;saveState();renderSettings();}
+function setCsvFieldOverwriteActive(idx,val){
+  const f=getCsvFields()[idx];
+  if(val&&(!FIELD_REGISTRY[f.key]?.importable||!f.importActive))return; // nur moeglich wenn Feld auch importiert wird
+  f.overwriteActive=val;saveState();renderSettings();
+}
 function resetCsvFields(){
   if(!confirm('Feldkonfiguration wirklich auf den Standard zurücksetzen?'))return;
   PROJECT.csvFields=defaultCsvFields();
@@ -4262,8 +4282,9 @@ function importCSVFile(file){
         return;
       }
       const norm=v=>(v||'').trim().toLowerCase();
-      let added=0,skippedDup=0,skippedEmpty=0;
+      let added=0,updated=0,skippedDup=0,skippedEmpty=0;
       const dupDetails=[];
+      const overwriteKeys=getCsvFields().filter(f=>f.importActive&&f.overwriteActive&&FIELD_REGISTRY[f.key]?.set).map(f=>f.key);
       const seenInFile=new Set(); // erkennt Duplikate auch INNERHALB der hochgeladenen Datei
       const firstColId=COLUMNS[0].id;
       rows.slice(1).forEach((r,rowIdx)=>{
@@ -4279,6 +4300,20 @@ function importCSVFile(file){
         );
         const fileKey=custNo?'kdnr:'+norm(custNo):'firma:'+norm(company);
         if(existingMatch||seenInFile.has(fileKey)){
+          if(existingMatch&&overwriteKeys.length){
+            // Nur die dafuer freigegebenen Felder aktualisieren, alles andere am bestehenden Lead bleibt unangetastet
+            const changedFields=[];
+            overwriteKeys.forEach(key=>{
+              const val=get(key);
+              if(val!==''){FIELD_REGISTRY[key].set(existingMatch,val);changedFields.push(FIELD_REGISTRY[key].label);}
+            });
+            if(changedFields.length){
+              existingMatch.activity=existingMatch.activity||[];
+              existingMatch.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Per CSV-Import aktualisiert: ${changedFields.join(', ')}`,date:nowISO()});
+              updated++;
+              return;
+            }
+          }
           skippedDup++;
           const reason=existingMatch
             ?(custNo&&norm(existingMatch.customerNumber)===norm(custNo)?'Kundennummer existiert bereits':
@@ -4310,7 +4345,9 @@ function importCSVFile(file){
       });
       saveState();
       renderBoard();
-      let msg=`CSV-Import abgeschlossen:\n\n✓ ${added} neue Leads angelegt (in "${COLUMNS[0].name}")\n↷ ${skippedDup} übersprungen (bereits vorhanden oder doppelt in der Datei)\n∅ ${skippedEmpty} übersprungen (kein Firmenname)`;
+      let msg=`CSV-Import abgeschlossen:\n\n✓ ${added} neue Leads angelegt (in "${COLUMNS[0].name}")`;
+      if(overwriteKeys.length)msg+=`\n✎ ${updated} bestehende Leads aktualisiert (freigegebene Felder)`;
+      msg+=`\n↷ ${skippedDup} übersprungen (bereits vorhanden, keine Änderung, oder doppelt in der Datei)\n∅ ${skippedEmpty} übersprungen (kein Firmenname)`;
       if(dupDetails.length){
         msg+='\n\nÜbersprungene Zeilen im Detail:\n'+dupDetails.slice(0,25).join('\n');
         if(dupDetails.length>25)msg+=`\n… und ${dupDetails.length-25} weitere`;
