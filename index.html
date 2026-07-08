@@ -473,7 +473,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
       </div>
       <div id="currentUserManual">
         <label>Ich bin <span style="font-weight:400;color:var(--text3)">(keine Login-E-Mail zugeordnet)</span></label>
-        <select id="currentUserSelect" class="me-select" onchange="currentUser=this.value" style="width:100%"></select>
+        <select id="currentUserSelect" class="me-select" onchange="currentUser=this.value;updateNavForRole()" style="width:100%"></select>
       </div>
     </div>
     <div class="sidebar-nav-item" id="navDashboard" onclick="switchView('dashboard')"><i class="ti ti-layout-dashboard"></i> SFP: Toner</div>
@@ -1196,12 +1196,25 @@ function renderUserSelect(){
     manualEl.classList.remove('hidden');
   }
   document.getElementById('currentUserSelect').innerHTML=avail.map(a=>`<option value="${a.id}" ${a.id===currentUser?'selected':''}>${esc(a.name)}</option>`).join('');
+  updateNavForRole();
+}
+// Blendet den Menüpunkt "Einstellungen" nur für Admins ein; ist gerade jemand ohne
+// Admin-Rechte auf der Einstellungen-Seite (z.B. weil der Nutzer gewechselt wurde),
+// wird automatisch aufs Board zurueckgesprungen.
+function updateNavForRole(){
+  const el=document.getElementById('navSettings');
+  if(el)el.style.display=isAdmin()?'':'none';
+  if(currentView==='settings'&&!isAdmin())switchView('board');
 }
 function setAgentFilter(id){activeAgentFilter=id;renderAgentChips();renderBoard();}
 
 // ── RENDER: BOARD ──
 // ── NAVIGATION ──
 function switchView(view){
+  if(view==='settings'&&!isAdmin()){
+    alert('Die Einstellungen sind nur für Admins zugänglich.');
+    view='board';
+  }
   currentView=view;
   ['dashboard','board','crrma','tasks','activities','settings'].forEach(v=>{
     document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.toggle('active',v===view);
