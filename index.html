@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T13:24:31.849Z';
+const BUILD_VERSION='2026-07-08T13:35:35.006Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1066,6 +1066,7 @@ function normalizeLeads(){
     if(l.competitor===undefined) l.competitor='';
     if(!l.topArticles||l.topArticles.length<3) l.topArticles=[{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''}];
     if(l.lossReason===undefined) l.lossReason='';
+    if(l.lossComment===undefined) l.lossComment='';
     if(!l.statusSince) l.statusSince=l.firstContact||TODAY;
     if(!l.followupHistory){
       l.followupHistory = l.followup ? [{date:l.followup,setAt:l.firstContact?l.firstContact+'T00:00:00':nowISO()}] : [];
@@ -1221,7 +1222,7 @@ function renderFollowupTimeline(lead){
   html+='</div>';
   return html;
 }
-function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',priceEk:'',priceVk:''},{sku:'',priceEk:'',priceVk:''},{sku:'',priceEk:'',priceVk:''},{sku:'',priceEk:'',priceVk:''}]},demandPrinters:[],actualPrinters:[],contact:'',phone:'',email:'',competitor:'',status:COLUMNS[0].id,tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',followupHistory:[],forecast:'',actual:'',lossReason:'',notes:'',checklist:[],activity:[],files:[],tasks:[],topArticles:[{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''}],order:Date.now()};}
+function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',priceEk:'',priceVk:''},{sku:'',priceEk:'',priceVk:''},{sku:'',priceEk:'',priceVk:''},{sku:'',priceEk:'',priceVk:''}]},demandPrinters:[],actualPrinters:[],contact:'',phone:'',email:'',competitor:'',status:COLUMNS[0].id,tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',followupHistory:[],forecast:'',actual:'',lossReason:'',lossComment:'',notes:'',checklist:[],activity:[],files:[],tasks:[],topArticles:[{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''}],order:Date.now()};}
 function openGoogleSearch(){
   const q=(document.getElementById('fCompany')?document.getElementById('fCompany').value:draftLead.company).trim();
   if(!q)return;
@@ -3508,7 +3509,7 @@ function renderLeadModal(){
             </div>
           </div>
           ${(colById(draftLead.status)&&colById(draftLead.status).outcome==='lost')?`
-          <div class="field" style="background:var(--red-bg);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+          <div class="field" style="background:#FADBD8;border:1px solid #F1948A;border-radius:8px;padding:10px 12px;margin-bottom:10px">
             <label style="color:var(--red-dark)">Verlust-Grund <span style="font-weight:400">(Pflichtfeld, hilft bei der Auswertung im Dashboard)</span></label>
             <select style="width:100%" onchange="draftLead.lossReason=this.value">
               <option value="">– Bitte auswählen –</option>
@@ -3522,7 +3523,7 @@ function renderLeadModal(){
               <option value="Sonstiges" ${draftLead.lossReason==='Sonstiges'?'selected':''}>Sonstiges</option>
             </select>
             <label style="color:var(--red-dark);margin-top:8px">Kommentar zum Verlust <span style="font-weight:400">(Pflichtfeld, erscheint im Verlauf)</span></label>
-            <textarea id="fLossComment" style="width:100%;min-height:60px" placeholder="Kurz beschreiben, was zum Verlust geführt hat…" onchange="draftLead._lossComment=this.value" oninput="draftLead._lossComment=this.value">${esc(draftLead._lossComment||'')}</textarea>
+            <textarea id="fLossComment" style="width:100%;min-height:60px" placeholder="Kurz beschreiben, was zum Verlust geführt hat…" onchange="draftLead.lossComment=this.value" oninput="draftLead.lossComment=this.value">${esc(draftLead.lossComment||'')}</textarea>
           </div>`:''}
           <div class="field-row-2">
             <div><label>Datum Erstkontakt</label><input type="date" id="firstContactInput" value="${draftLead.firstContact}" onchange="draftLead.firstContact=this.value" style="width:100%"></div>
@@ -4127,7 +4128,7 @@ function saveLead(keepOpen){
         showModalError('Bitte zuerst einen Verlust-Grund auswählen, bevor der Lead als "Verloren" gespeichert werden kann.');
         return;
       }
-      if(!(draftLead._lossComment||'').trim()){
+      if(!(draftLead.lossComment||'').trim()){
         showModalError('Bitte zuerst einen kurzen Kommentar zum Verlust eintragen, bevor der Lead als "Verloren" gespeichert werden kann.');
         const el=document.getElementById('fLossComment');
         if(el)el.focus();
@@ -4137,11 +4138,10 @@ function saveLead(keepOpen){
     if(original.status!==draftLead.status){
       draftLead.activity.unshift({id:Date.now()+1,type:'activity',author:currentUser,text:`Status geändert: ${colById(original.status).name} → ${colById(draftLead.status).name}`,date:nowISO()});
       trackClosedStage(draftLead,original.status,draftLead.status);trackStatusSince(draftLead,original.status,draftLead.status);maybeSendListNotification(draftLead,original.status,draftLead.status);
-      if(colById(draftLead.status)&&colById(draftLead.status).outcome==='lost'&&(draftLead._lossComment||'').trim()){
-        draftLead.activity.unshift({id:Date.now()+3,type:'comment',author:currentUser,text:`Verlust-Grund (${draftLead.lossReason}): ${draftLead._lossComment.trim()}`,date:nowISO()});
+      if(colById(draftLead.status)&&colById(draftLead.status).outcome==='lost'&&(draftLead.lossComment||'').trim()){
+        draftLead.activity.unshift({id:Date.now()+3,type:'comment',author:currentUser,text:`Verlust-Grund (${draftLead.lossReason}): ${draftLead.lossComment.trim()}`,date:nowISO()});
       }
     }
-    delete draftLead._lossComment;
     if(original.followup!==draftLead.followup&&draftLead.followup){
       draftLead.followupHistory=[...(draftLead.followupHistory||[]),{date:draftLead.followup,setAt:nowISO()}];
       draftLead.activity.unshift({id:Date.now()+2,type:'activity',author:currentUser,text:`Follow-up-Datum geändert: "${fmtDate(original.followup)||'–'}" → "${fmtDate(draftLead.followup)}"`,date:nowISO()});
