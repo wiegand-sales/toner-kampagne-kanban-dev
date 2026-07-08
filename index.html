@@ -2288,7 +2288,7 @@ function renderSettings(){
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">CSV-Feldkonfiguration</div>
         <p style="font-size:12px;color:var(--text2);line-height:1.6">Legt pro Datenfeld fest, ob es beim <strong>CSV-Import</strong> und/oder <strong>CSV-Export</strong> verwendet wird, sowie unter welchem Spaltennamen. Berechnete Felder (Marge, Status, Anzahl Aufgaben etc.) lassen sich nur exportieren – "Import" ist dort deaktiviert. Eine Spalte wird beim Import erkannt, wenn ihre Kopfzeile (Groß-/Kleinschreibung egal) mit dem hier hinterlegten Namen übereinstimmt.</p>
-        <p style="font-size:12px;color:var(--text2);line-height:1.6"><strong>Bereits vorhandene Leads werden erkannt</strong> an Kundennummer, Firmenname, Telefonnummer oder E-Mail. Was dann passiert, steuerst du pro Feld über die Spalte <strong>"Bei Duplikat aktualisieren?"</strong>: Felder mit "Ja" werden bei einem gefundenen Duplikat mit dem Wert aus der CSV aktualisiert (nur wenn die Zelle nicht leer ist), alle anderen Felder des bestehenden Leads bleiben unangetastet. Steht bei keinem Feld "Ja", wird die Zeile wie bisher komplett übersprungen.</p>
+        <p style="font-size:12px;color:var(--text2);line-height:1.6"><strong>Bereits vorhandene Leads werden erkannt</strong> an Kundennummer, Firmenname, Telefonnummer oder E-Mail. Was dann passiert, steuerst du pro Feld über die Spalte <strong>"Datensätze aktualisieren"</strong>: Felder mit "Ja" werden bei einem gefundenen Duplikat mit dem Wert aus der CSV aktualisiert (nur wenn die Zelle nicht leer ist), alle anderen Felder des bestehenden Leads bleiben unangetastet. Steht bei keinem Feld "Ja", wird die Zeile wie bisher komplett übersprungen.</p>
         <p style="font-size:12px;color:var(--text2);line-height:1.6"><strong>Die Kundennummer bleibt immer eindeutig:</strong> Selbst wenn "Kundennummer" auf "aktualisieren = Ja" steht, wird eine Kundennummer nie übernommen, wenn sie bereits bei einem anderen Lead vergeben ist. In dem Fall bleibt nur dieses eine Feld unverändert, alle übrigen freigegebenen Felder werden trotzdem aktualisiert – im Import-Protokoll siehst du genau, wo das passiert ist.</p>
         <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:8px">
           <tr style="text-align:left;color:var(--text2)">
@@ -2296,7 +2296,7 @@ function renderSettings(){
             <th style="padding:4px 6px;font-weight:600">CSV-Spaltenname</th>
             <th style="padding:4px 6px;font-weight:600;width:90px">Import</th>
             <th style="padding:4px 6px;font-weight:600;width:90px">Export</th>
-            <th style="padding:4px 6px;font-weight:600;width:110px">Bei Duplikat aktualisieren?</th>
+            <th style="padding:4px 6px;font-weight:600;width:110px">Datensätze aktualisieren</th>
             <th style="padding:4px 6px;width:40px"></th>
           </tr>
           ${csvFieldsHtml}
