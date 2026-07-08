@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T20:12:39.681Z';
+const BUILD_VERSION='2026-07-08T20:19:07.814Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1406,8 +1406,28 @@ function icsFold(line){
   }
   return result+rest;
 }
-function formatICSDateTime(dateStr,timeStr){
-  return dateStr.replace(/-/g,'')+'T'+timeStr.replace(':','')+'00';
+// Ermittelt den aktuellen UTC-Versatz (in Minuten) fuer eine Zeitzone an einem bestimmten
+// Datum - wichtig wegen Sommer-/Winterzeit (im Sommer UTC+2, im Winter UTC+1 fuer Berlin).
+function getTZOffsetMinutes(dateUTC,timeZone){
+  const dtf=new Intl.DateTimeFormat('en-US',{timeZone,timeZoneName:'shortOffset'});
+  const part=dtf.formatToParts(dateUTC).find(p=>p.type==='timeZoneName');
+  const m=(part&&part.value||'').match(/GMT([+-]\d+)(?::(\d+))?/);
+  if(!m)return 0;
+  const h=parseInt(m[1],10),mm=m[2]?parseInt(m[2],10):0;
+  return h*60+(h<0?-mm:mm);
+}
+// Rechnet eine als lokale Berliner Uhrzeit gemeinte Datum/Uhrzeit-Kombination in UTC um.
+// Dadurch braucht die ICS-Datei KEINE eigene Zeitzonen-Definition (VTIMEZONE) mehr - das
+// ist der zuverlässigste Weg, der in praktisch jedem Kalenderprogramm funktioniert, auch
+// wenn eine fehlende VTIMEZONE-Definition bei manchen Outlook-Versionen sonst dazu fuehrt,
+// dass die Datei beim Doeppelklick nur die App oeffnet, aber keinen Termin anzeigt.
+function berlinLocalToUTCString(dateStr,timeStr){
+  const [y,mo,d]=dateStr.split('-').map(Number);
+  const [hh,mi]=timeStr.split(':').map(Number);
+  const approx=new Date(Date.UTC(y,mo-1,d,hh,mi));
+  const offsetMin=getTZOffsetMinutes(approx,'Europe/Berlin');
+  const realUTC=new Date(approx.getTime()-offsetMin*60000);
+  return realUTC.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
 }
 function downloadCalendarInvite(){
   if(!(draftLead.email||'').trim()){
@@ -1428,8 +1448,8 @@ function downloadCalendarInvite(){
   const organizer=currentAgent();
   const organizerName=organizer?organizer.name:'Vertrieb';
   const organizerEmail=(organizer&&organizer.email)?organizer.email:'kein-reply@wiegand-gmbh.de';
-  const start=formatICSDateTime(draftLead.followup,'10:00');
-  const end=formatICSDateTime(draftLead.followup,'10:30');
+  const start=berlinLocalToUTCString(draftLead.followup,'10:00');
+  const end=berlinLocalToUTCString(draftLead.followup,'10:30');
   const dtstamp=new Date().toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
   const uid=`${draftLead.id||genId()}-${Date.now()}@salesos.wiegand-gmbh.de`;
   const lines=[
@@ -1441,8 +1461,8 @@ function downloadCalendarInvite(){
     'BEGIN:VEVENT',
     icsFold('UID:'+uid),
     icsFold('DTSTAMP:'+dtstamp),
-    icsFold('DTSTART;TZID=Europe/Berlin:'+start),
-    icsFold('DTEND;TZID=Europe/Berlin:'+end),
+    icsFold('DTSTART:'+start),
+    icsFold('DTEND:'+end),
     icsFold('SUMMARY:'+icsEscape('Telefontermin – '+draftLead.company)),
     icsFold('DESCRIPTION:'+icsEscape(bodyText)),
     icsFold('LOCATION:'+icsEscape('Telefonat')),
