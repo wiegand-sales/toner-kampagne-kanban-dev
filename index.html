@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T19:24:30.689Z';
+const BUILD_VERSION='2026-07-08T19:36:52.372Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3617,7 +3617,10 @@ function renderLeadModal(){
           <label style="font-size:11px;color:var(--text3)">Datum <span style="font-weight:400">(leer lassen = jetzt; sonst Nacherfassung eines vergangenen Ereignisses)</span></label>
           <input type="date" id="commentDateInput" max="${TODAY}" style="width:180px">
         </div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="addComment()"><i class="ti ti-send"></i> Kommentieren</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="addComment()"><i class="ti ti-send"></i> Kommentieren</button>
+          <button class="btn" style="flex:1;justify-content:center;background:var(--amber-bg);color:var(--amber-dark);border-color:var(--amber)" onclick="markNotReached()" title="Trägt automatisch einen Kommentar ein und setzt das Follow-up-Datum auf in 3 Tagen"><i class="ti ti-phone-off"></i> Nicht erreicht</button>
+        </div>
       </div>
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0;display:flex;align-items:center;justify-content:space-between">
@@ -4211,6 +4214,25 @@ function addComment(){
   const customDate=dateInp&&dateInp.value?dateInp.value:null;
   const date=customDate?customDate+'T'+(new Date().toTimeString().slice(0,8)):nowISO();
   draftLead.activity.unshift({id:Date.now(),type:'comment',author:currentUser,text,date,backdated:!!customDate});
+  autoPersistIfEditing();
+  renderLeadModal();
+}
+// Ein-Klick-Aktion fuer "Kunde war nicht erreichbar": traegt IMMER (unabhaengig vom Inhalt
+// des Kommentarfelds) einen festen Kommentar ein und setzt das Follow-up-Datum automatisch
+// auf in 3 Tagen - damit ein nicht erreichter Kunde nie versehentlich ohne Wiedervorlage
+// liegen bleibt.
+function markNotReached(){
+  if(modalReadOnly)return;
+  const d=new Date(TODAY+'T00:00:00');
+  d.setDate(d.getDate()+3);
+  const newFollowup=d.toISOString().slice(0,10);
+  const oldFollowup=draftLead.followup;
+  draftLead.activity.unshift({id:Date.now(),type:'comment',author:currentUser,text:'Nicht erreicht ... erneut probieren',date:nowISO()});
+  if(oldFollowup!==newFollowup){
+    draftLead.followup=newFollowup;
+    draftLead.followupHistory=[...(draftLead.followupHistory||[]),{date:newFollowup,setAt:nowISO()}];
+    draftLead.activity.unshift({id:Date.now()+1,type:'activity',author:currentUser,text:`Follow-up-Datum geändert: "${fmtDate(oldFollowup)||'–'}" → "${fmtDate(newFollowup)}"`,date:nowISO()});
+  }
   autoPersistIfEditing();
   renderLeadModal();
 }
