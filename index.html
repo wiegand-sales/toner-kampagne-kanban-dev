@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T19:36:52.372Z';
+const BUILD_VERSION='2026-07-08T19:44:25.318Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3273,7 +3273,7 @@ function releaseLeadLock(leadId){
 function openLeadModal(id){
   editingLeadId=id;
   draftLead=id?JSON.parse(JSON.stringify(leads.find(x=>x.id===id))):blankLead();
-  labelPopoverOpen=false;memberPopoverOpen=false;activityFeedFilter='all';taskMentionPopoverOpen=false;pendingTaskAssigneeId=null;draftTaskText='';editingCommentId=null;
+  labelPopoverOpen=false;memberPopoverOpen=false;activityFeedFilter='comments';taskMentionPopoverOpen=false;pendingTaskAssigneeId=null;draftTaskText='';editingCommentId=null;rightTab='comments';
   clearTimeout(lockHeartbeatTimer);
   const existingLock=id?getLeadLock(id):null;
   if(existingLock&&existingLock.agentId!==currentUser){
@@ -3609,17 +3609,16 @@ function renderLeadModal(){
   }else{
     rightContentHtml=`<div style="overflow-y:auto;flex:1">
       <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Neuer Kommentar</div>
+        <div class="section-hdr" style="margin-top:0;display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <span>Neuer Kommentar</span>
+          <input type="date" id="commentDateInput" max="${TODAY}" title="Datum (leer lassen = jetzt; sonst Nacherfassung eines vergangenen Ereignisses)" style="width:150px;flex-shrink:0">
+        </div>
         <div class="field" style="margin-bottom:10px">
           <textarea id="commentInput" placeholder="Kommentar schreiben… (Strg+Enter zum Senden)" onkeydown="if((event.key==='Enter')&&(event.ctrlKey||event.metaKey))addComment()"></textarea>
         </div>
-        <div class="field" style="margin-bottom:10px">
-          <label style="font-size:11px;color:var(--text3)">Datum <span style="font-weight:400">(leer lassen = jetzt; sonst Nacherfassung eines vergangenen Ereignisses)</span></label>
-          <input type="date" id="commentDateInput" max="${TODAY}" style="width:180px">
-        </div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="addComment()"><i class="ti ti-send"></i> Kommentieren</button>
           <button class="btn" style="flex:1;justify-content:center;background:var(--amber-bg);color:var(--amber-dark);border-color:var(--amber)" onclick="markNotReached()" title="Trägt automatisch einen Kommentar ein und setzt das Follow-up-Datum auf in 3 Tagen"><i class="ti ti-phone-off"></i> Nicht erreicht</button>
+          <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="addComment()"><i class="ti ti-send"></i> Kommentieren</button>
         </div>
       </div>
       <div class="info-section">
