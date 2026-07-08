@@ -446,6 +446,12 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
   </div>
 </div>
 
+<div id="newVersionBanner" class="hidden" style="position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1a1a1a;color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:center;gap:16px;font-size:14px;box-shadow:0 -2px 12px rgba(0,0,0,.25)">
+  <i class="ti ti-refresh-alert" style="font-size:18px;color:#D9A509"></i>
+  <span>Eine neuere Version von SalesOS ist verfügbar. Bitte lade die Seite neu, um sicherzustellen, dass keine veralteten Daten gespeichert werden.</span>
+  <button class="btn btn-sm btn-primary" onclick="location.reload()"><i class="ti ti-refresh"></i> Jetzt neu laden</button>
+</div>
+
 <div class="app-shell hidden">
   <div class="sidebar">
     <div class="sidebar-project">
@@ -712,6 +718,11 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // ── SUPABASE CLOUD-SYNC ──
 // Gemeinsame Datenbank fuer das ganze Team. localStorage bleibt als schneller
 // lokaler Puffer und Offline-Fallback erhalten; die Cloud ist die fuehrende Quelle.
+// Wird bei jedem Deploy automatisch auf den aktuellen Zeitpunkt gesetzt. Dient NUR dazu,
+// dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
+// (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
+// weiterlaufen und neuere Aenderungen ueberschreiben koennen.
+const BUILD_VERSION='2026-07-08T13:05:58.329Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -4657,6 +4668,28 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('.col-hdr-wrap')&&colMenuOpenId){colMenuOpenId=null;renderBoard();}
 });
 
+let newVersionDetected=false;
+// Prueft, ob die aktuell online liegende index.html eine neuere BUILD_VERSION hat als die,
+// mit der dieser Tab gerade laeuft. Falls ja: unuebersehbares Banner einblenden, das zum
+// Neuladen auffordert - verhindert, dass ein lange offener Tab unbemerkt mit veraltetem
+// Code weiterlaeuft und (moeglicherweise fehlerhafte) alte Daten hochlaedt.
+async function checkForNewVersion(){
+  if(newVersionDetected)return; // Banner ist schon sichtbar, nicht erneut pruefen noetig
+  try{
+    const res=await fetch(location.pathname+'?_v='+Date.now(),{cache:'no-store'});
+    if(!res.ok)return;
+    const html=await res.text();
+    const match=html.match(/const BUILD_VERSION='([^']*)'/);
+    if(match&&match[1]&&match[1]!==BUILD_VERSION){
+      newVersionDetected=true;
+      const banner=document.getElementById('newVersionBanner');
+      if(banner)banner.classList.remove('hidden');
+    }
+  }catch(e){
+    // Netzwerkfehler bei der Versionspruefung sind unkritisch - beim naechsten
+    // Intervall wird es einfach erneut versucht.
+  }
+}
 function bootstrapApp(){
   loadState();
   renderUserSelect();
@@ -4666,6 +4699,11 @@ function bootstrapApp(){
   setSbStatus('connecting');
   sbInitialSync();
   setInterval(sbPoll,15000);
+  setInterval(checkForNewVersion,60000);
+  // Ein Tab, der lange im Hintergrund lag (z.B. eine Nacht offen), soll beim Zurueckkehren
+  // sofort geprueft werden - genau die Situation, in der veralteter Code am ehesten
+  // unbemerkt weiterlaeuft und Daten anderer, aktuellerer Sitzungen ueberschreiben koennte.
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkForNewVersion();});
   // Falls die Seite geschlossen/verlassen wird, waehrend eine Aenderung noch
   // auf den Upload wartet: sofortigen Versuch mit keepalive starten, damit die
   // Aenderung nicht nur lokal, sondern auch in der Cloud landet.
