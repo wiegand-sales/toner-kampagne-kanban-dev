@@ -771,7 +771,7 @@ function applyStateData(data){
   if(data.LABELS)LABELS=data.LABELS;
   if(data.AGENTS)AGENTS=data.AGENTS;
   if(data.ARTICLES)ARTICLES=data.ARTICLES;
-  if(data.PROJECT)PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[],csvExportFields:[],csvImportFields:[]},data.PROJECT);
+  if(data.PROJECT)PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[],csvFields:[]},data.PROJECT);
   if(data.nextId)nextId=data.nextId;
   if(data.nextLabelId)nextLabelId=data.nextLabelId;
   if(data.nextPrinterId)nextPrinterId=data.nextPrinterId;
@@ -2142,23 +2142,29 @@ function renderSettings(){
       <button class="check-item-del" onclick="deleteRisk(${r.id})"><i class="ti ti-trash"></i></button>
     </div>`).join('')||'<p style="font-size:12px;color:var(--text3)">Keine Risiken erfasst.</p>';
 
-  function buildFieldTableRows(fields,importableOnly,toggleFn,keyFn,nameFn,removeFn){
-    return fields.map((f,idx)=>{
-      const reg=FIELD_REGISTRY[f.key];
-      const optionKeys=importableOnly?Object.entries(FIELD_REGISTRY).filter(([,r])=>r.importable):Object.entries(FIELD_REGISTRY);
-      const optionsHtml=optionKeys.map(([key,r])=>
-        `<option value="${key}" ${f.key===key?'selected':''}>${esc(r.label)}${(!importableOnly&&!r.importable)?' (nur Export)':''}</option>`).join('');
-      return `<tr style="border-top:0.5px solid var(--border-c,#e5e5e0)">
-        <td style="padding:6px;text-align:center"><input type="checkbox" ${f.active?'checked':''} onchange="${toggleFn}(${idx})"></td>
-        <td style="padding:6px"><select style="width:100%" onchange="${keyFn}(${idx},this.value)">${optionsHtml}</select></td>
-        <td style="padding:6px"><input type="text" value="${esc(f.csvName)}" style="width:100%" onchange="${nameFn}(${idx},this.value)"></td>
-        ${importableOnly?'':`<td style="padding:6px;text-align:center;font-size:11px;color:var(--text3)">${reg&&reg.importable?'Ja':'Nur Export'}</td>`}
-        <td style="padding:6px;text-align:center"><button class="check-item-del" onclick="${removeFn}(${idx})" title="Feld entfernen"><i class="ti ti-trash"></i></button></td>
-      </tr>`;
-    }).join('');
-  }
-  const exportFieldsHtml=buildFieldTableRows(getExportFields(),false,'toggleExportFieldActive','setExportFieldKey','setExportFieldName','removeExportField');
-  const importFieldsHtml=buildFieldTableRows(getImportFields(),true,'toggleImportFieldActive','setImportFieldKey','setImportFieldName','removeImportField');
+  const csvFieldsHtml=getCsvFields().map((f,idx)=>{
+    const reg=FIELD_REGISTRY[f.key];
+    const optionsHtml=Object.entries(FIELD_REGISTRY).map(([key,r])=>
+      `<option value="${key}" ${f.key===key?'selected':''}>${esc(r.label)}</option>`).join('');
+    const importDisabled=!reg||!reg.importable;
+    return `<tr style="border-top:0.5px solid var(--border-c,#e5e5e0)">
+      <td style="padding:6px"><select style="width:100%" onchange="setCsvFieldKey(${idx},this.value)">${optionsHtml}</select></td>
+      <td style="padding:6px"><input type="text" value="${esc(f.csvName)}" style="width:100%" onchange="setCsvFieldName(${idx},this.value)"></td>
+      <td style="padding:6px">
+        <select style="width:100%" ${importDisabled?'disabled title="Berechnetes Feld, kann nicht importiert werden"':''} onchange="setCsvFieldImportActive(${idx},this.value==='ja')">
+          <option value="nein" ${!f.importActive?'selected':''}>Nein</option>
+          <option value="ja" ${f.importActive?'selected':''} ${importDisabled?'disabled':''}>Ja</option>
+        </select>
+      </td>
+      <td style="padding:6px">
+        <select style="width:100%" onchange="setCsvFieldExportActive(${idx},this.value==='ja')">
+          <option value="nein" ${!f.exportActive?'selected':''}>Nein</option>
+          <option value="ja" ${f.exportActive?'selected':''}>Ja</option>
+        </select>
+      </td>
+      <td style="padding:6px;text-align:center"><button class="check-item-del" onclick="removeCsvField(${idx})" title="Feld entfernen"><i class="ti ti-trash"></i></button></td>
+    </tr>`;
+  }).join('');
 
   const notifyRulesHtml=(PROJECT.notificationRules||[]).map(r=>`
     <div class="settings-row">
@@ -2264,40 +2270,23 @@ function renderSettings(){
       </div>`,
     csv:`
       <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Export-Spalten</div>
-        <p style="font-size:12px;color:var(--text2);line-height:1.6">Legt fest, welche Datenfelder beim <strong>CSV-Export</strong> verwendet werden, unter welchem Spaltennamen, und in welcher Reihenfolge. Hier stehen auch berechnete Felder (Marge, Status, Anzahl Aufgaben etc.) zur Auswahl – diese sind als "Nur Export" gekennzeichnet.</p>
-        <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:8px">
-          <tr style="text-align:left;color:var(--text2)">
-            <th style="padding:4px 6px;font-weight:600;width:60px">Aktiv</th>
-            <th style="padding:4px 6px;font-weight:600">Datenfeld</th>
-            <th style="padding:4px 6px;font-weight:600">CSV-Spaltenname</th>
-            <th style="padding:4px 6px;font-weight:600;width:90px">Import</th>
-            <th style="padding:4px 6px;width:40px"></th>
-          </tr>
-          ${exportFieldsHtml}
-        </table>
-        <div style="display:flex;gap:8px;margin-top:10px">
-          <button class="btn btn-sm" onclick="addExportField()"><i class="ti ti-plus"></i> Feld hinzufügen</button>
-          <button class="btn btn-sm" onclick="resetExportFields()"><i class="ti ti-refresh"></i> Auf Standard zurücksetzen</button>
-        </div>
-      </div>
-      <div class="info-section">
-        <div class="section-hdr" style="margin-top:0">Import-Spalten</div>
-        <p style="font-size:12px;color:var(--text2);line-height:1.6">Legt fest, welche Spalten beim <strong>CSV-Import</strong> (neue Leads anlegen) erkannt werden. Nur direkt befüllbare Felder stehen hier zur Auswahl – berechnete Werte lassen sich nicht importieren. Eine Spalte wird erkannt, wenn ihre Kopfzeile (Groß-/Kleinschreibung egal) mit dem hier hinterlegten Namen übereinstimmt.</p>
+        <div class="section-hdr" style="margin-top:0">CSV-Feldkonfiguration</div>
+        <p style="font-size:12px;color:var(--text2);line-height:1.6">Legt pro Datenfeld fest, ob es beim <strong>CSV-Import</strong> und/oder <strong>CSV-Export</strong> verwendet wird, sowie unter welchem Spaltennamen. Berechnete Felder (Marge, Status, Anzahl Aufgaben etc.) lassen sich nur exportieren – "Import" ist dort deaktiviert. Eine Spalte wird beim Import erkannt, wenn ihre Kopfzeile (Groß-/Kleinschreibung egal) mit dem hier hinterlegten Namen übereinstimmt.</p>
         <p style="font-size:12px;color:var(--text2);line-height:1.6"><strong>Bereits vorhandene Leads werden nie überschrieben</strong> – erkannt an Kundennummer, Firmenname, Telefonnummer oder E-Mail, solche Zeilen werden beim Import automatisch übersprungen.</p>
         <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:8px">
           <tr style="text-align:left;color:var(--text2)">
-            <th style="padding:4px 6px;font-weight:600;width:60px">Aktiv</th>
             <th style="padding:4px 6px;font-weight:600">Datenfeld</th>
             <th style="padding:4px 6px;font-weight:600">CSV-Spaltenname</th>
+            <th style="padding:4px 6px;font-weight:600;width:90px">Import</th>
+            <th style="padding:4px 6px;font-weight:600;width:90px">Export</th>
             <th style="padding:4px 6px;width:40px"></th>
           </tr>
-          ${importFieldsHtml}
+          ${csvFieldsHtml}
         </table>
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn btn-sm" onclick="addImportField()"><i class="ti ti-plus"></i> Feld hinzufügen</button>
-          <button class="btn btn-sm" onclick="resetImportFields()"><i class="ti ti-refresh"></i> Auf Standard zurücksetzen</button>
-          <button class="btn btn-sm btn-primary" onclick="downloadImportTemplate()"><i class="ti ti-download"></i> Vorlage herunterladen (mit Beispieldatensatz)</button>
+          <button class="btn btn-sm" onclick="addCsvField()"><i class="ti ti-plus"></i> Feld hinzufügen</button>
+          <button class="btn btn-sm" onclick="resetCsvFields()"><i class="ti ti-refresh"></i> Auf Standard zurücksetzen</button>
+          <button class="btn btn-sm btn-primary" onclick="downloadImportTemplate()"><i class="ti ti-download"></i> Import-Vorlage herunterladen (mit Beispieldatensatz)</button>
         </div>
       </div>`,
     notify:`
@@ -4081,75 +4070,68 @@ const FIELD_REGISTRY={
   tasksTotal:{label:'Aufgaben gesamt',importable:false,get:l=>(l.tasks||[]).length},
   filesCount:{label:'Anzahl Anhänge',importable:false,get:l=>(l.files||[]).length},
 };
-const IMPORTABLE_FIELD_ORDER=['company','customerNumber','art','address','orderCount','revenue',
-  'contact','phone','email','competitor','tonerSent','firstContact','followup','forecast','actual','lossReason','notes',
-  'topSkuOem1','topSkuKompa1','topTitle1','topSkuOem2','topSkuKompa2','topTitle2','topSkuOem3','topSkuKompa3','topTitle3'];
-const EXPORT_FIELD_ORDER=['company','customerNumber','art','address','orderCount','revenue',
+// Eine gemeinsame Feldliste, pro Feld getrennt steuerbar ob es beim Import bzw. Export
+// verwendet wird (statt eines einzelnen "Aktiv"-Schalters oder zweier getrennter Listen).
+const FIELD_ORDER=['company','customerNumber','art','address','orderCount','revenue',
   'shipPrinterModel','shipSkus','investTotal','shipMargin','demandDetails','actualDetails',
   'contact','phone','email','competitor','membersNames','statusName','statusSince','tonerSent',
   'firstContact','followup','forecast','actual','lossReason','labelsNames','checklistItems',
   'commentCount','tasksOpen','tasksTotal','filesCount','notes',
   'topSkuOem1','topSkuKompa1','topTitle1','topSkuOem2','topSkuKompa2','topTitle2','topSkuOem3','topSkuKompa3','topTitle3'];
-function defaultExportFields(){
-  return EXPORT_FIELD_ORDER.map(key=>({key,csvName:FIELD_REGISTRY[key].label,active:true}));
+function defaultCsvFields(){
+  return FIELD_ORDER.map(key=>({key,csvName:FIELD_REGISTRY[key].label,importActive:!!FIELD_REGISTRY[key].importable,exportActive:true}));
 }
-function defaultImportFields(){
-  return IMPORTABLE_FIELD_ORDER.map(key=>({key,csvName:FIELD_REGISTRY[key].label,active:true}));
-}
-// Migriert eine evtl. vorhandene, aeltere gemeinsame Feldliste (Vorversion) in die neuen getrennten Listen
+// Migriert Konfigurationen aus Vorversionen (getrennte Export-/Import-Listen, oder eine
+// einzelne Liste mit nur einem "Aktiv"-Flag) in das aktuelle Format.
 function migrateLegacyCsvFields(){
-  if(PROJECT.csvFields&&PROJECT.csvFields.length){
-    if(!PROJECT.csvExportFields||!PROJECT.csvExportFields.length)PROJECT.csvExportFields=PROJECT.csvFields.map(f=>({...f}));
-    if(!PROJECT.csvImportFields||!PROJECT.csvImportFields.length)PROJECT.csvImportFields=PROJECT.csvFields.filter(f=>FIELD_REGISTRY[f.key]?.importable).map(f=>({...f}));
-    delete PROJECT.csvFields;
+  if((PROJECT.csvExportFields&&PROJECT.csvExportFields.length)||(PROJECT.csvImportFields&&PROJECT.csvImportFields.length)){
+    const expList=PROJECT.csvExportFields||[],impList=PROJECT.csvImportFields||[];
+    const keys=[...new Set([...expList.map(f=>f.key),...impList.map(f=>f.key)])];
+    PROJECT.csvFields=keys.map(key=>{
+      const e=expList.find(f=>f.key===key),i=impList.find(f=>f.key===key);
+      return{key,csvName:(e&&e.csvName)||(i&&i.csvName)||FIELD_REGISTRY[key]?.label||key,importActive:!!(i&&i.active),exportActive:!!(e&&e.active)};
+    });
+    delete PROJECT.csvExportFields;delete PROJECT.csvImportFields;
+  }
+  if(PROJECT.csvFields&&PROJECT.csvFields.length&&PROJECT.csvFields[0].importActive===undefined){
+    PROJECT.csvFields=PROJECT.csvFields.map(f=>({key:f.key,csvName:f.csvName,importActive:!!(f.active&&FIELD_REGISTRY[f.key]?.importable),exportActive:!!f.active}));
   }
 }
-function getExportFields(){
+function getCsvFields(){
   migrateLegacyCsvFields();
-  if(!PROJECT.csvExportFields||!PROJECT.csvExportFields.length)PROJECT.csvExportFields=defaultExportFields();
-  return PROJECT.csvExportFields;
+  if(!PROJECT.csvFields||!PROJECT.csvFields.length)PROJECT.csvFields=defaultCsvFields();
+  return PROJECT.csvFields;
 }
-function getImportFields(){
-  migrateLegacyCsvFields();
-  if(!PROJECT.csvImportFields||!PROJECT.csvImportFields.length)PROJECT.csvImportFields=defaultImportFields();
-  return PROJECT.csvImportFields;
+function unusedFieldKeys(){
+  const used=new Set(getCsvFields().map(f=>f.key));
+  return Object.keys(FIELD_REGISTRY).filter(k=>!used.has(k));
 }
-function unusedFieldKeys(list,importableOnly){
-  const used=new Set(list.map(f=>f.key));
-  return Object.keys(FIELD_REGISTRY).filter(k=>!used.has(k)&&(!importableOnly||FIELD_REGISTRY[k].importable));
-}
-function addExportField(){
-  const free=unusedFieldKeys(getExportFields(),false);
-  if(!free.length){alert('Alle verfügbaren Felder sind bereits in der Export-Liste.');return;}
-  getExportFields().push({key:free[0],csvName:FIELD_REGISTRY[free[0]].label,active:true});
+function addCsvField(){
+  const free=unusedFieldKeys();
+  if(!free.length){alert('Alle verfügbaren Felder sind bereits in der Liste.');return;}
+  getCsvFields().push({key:free[0],csvName:FIELD_REGISTRY[free[0]].label,importActive:!!FIELD_REGISTRY[free[0]].importable,exportActive:true});
   saveState();renderSettings();
 }
-function removeExportField(idx){getExportFields().splice(idx,1);saveState();renderSettings();}
-function toggleExportFieldActive(idx){const f=getExportFields()[idx];f.active=!f.active;saveState();renderSettings();}
-function setExportFieldKey(idx,key){const f=getExportFields()[idx];f.key=key;f.csvName=FIELD_REGISTRY[key].label;saveState();renderSettings();}
-function setExportFieldName(idx,val){getExportFields()[idx].csvName=val;saveState();}
-function resetExportFields(){
-  if(!confirm('Export-Feldkonfiguration wirklich auf den Standard zurücksetzen?'))return;
-  PROJECT.csvExportFields=defaultExportFields();
+function removeCsvField(idx){getCsvFields().splice(idx,1);saveState();renderSettings();}
+function setCsvFieldKey(idx,key){
+  const f=getCsvFields()[idx];f.key=key;f.csvName=FIELD_REGISTRY[key].label;
+  if(!FIELD_REGISTRY[key].importable)f.importActive=false;
   saveState();renderSettings();
 }
-function addImportField(){
-  const free=unusedFieldKeys(getImportFields(),true);
-  if(!free.length){alert('Alle importierbaren Felder sind bereits in der Import-Liste.');return;}
-  getImportFields().push({key:free[0],csvName:FIELD_REGISTRY[free[0]].label,active:true});
-  saveState();renderSettings();
+function setCsvFieldName(idx,val){getCsvFields()[idx].csvName=val;saveState();}
+function setCsvFieldImportActive(idx,val){
+  const f=getCsvFields()[idx];
+  if(val&&!FIELD_REGISTRY[f.key]?.importable)return; // berechnete Felder koennen nicht importiert werden
+  f.importActive=val;saveState();renderSettings();
 }
-function removeImportField(idx){getImportFields().splice(idx,1);saveState();renderSettings();}
-function toggleImportFieldActive(idx){const f=getImportFields()[idx];f.active=!f.active;saveState();renderSettings();}
-function setImportFieldKey(idx,key){const f=getImportFields()[idx];f.key=key;f.csvName=FIELD_REGISTRY[key].label;saveState();renderSettings();}
-function setImportFieldName(idx,val){getImportFields()[idx].csvName=val;saveState();}
-function resetImportFields(){
-  if(!confirm('Import-Feldkonfiguration wirklich auf den Standard zurücksetzen?'))return;
-  PROJECT.csvImportFields=defaultImportFields();
+function setCsvFieldExportActive(idx,val){getCsvFields()[idx].exportActive=val;saveState();renderSettings();}
+function resetCsvFields(){
+  if(!confirm('Feldkonfiguration wirklich auf den Standard zurücksetzen?'))return;
+  PROJECT.csvFields=defaultCsvFields();
   saveState();renderSettings();
 }
 function exportCSV(){
-  const fields=getExportFields().filter(f=>f.active&&FIELD_REGISTRY[f.key]);
+  const fields=getCsvFields().filter(f=>f.exportActive&&FIELD_REGISTRY[f.key]);
   const headers=fields.map(f=>f.csvName);
   const rows=leads.map(l=>fields.map(f=>FIELD_REGISTRY[f.key].get(l)));
   const csv=[headers,...rows].map(r=>r.map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
@@ -4162,7 +4144,7 @@ function exportCSV(){
 // Lädt eine Vorlage zum Ausfüllen herunter: Kopfzeile nach aktueller Import-Konfiguration
 // plus eine Beispielzeile mit plausiblen Musterwerten je Feld
 function downloadImportTemplate(){
-  const fields=getImportFields().filter(f=>f.active&&FIELD_REGISTRY[f.key]);
+  const fields=getCsvFields().filter(f=>f.importActive&&FIELD_REGISTRY[f.key]?.importable);
   if(!fields.length){alert('Keine aktiven Import-Felder konfiguriert.');return;}
   const headers=fields.map(f=>f.csvName);
   const exampleRow=fields.map(f=>FIELD_REGISTRY[f.key].example??'');
@@ -4217,7 +4199,7 @@ function importCSVFile(file){
       // Einstellungen pruefen, ob eine Spalte mit dem konfigurierten Namen ODER einem der bekannten
       // Alias-Namen (Abwaertskompatibilitaet zu bisherigen CSV-Vorlagen) in der Kopfzeile existiert.
       const colMap={};
-      getImportFields().filter(f=>f.active&&FIELD_REGISTRY[f.key]?.importable).forEach(f=>{
+      getCsvFields().filter(f=>f.importActive&&FIELD_REGISTRY[f.key]?.importable).forEach(f=>{
         const reg=FIELD_REGISTRY[f.key];
         const candidates=[f.csvName.trim().toLowerCase(),...(reg.aliases||[])];
         const idx=headers.findIndex(h=>candidates.includes(h));
