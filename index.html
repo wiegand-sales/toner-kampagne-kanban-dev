@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T14:10:07.985Z';
+const BUILD_VERSION='2026-07-08T14:53:52.088Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -777,30 +777,8 @@ function isSbSessionValid(){
 let sbStatus='connecting';   // connecting | online | offline
 let sbStatusDetail='';
 const PENDING_PUSH_KEY='toner_kanban_pending_push_v1';
-let sbLastUpdatedAt=null;    // Zeitstempel des zuletzt bekannten Cloud-Stands
+let sbLastUpdatedAt=null;    // Zeitstempel des zuletzt bekannten, bestaetigten Cloud-Stands
 let sbPushTimer=null;
-let sbSuppressPush=true;     // bis der erste Abgleich gelaufen ist, nichts hochschieben
-let pendingPushWhileSuppressed=false; // merkt sich einen Speicherwunsch, der waehrend der Sperrzeit ankam
-function setSbSuppressPush(v){
-  sbSuppressPush=v;
-  if(!v&&pendingPushWhileSuppressed){
-    pendingPushWhileSuppressed=false;
-    scheduleSbPush();
-  }
-}
-function markPendingPush(){try{localStorage.setItem(PENDING_PUSH_KEY,String(Date.now()));}catch(e){}}
-function clearPendingPush(){try{localStorage.removeItem(PENDING_PUSH_KEY);}catch(e){}}
-function hasPendingPush(){try{return localStorage.getItem(PENDING_PUSH_KEY)!==null;}catch(e){return false;}}
-// Zeitpunkt, zu dem die letzte noch unbestaetigte lokale Aenderung gemacht wurde (oder 0,
-// falls keine vorhanden bzw. das gespeicherte Format ungueltig ist - wird dann konservativ
-// als "sehr alt" behandelt, damit ein zweifelhafter Altbestand niemals Vorrang bekommt).
-function getPendingPushTimestamp(){
-  try{
-    const raw=localStorage.getItem(PENDING_PUSH_KEY);
-    const n=parseInt(raw,10);
-    return isNaN(n)?0:n;
-  }catch(e){return 0;}
-}
 
 function buildStatePayload(){
   return {leads, COLUMNS, LABELS, AGENTS, ARTICLES, PROJECT, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId, nextArticleId, nextMilestoneId, nextRiskId, nextNotifyRuleId};
@@ -842,58 +820,101 @@ function setSbStatus(status,detail){
   el.innerHTML=`<span class="sb-dot" style="background:${m.dot}"></span>${m.text}`;
   if(wrap)wrap.title=detail||m.text;
 }
-function scheduleSbPush(){
-  markPendingPush(); // merken: es gibt eine Aenderung, die noch bestaetigt hochgeladen werden muss
-  if(sbSuppressPush){pendingPushWhileSuppressed=true;return;}
-  clearTimeout(sbPushTimer);
-  sbPushTimer=setTimeout(sbPush,1500);
-}
-async function sbPush(){
-  sbPushTimer=null; // Timer ist jetzt abgelaufen/ausgefuehrt - Markierung zuruecksetzen, sonst denkt
-                     // sbPoll() faelschlich dauerhaft "es steht noch ein Push aus" und pollt nie wieder
+
+// ── ECHTES 3-WEGE-MERGE (statt "wer zuletzt speichert, gewinnt alles") ──
+// sbBaselineData/sbBaselineUpdatedAt sind der letzte GEMEINSAM BESTAETIGTE Stand
+// (das, was zuletzt tatsaechlich erfolgreich in der Cloud UND lokal genau so vorlag).
+// Das ist der "gemeinsame Vorfahre" fuer den Vergleich: alles, was seitdem lokal ODER
+// in der Cloud abweicht, ist eine echte Aenderung. Wird dauerhaft in localStorage
+// gesichert, damit er auch einen Reload/eine laengere Pause uebersteht - genau das hat
+// vorher gefehlt und dazu gefuehrt, dass ein Geraet mit einem sehr alten lokalen Stand
+// nicht erkennen konnte, dass DIESER Stand laengst ueberholt ist.
+const SYNC_BASELINE_KEY='toner_kanban_sync_baseline_v1';
+let sbBaselineData=null;
+let sbBaselineUpdatedAt=null;
+function loadSyncBaseline(){
   try{
-    // Absicherung gegen "alter Tab ueberschreibt neuere Aenderung": bevor der eigene Stand
-    // hochgeladen wird, kurz pruefen ob die Cloud sich zwischenzeitlich (durch ein anderes
-    // Geraet oder einen anderen, ebenfalls offenen Tab) bereits weiterbewegt hat. Falls ja,
-    // wird NICHT blind der eigene (jetzt veraltete) Stand ueberschrieben - stattdessen wird
-    // der aktuellere Stand geladen und der Nutzer gewarnt, damit er seine letzte Aenderung
-    // pruefen und bei Bedarf erneut eintragen kann.
-    if(sbLastUpdatedAt){
-      const current=await sbPull();
-      if(current&&current.updated_at&&current.updated_at!==sbLastUpdatedAt){
-        sbSuppressPush=true;
-        applyStateData(current.data);
-        sbLastUpdatedAt=current.updated_at;
-        try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
-        sbSuppressPush=false;
-        refreshCurrentView();
-        setSbStatus('online');
-        alert('Achtung: Ein anderes geöffnetes Fenster/Tab (oder ein anderes Gerät) hat zwischenzeitlich einen neueren Stand gespeichert.\n\nUm Datenverlust zu vermeiden, wurde dein letzter, veralteter Stand NICHT hochgeladen - stattdessen wurde der aktuelle Stand geladen.\n\nBitte prüfe deine zuletzt gemachte Änderung und trage sie bei Bedarf erneut ein. Tipp: Schließe doppelt geöffnete Tabs von SalesOS, um das zu vermeiden.');
-        return;
-      }
-    }
-    const ts=new Date().toISOString();
-    const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state`,{
-      method:'POST',
-      headers:Object.assign({},getSbHeaders(),{'Prefer':'resolution=merge-duplicates,return=representation'}),
-      body:JSON.stringify({id:'main',data:buildStatePayload(),updated_at:ts})
-    });
-    if(res.status===401){handleSbAuthExpired();return;}
-    if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
-    const rows=await res.json();
-    if(rows&&rows[0]&&rows[0].updated_at)sbLastUpdatedAt=rows[0].updated_at;
-    else sbLastUpdatedAt=ts;
-    clearPendingPush(); // erfolgreich in der Cloud angekommen - Markierung kann weg
-    const failBanner=document.getElementById('syncFailureBanner');
-    if(failBanner)failBanner.classList.add('hidden');
-    setSbStatus('online');
-  }catch(e){
-    console.warn('Cloud-Push fehlgeschlagen:',e);
-    setSbStatus('offline','Letzter Push fehlgeschlagen: '+e.message+' – Daten sind lokal gesichert, Sync wird erneut versucht.');
-    showSyncFailureBanner('Deine letzte Änderung konnte nicht in die Cloud hochgeladen werden ('+e.message+'). Sie ist lokal in diesem Browser gesichert und wird automatisch erneut versucht - bitte lade die Seite währenddessen NICHT neu und schließe diesen Tab nicht.');
-    // Erneuter Versuch in 10s, solange die Markierung "pending" noch gesetzt ist
-    setTimeout(()=>{if(hasPendingPush())scheduleSbPush();},10000);
+    const raw=localStorage.getItem(SYNC_BASELINE_KEY);
+    if(!raw)return;
+    const parsed=JSON.parse(raw);
+    sbBaselineData=parsed.data||null;
+    sbBaselineUpdatedAt=parsed.updatedAt||null;
+    sbLastUpdatedAt=sbBaselineUpdatedAt;
+  }catch(e){}
+}
+function saveSyncBaseline(data,updatedAt){
+  sbBaselineData=data;
+  sbBaselineUpdatedAt=updatedAt;
+  sbLastUpdatedAt=updatedAt;
+  try{localStorage.setItem(SYNC_BASELINE_KEY,JSON.stringify({data,updatedAt}));}catch(e){}
+}
+// Echte inhaltliche Gleichheit (nicht auf Objekt-Schluesselreihenfolge angewiesen, im
+// Gegensatz zu einem simplen JSON.stringify-Vergleich).
+function deepEqual(a,b){
+  if(a===b)return true;
+  if(a===null||b===null||typeof a!=='object'||typeof b!=='object')return a===b;
+  if(Array.isArray(a)!==Array.isArray(b))return false;
+  if(Array.isArray(a)){
+    if(a.length!==b.length)return false;
+    for(let i=0;i<a.length;i++)if(!deepEqual(a[i],b[i]))return false;
+    return true;
   }
+  const keysA=Object.keys(a),keysB=Object.keys(b);
+  if(keysA.length!==keysB.length)return false;
+  for(const k of keysA){if(!Object.prototype.hasOwnProperty.call(b,k)||!deepEqual(a[k],b[k]))return false;}
+  return true;
+}
+// Fuehrt drei Versionen einer nach "id" indizierten Liste zusammen (Leads, Listen/Spalten,
+// Labels, Mitarbeiter, Artikel). Fuer jedes Element wird einzeln entschieden, wessen
+// Version gilt - so blockieren sich zwei Bearbeitungen an UNTERSCHIEDLICHEN Elementen nie
+// gegenseitig. Nur wenn dasselbe Element auf BEIDEN Seiten seit der Baseline geaendert
+// wurde, gewinnt die lokale Version (dokumentierte, bewusste Vereinfachung fuer den
+// seltenen Fall, dass zwei Leute exakt denselben Datensatz gleichzeitig bearbeiten).
+function mergeArraysById(baselineArr,localArr,remoteArr){
+  const b=new Map((baselineArr||[]).map(x=>[x.id,x]));
+  const l=new Map((localArr||[]).map(x=>[x.id,x]));
+  const r=new Map((remoteArr||[]).map(x=>[x.id,x]));
+  const allIds=new Set([...b.keys(),...l.keys(),...r.keys()]);
+  const result=[];
+  allIds.forEach(id=>{
+    const inB=b.has(id),inL=l.has(id),inR=r.has(id);
+    const bv=b.get(id),lv=l.get(id),rv=r.get(id);
+    if(!inB){
+      // Neu (noch nicht in der Baseline): beide Varianten aufnehmen falls vorhanden,
+      // im (sehr seltenen) Fall einer ID-Kollision gewinnt die lokale Version.
+      if(inL){result.push(lv);return;}
+      if(inR){result.push(rv);return;}
+      return;
+    }
+    const localChanged=!inL||!deepEqual(lv,bv);
+    const remoteChanged=!inR||!deepEqual(rv,bv);
+    if(!localChanged&&!remoteChanged){if(inL)result.push(lv);return;} // unveraendert
+    if(localChanged&&!remoteChanged){if(inL)result.push(lv);return;} // nur lokal geaendert/geloescht
+    if(!localChanged&&remoteChanged){if(inR)result.push(rv);return;} // nur remote geaendert/geloescht
+    // Beide Seiten haben seit der Baseline etwas an DIESEM Element geaendert:
+    if(!inL&&inR){result.push(rv);return;} // lokal geloescht, remote aber zwischenzeitlich bearbeitet -> nicht verlieren
+    if(inL)result.push(lv); // echter Konflikt am selben Element -> lokale (gerade aktive) Version gewinnt
+  });
+  return result;
+}
+function mergeStateData(baseline,local,remote){
+  return {
+    leads:mergeArraysById(baseline.leads,local.leads,remote.leads),
+    COLUMNS:mergeArraysById(baseline.COLUMNS,local.COLUMNS,remote.COLUMNS),
+    LABELS:mergeArraysById(baseline.LABELS,local.LABELS,remote.LABELS),
+    AGENTS:mergeArraysById(baseline.AGENTS,local.AGENTS,remote.AGENTS),
+    ARTICLES:mergeArraysById(baseline.ARTICLES,local.ARTICLES,remote.ARTICLES),
+    PROJECT:deepEqual(local.PROJECT,baseline.PROJECT)?remote.PROJECT:local.PROJECT,
+    nextId:Math.max(local.nextId||0,remote.nextId||0),
+    nextLabelId:Math.max(local.nextLabelId||0,remote.nextLabelId||0),
+    nextPrinterId:Math.max(local.nextPrinterId||0,remote.nextPrinterId||0),
+    nextColId:Math.max(local.nextColId||0,remote.nextColId||0),
+    nextAgentId:Math.max(local.nextAgentId||0,remote.nextAgentId||0),
+    nextArticleId:Math.max(local.nextArticleId||0,remote.nextArticleId||0),
+    nextMilestoneId:Math.max(local.nextMilestoneId||0,remote.nextMilestoneId||0),
+    nextRiskId:Math.max(local.nextRiskId||0,remote.nextRiskId||0),
+    nextNotifyRuleId:Math.max(local.nextNotifyRuleId||0,remote.nextNotifyRuleId||0)
+  };
 }
 async function sbPull(){
   const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=data,updated_at`,{headers:getSbHeaders()});
@@ -901,6 +922,101 @@ async function sbPull(){
   if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
   const rows=await res.json();
   return rows&&rows.length?rows[0]:null;
+}
+async function pushState(payload){
+  const ts=new Date().toISOString();
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state`,{
+    method:'POST',
+    headers:Object.assign({},getSbHeaders(),{'Prefer':'resolution=merge-duplicates,return=representation'}),
+    body:JSON.stringify({id:'main',data:payload,updated_at:ts})
+  });
+  if(res.status===401){handleSbAuthExpired();return;}
+  if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
+  const rows=await res.json();
+  const confirmedAt=(rows&&rows[0]&&rows[0].updated_at)?rows[0].updated_at:ts;
+  saveSyncBaseline(JSON.parse(JSON.stringify(payload)),confirmedAt);
+  clearPendingPush();
+  const failBanner=document.getElementById('syncFailureBanner');
+  if(failBanner)failBanner.classList.add('hidden');
+  setSbStatus('online');
+}
+let syncInProgress=false;
+let syncQueued=false;
+// Zentrale Synchronisations-Funktion: holt den aktuellen Cloud-Stand, vergleicht ihn und
+// den eigenen lokalen Stand jeweils gegen die zuletzt bestaetigte Baseline, und fuehrt bei
+// Bedarf beides pro Element zusammen (siehe mergeStateData). Ersetzt die frueheren, streng
+// getrennten Funktionen sbPush/sbInitialSync/sbPoll, die bei einem Konflikt den kompletten
+// eigenen Stand verworfen haben, selbst wenn nur ein einziger, ganz anderer Lead betroffen war.
+async function syncMerge(){
+  if(syncInProgress){syncQueued=true;return;}
+  syncInProgress=true;
+  try{
+    const remote=await sbPull();
+    if(!remote){
+      // Cloud-Tabelle existiert, ist aber leer -> lokalen Stand als Startpunkt hochladen
+      await pushState(buildStatePayload());
+      return;
+    }
+    const localSnapshot=buildStatePayload();
+    // Baseline und Remote-Stand vor dem Vergleich genauso normalisieren wie der lokale Stand
+    // (der beim Laden bereits durch applyStateData()/normalizeLeads() gelaufen ist) - sonst
+    // wuerden neu hinzugekommene Standardfelder faelschlich als "Aenderung" gewertet und
+    // JEDER Lead schiene veraendert, obwohl inhaltlich nichts passiert ist.
+    const baselineForCompare=sbBaselineData?JSON.parse(JSON.stringify(sbBaselineData)):JSON.parse(JSON.stringify(remote.data));
+    if(baselineForCompare.leads)normalizeLeads(baselineForCompare.leads);
+    if(baselineForCompare.COLUMNS)normalizeColumns(baselineForCompare.COLUMNS);
+    if(baselineForCompare.AGENTS)normalizeAgents(baselineForCompare.AGENTS);
+    const remoteForCompare=JSON.parse(JSON.stringify(remote.data));
+    if(remoteForCompare.leads)normalizeLeads(remoteForCompare.leads);
+    if(remoteForCompare.COLUMNS)normalizeColumns(remoteForCompare.COLUMNS);
+    if(remoteForCompare.AGENTS)normalizeAgents(remoteForCompare.AGENTS);
+    const baseline=baselineForCompare;
+    const remoteChanged=!sbBaselineData||!deepEqual(remoteForCompare,baselineForCompare);
+    const localChanged=!sbBaselineData||!deepEqual(localSnapshot,baselineForCompare);
+    if(!localChanged&&!remoteChanged){
+      // Nichts hat sich irgendwo geaendert - nur Baseline/Zeitstempel aktuell halten
+      saveSyncBaseline(remote.data,remote.updated_at);
+      setSbStatus('online');
+      return;
+    }
+    if(!localChanged&&remoteChanged){
+      // Nur die Cloud hat sich weiterbewegt (jemand anderes hat gespeichert) -> übernehmen
+      applyStateData(remote.data);
+      saveSyncBaseline(JSON.parse(JSON.stringify(remote.data)),remote.updated_at);
+      try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
+      clearPendingPush();
+      setSbStatus('online');
+      refreshCurrentView();
+      return;
+    }
+    if(localChanged&&!remoteChanged){
+      // Nur die eigene Aenderung ist neu -> direkt hochladen, kein Merge noetig
+      await pushState(localSnapshot);
+      return;
+    }
+    // Beide Seiten haben sich seit der Baseline veraendert -> zusammenfuehren statt verwerfen
+    const merged=mergeStateData(baseline,localSnapshot,remoteForCompare);
+    applyStateData(merged);
+    try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
+    refreshCurrentView();
+    await pushState(merged);
+  }catch(e){
+    console.warn('Sync fehlgeschlagen:',e);
+    setSbStatus('offline','Sync fehlgeschlagen: '+e.message);
+    if(hasPendingPush())showSyncFailureBanner('Deine letzte Änderung konnte gerade nicht in die Cloud hochgeladen werden ('+e.message+'). Sie ist lokal in diesem Browser gesichert und wird automatisch erneut versucht - bitte lade die Seite währenddessen NICHT neu und schließe diesen Tab nicht.');
+    setTimeout(()=>{if(hasPendingPush())scheduleSbPush();},10000);
+  }finally{
+    syncInProgress=false;
+    if(syncQueued){syncQueued=false;syncMerge();}
+  }
+}
+function markPendingPush(){try{localStorage.setItem(PENDING_PUSH_KEY,String(Date.now()));}catch(e){}}
+function clearPendingPush(){try{localStorage.removeItem(PENDING_PUSH_KEY);}catch(e){}}
+function hasPendingPush(){try{return localStorage.getItem(PENDING_PUSH_KEY)!==null;}catch(e){return false;}}
+function scheduleSbPush(){
+  markPendingPush();
+  clearTimeout(sbPushTimer);
+  sbPushTimer=setTimeout(()=>{sbPushTimer=null;syncMerge();},1500);
 }
 function handleSbAuthExpired(){
   sbSession=null;
@@ -912,65 +1028,16 @@ function refreshCurrentView(){
   renderUserSelect();
   switchView(currentView);
 }
+// Duenne Wrapper, damit bestehende Aufrufstellen (bootstrapApp, setInterval) unveraendert
+// bleiben koennen - beide fuehren jetzt einfach den zentralen Merge-Sync aus.
 async function sbInitialSync(){
-  try{
-    const remote=await sbPull();
-    if(remote){
-      const remoteTime=new Date(remote.updated_at).getTime();
-      const pendingTs=getPendingPushTimestamp();
-      // Nur wenn die eigene, noch unbestaetigte Aenderung NACHWEISLICH juenger ist als der
-      // aktuelle Cloud-Stand, wird sie hochgeladen - alles andere (kein Pending-Flag, oder
-      // ein alter/zweifelhafter Altbestand, der aelter als der Cloud-Stand ist) wird
-      // verworfen und NICHT blind gepusht. Das verhindert, dass ein Geraet mit einer
-      // laengst ueberholten, nie bestaetigten Aenderung (z.B. nach sehr langer Abwesenheit)
-      // beim naechsten Login alles Neuere in der Cloud ueberschreibt.
-      if(pendingTs&&pendingTs>remoteTime){
-        sbLastUpdatedAt=remote.updated_at; // Referenzpunkt setzen, DANACH ist sbPush()'s eigene Konfliktpruefung aktiv
-        setSbSuppressPush(false);
-        await sbPush();
-      }else{
-        if(pendingTs)clearPendingPush(); // veralteter/zweifelhafter Altbestand - verwerfen statt hochzuladen
-        // Cloud hat Daten -> Cloud gewinnt (fuehrende Quelle fuer das Team)
-        applyStateData(remote.data);
-        sbLastUpdatedAt=remote.updated_at;
-        try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
-        setSbSuppressPush(false);
-        setSbStatus('online');
-        refreshCurrentView();
-      }
-    }else{
-      // Tabelle existiert, aber noch leer -> lokalen Stand als Startpunkt hochladen
-      setSbSuppressPush(false);
-      await sbPush();
-    }
-  }catch(e){
-    console.warn('Cloud-Verbindung fehlgeschlagen:',e);
-    setSbSuppressPush(false);
-    setSbStatus('offline','Verbindung fehlgeschlagen: '+e.message);
-    if(hasPendingPush())showSyncFailureBanner('Es gibt eine noch nicht in der Cloud gesicherte Änderung, und die Verbindung ist gerade gestört. Bitte lade die Seite NICHT neu, bis die Verbindung wieder da ist - sonst könnte die Änderung verloren gehen.');
-  }
+  loadSyncBaseline();
+  await syncMerge();
 }
 async function sbPoll(){
-  // Nichts uebernehmen, waehrend jemand gerade im Lead-Fenster arbeitet, Karten
-  // auswaehlt, ODER eine eigene Aenderung noch nicht hochgeladen wurde (sbPushTimer
-  // laeuft noch) - sonst koennte eine eigene, noch ungesicherte Aenderung durch
-  // einen aelteren Cloud-Stand ueberschrieben werden.
   const modalOpen=!document.getElementById('leadModal').classList.contains('hidden');
-  if(modalOpen||(typeof bulkMode!=='undefined'&&bulkMode)||sbPushTimer)return;
-  try{
-    const remote=await sbPull();
-    if(remote&&remote.updated_at!==sbLastUpdatedAt){
-      setSbSuppressPush(true);
-      applyStateData(remote.data);
-      sbLastUpdatedAt=remote.updated_at;
-      try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
-      setSbSuppressPush(false);
-      refreshCurrentView();
-    }
-    setSbStatus('online');
-  }catch(e){
-    setSbStatus('offline','Abgleich fehlgeschlagen: '+e.message);
-  }
+  if(modalOpen||(typeof bulkMode!=='undefined'&&bulkMode))return;
+  await syncMerge();
 }
 
 function saveState(){
@@ -1037,8 +1104,8 @@ let nextPrinterId=1;
 // Migration: stellt sicher, dass jeder Lead alle aktuell erwarteten Felder hat -
 // egal ob er aus den Standarddaten kommt ODER aus einem aelteren localStorage-Stand
 // (der ggf. vor neueren Funktionen wie Aufgaben/Dateien gespeichert wurde).
-function normalizeLeads(){
-  leads.forEach(l=>{
+function normalizeLeads(arr){
+  (arr||leads).forEach(l=>{
     // Selbstheilung: falls der Status auf keine existierende Liste mehr zeigt
     // (z.B. durch einen frueheren Bug oder eine geloeschte Liste), landet der
     // Lead wieder sichtbar in der ersten Liste statt unsichtbar zu verschwinden.
@@ -1199,8 +1266,8 @@ function isClosedLead(l){return isWon(l)||isLost(l);}
 // Erkennt Gewonnen/Verloren-Spalten auch dann zuverlaessig, wenn die interne ID
 // nicht (mehr) "won"/"lost" lautet - z.B. weil die Spalte ueber "Liste hinzufuegen"
 // neu angelegt wurde. Fallback: Name der Spalte ("Gewonnen"/"Verloren").
-function normalizeColumns(){
-  COLUMNS.forEach(c=>{
+function normalizeColumns(arr){
+  (arr||COLUMNS).forEach(c=>{
     if(c.outcome)return;
     const n=(c.name||'').trim().toLowerCase();
     if(n==='gewonnen')c.outcome='won';
@@ -1208,8 +1275,8 @@ function normalizeColumns(){
   });
 }
 normalizeColumns();
-function normalizeAgents(){
-  AGENTS.forEach(a=>{
+function normalizeAgents(arr){
+  (arr||AGENTS).forEach(a=>{
     if(!a.role)a.role='sales';
     if(a.quota===undefined)a.quota=0;
     if(a.email===undefined)a.email='';
@@ -4795,7 +4862,7 @@ function bootstrapApp(){
   // auf den Upload wartet: sofortigen Versuch mit keepalive starten, damit die
   // Aenderung nicht nur lokal, sondern auch in der Cloud landet.
   window.addEventListener('beforeunload',()=>{
-    if(sbPushTimer&&!sbSuppressPush&&sbSession){
+    if(sbPushTimer&&hasPendingPush()&&sbSession){
       clearTimeout(sbPushTimer);
       try{
         fetch(`${SUPABASE_URL}/rest/v1/app_state`,{
