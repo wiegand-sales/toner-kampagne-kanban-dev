@@ -810,6 +810,26 @@ function scheduleSbPush(){
 }
 async function sbPush(){
   try{
+    // Absicherung gegen "alter Tab ueberschreibt neuere Aenderung": bevor der eigene Stand
+    // hochgeladen wird, kurz pruefen ob die Cloud sich zwischenzeitlich (durch ein anderes
+    // Geraet oder einen anderen, ebenfalls offenen Tab) bereits weiterbewegt hat. Falls ja,
+    // wird NICHT blind der eigene (jetzt veraltete) Stand ueberschrieben - stattdessen wird
+    // der aktuellere Stand geladen und der Nutzer gewarnt, damit er seine letzte Aenderung
+    // pruefen und bei Bedarf erneut eintragen kann.
+    if(sbLastUpdatedAt){
+      const current=await sbPull();
+      if(current&&current.updated_at&&current.updated_at!==sbLastUpdatedAt){
+        sbSuppressPush=true;
+        applyStateData(current.data);
+        sbLastUpdatedAt=current.updated_at;
+        try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
+        sbSuppressPush=false;
+        refreshCurrentView();
+        setSbStatus('online');
+        alert('Achtung: Ein anderes geöffnetes Fenster/Tab (oder ein anderes Gerät) hat zwischenzeitlich einen neueren Stand gespeichert.\n\nUm Datenverlust zu vermeiden, wurde dein letzter, veralteter Stand NICHT hochgeladen - stattdessen wurde der aktuelle Stand geladen.\n\nBitte prüfe deine zuletzt gemachte Änderung und trage sie bei Bedarf erneut ein. Tipp: Schließe doppelt geöffnete Tabs von SalesOS, um das zu vermeiden.');
+        return;
+      }
+    }
     const ts=new Date().toISOString();
     const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state`,{
       method:'POST',
