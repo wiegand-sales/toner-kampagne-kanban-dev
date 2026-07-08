@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T13:35:35.006Z';
+const BUILD_VERSION='2026-07-08T13:54:19.473Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1067,6 +1067,17 @@ function normalizeLeads(){
     if(!l.topArticles||l.topArticles.length<3) l.topArticles=[{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''}];
     if(l.lossReason===undefined) l.lossReason='';
     if(l.lossComment===undefined) l.lossComment='';
+    // Rueckwirkende Reparatur: bei Leads, die VOR der Umstellung auf ein dauerhaftes
+    // lossComment-Feld auf "Verloren" gesetzt wurden, stand der Kommentar nur im Verlauf,
+    // nicht mehr im Feld selbst. Hier wird er - falls das Feld noch leer ist - aus dem
+    // passenden Verlaufseintrag ("Verlust-Grund (...): ...") zurueckgeholt.
+    if(!l.lossComment&&l.activity){
+      const entry=l.activity.find(a=>a.type==='comment'&&/^Verlust-Grund \(/.test(a.text||''));
+      if(entry){
+        const m=entry.text.match(/^Verlust-Grund \([^)]*\):\s*([\s\S]*)$/);
+        if(m&&m[1])l.lossComment=m[1].trim();
+      }
+    }
     if(!l.statusSince) l.statusSince=l.firstContact||TODAY;
     if(!l.followupHistory){
       l.followupHistory = l.followup ? [{date:l.followup,setAt:l.firstContact?l.firstContact+'T00:00:00':nowISO()}] : [];
