@@ -224,7 +224,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .btn:hover{background:var(--bg2);}
 .btn-primary{background:linear-gradient(180deg,#27808a 0%,#206A72 100%);color:#fff;border-color:var(--purple);box-shadow:0 2px 8px rgba(32,106,114,.28);}
 .btn-primary:hover{box-shadow:0 4px 14px rgba(32,106,114,.38);transform:translateY(-1px);}
-.btn-primary:hover{background:var(--purple-dark);}
+.btn-primary:hover{background:linear-gradient(180deg,#1f6d76 0%,#174C52 100%);}
 .btn-danger{background:var(--red-bg);color:var(--red);border-color:transparent;}
 .btn-sm{padding:5px 10px;font-size:12px;}
 .me-select{font-size:12px;padding:6px 9px;}
@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T19:44:25.318Z';
+const BUILD_VERSION='2026-07-08T19:51:05.459Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3617,7 +3617,7 @@ function renderLeadModal(){
           <textarea id="commentInput" placeholder="Kommentar schreiben… (Strg+Enter zum Senden)" onkeydown="if((event.key==='Enter')&&(event.ctrlKey||event.metaKey))addComment()"></textarea>
         </div>
         <div style="display:flex;gap:8px">
-          <button class="btn" style="flex:1;justify-content:center;background:var(--amber-bg);color:var(--amber-dark);border-color:var(--amber)" onclick="markNotReached()" title="Trägt automatisch einen Kommentar ein und setzt das Follow-up-Datum auf in 3 Tagen"><i class="ti ti-phone-off"></i> Nicht erreicht</button>
+          <button class="btn" style="flex:1;justify-content:center" onclick="markNotReached()" title="Trägt automatisch einen Kommentar ein und setzt das Follow-up-Datum auf in 3 Tagen"><i class="ti ti-phone-off"></i> Nicht erreicht</button>
           <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="addComment()"><i class="ti ti-send"></i> Kommentieren</button>
         </div>
       </div>
