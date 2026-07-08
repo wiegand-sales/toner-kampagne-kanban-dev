@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T15:07:23.570Z';
+const BUILD_VERSION='2026-07-08T18:25:08.227Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -791,7 +791,7 @@ function applyStateData(data){
   if(data.ARTICLES)ARTICLES=data.ARTICLES;
   if(data.LEADLOCKS)LEADLOCKS=data.LEADLOCKS;
   pruneExpiredLocks();
-  if(data.PROJECT)PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[],csvFields:[]},data.PROJECT);
+  if(data.PROJECT)PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[],csvFields:[],lastBackupDate:''},data.PROJECT);
   if(data.nextId)nextId=data.nextId;
   if(data.nextLabelId)nextLabelId=data.nextLabelId;
   if(data.nextPrinterId)nextPrinterId=data.nextPrinterId;
@@ -950,6 +950,32 @@ let syncQueued=false;
 // Bedarf beides pro Element zusammen (siehe mergeStateData). Ersetzt die frueheren, streng
 // getrennten Funktionen sbPush/sbInitialSync/sbPoll, die bei einem Konflikt den kompletten
 // eigenen Stand verworfen haben, selbst wenn nur ein einziger, ganz anderer Lead betroffen war.
+// ── TAEGLICHES CLOUD-BACKUP (zusaetzliches Sicherheitsnetz) ──
+// Einmal pro Tag sichert die erste Sitzung, die das bemerkt, den kompletten Datenbestand
+// zusaetzlich in eine eigene, vom normalen Arbeiten komplett getrennte Zeile in derselben
+// Tabelle (id: "backup_JJJJ-MM-TT"). Die letzten 30 Tage bleiben erhalten, aeltere werden
+// automatisch aufgeraeumt. Schlaegt das Backup aus irgendeinem Grund fehl (z.B. Rechte),
+// wird das nur leise geloggt - blockiert NIE die normale Arbeit oder den eigentlichen Sync.
+async function maybeRunDailyBackup(){
+  try{
+    if(PROJECT.lastBackupDate===TODAY)return;
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state`,{
+      method:'POST',
+      headers:Object.assign({},getSbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
+      body:JSON.stringify({id:'backup_'+TODAY,data:buildStatePayload(),updated_at:new Date().toISOString()})
+    });
+    if(!res.ok)return;
+    PROJECT.lastBackupDate=TODAY;
+    saveState();
+    const cutoffDate='backup_'+new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
+    fetch(`${SUPABASE_URL}/rest/v1/app_state?id=lt.${cutoffDate}&id=like.backup_*`,{
+      method:'DELETE',
+      headers:getSbHeaders()
+    }).catch(()=>{});
+  }catch(e){
+    console.warn('Taegliches Backup fehlgeschlagen (unkritisch, normale Arbeit ist nicht betroffen):',e);
+  }
+}
 async function syncMerge(){
   if(syncInProgress){syncQueued=true;return;}
   syncInProgress=true;
@@ -960,6 +986,7 @@ async function syncMerge(){
       await pushState(buildStatePayload());
       return;
     }
+    maybeRunDailyBackup();
     const localSnapshot=buildStatePayload();
     const remoteData=remote.data||{};
     // Baseline und Remote-Stand vor dem Vergleich genauso normalisieren wie der lokale Stand
