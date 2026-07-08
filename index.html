@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T18:39:05.982Z';
+const BUILD_VERSION='2026-07-08T19:09:24.727Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -4324,8 +4324,15 @@ function saveLead(keepOpen){
     if(original.status!==draftLead.status){
       draftLead.activity.unshift({id:Date.now()+1,type:'activity',author:currentUser,text:`Status geändert: ${colById(original.status).name} → ${colById(draftLead.status).name}`,date:nowISO()});
       trackClosedStage(draftLead,original.status,draftLead.status);trackStatusSince(draftLead,original.status,draftLead.status);maybeSendListNotification(draftLead,original.status,draftLead.status);
-      if(colById(draftLead.status)&&colById(draftLead.status).outcome==='lost'&&(draftLead.lossComment||'').trim()){
-        draftLead.activity.unshift({id:Date.now()+3,type:'comment',author:currentUser,text:`Verlust-Grund (${draftLead.lossReason}): ${draftLead.lossComment.trim()}`,date:nowISO()});
+    }
+    // Unabhaengig davon, ob der Status GENAU in diesem Speichervorgang wechselt: stellt
+    // sicher, dass ein vorhandener Verlust-Kommentar zuverlaessig im Verlauf auftaucht,
+    // sobald der Lead als "Verloren" gespeichert wird - auch wenn schonmal (z.B. wegen
+    // eines vorherigen Speicherversuchs) ohne Kommentar-Eintrag gespeichert wurde.
+    if(colById(draftLead.status)&&colById(draftLead.status).outcome==='lost'&&(draftLead.lossComment||'').trim()){
+      const lossCommentText=`Verlust-Grund (${draftLead.lossReason}): ${draftLead.lossComment.trim()}`;
+      if(!draftLead.activity.some(a=>a.type==='comment'&&a.text===lossCommentText)){
+        draftLead.activity.unshift({id:Date.now()+3,type:'comment',author:currentUser,text:lossCommentText,date:nowISO()});
       }
     }
     if(original.followup!==draftLead.followup&&draftLead.followup){
