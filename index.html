@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T19:51:05.459Z';
+const BUILD_VERSION='2026-07-08T20:12:39.681Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1387,6 +1387,81 @@ function renderFollowupTimeline(lead){
   return html;
 }
 function blankLead(){return{id:null,company:'',customerNumber:'',art:'B2B',address:'',orderCount:'',revenue:'',shipPrinter:{model:'',skus:[{sku:'',priceEk:'',priceVk:''},{sku:'',priceEk:'',priceVk:''},{sku:'',priceEk:'',priceVk:''},{sku:'',priceEk:'',priceVk:''}]},demandPrinters:[],actualPrinters:[],contact:'',phone:'',email:'',competitor:'',status:COLUMNS[0].id,tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',followupHistory:[],forecast:'',actual:'',lossReason:'',lossComment:'',notes:'',checklist:[],activity:[],files:[],tasks:[],topArticles:[{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''},{skuOem:'',skuKompa:'',title:''}],order:Date.now()};}
+// ── OUTLOOK-TERMINEINLADUNG (ICS-Datei) ──
+// Erzeugt eine echte Kalendereinladung, die der Kunde annehmen/ablehnen kann - ein reiner
+// "mailto"-Link kann das technisch nicht (nur Text, kein Termin). Die .ics-Datei wird
+// heruntergeladen; ein Doppelklick öffnet in Outlook Desktop eine fertige Einladung mit
+// Empfänger, Betreff und Text bereits ausgefüllt - nur noch "Senden" noetig.
+function icsEscape(str){
+  return (str||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+}
+function icsFold(line){
+  // RFC5545: Zeilen duerfen max. 75 Oktette lang sein, laengere Zeilen werden mit
+  // Zeilenumbruch + fuehrendem Leerzeichen fortgesetzt - sonst lehnen manche
+  // Kalender-Programme die Datei ab oder zeigen sie fehlerhaft an.
+  let result='',rest=line;
+  while(rest.length>74){
+    result+=rest.slice(0,74)+'\r\n ';
+    rest=rest.slice(74);
+  }
+  return result+rest;
+}
+function formatICSDateTime(dateStr,timeStr){
+  return dateStr.replace(/-/g,'')+'T'+timeStr.replace(':','')+'00';
+}
+function downloadCalendarInvite(){
+  if(!(draftLead.email||'').trim()){
+    alert('Bitte zuerst eine E-Mail-Adresse für den Ansprechpartner hinterlegen, bevor eine Termineinladung erstellt werden kann.');
+    const el=document.getElementById('fEmail');
+    if(el)el.focus();
+    return;
+  }
+  if(!draftLead.followup){
+    alert('Bitte zuerst ein Follow-up-Datum eintragen - das wird als Terminvorschlag für die Einladung verwendet.');
+    const el=document.getElementById('followupInput');
+    if(el)el.focus();
+    return;
+  }
+  const contactName=draftLead.contact||draftLead.company;
+  const followupDateFmt=fmtDate(draftLead.followup);
+  const bodyText=`Hallo ${draftLead.contact||'zusammen'},\n\nvielen Dank für das nette Gespräch.\n\nWie besprochen melde ich mich am ${followupDateFmt} telefonisch bei Ihnen. Dann würde ich Ihnen gerne unseren kostenlosen Toner vorstellen und gemeinsam schauen, ob dieser für Ihren Drucker infrage kommt. Ich freue mich auf unser Gespräch.\n\nViele Grüße\nPeter Rode\nHead of Sales`;
+  const organizer=currentAgent();
+  const organizerName=organizer?organizer.name:'Vertrieb';
+  const organizerEmail=(organizer&&organizer.email)?organizer.email:'kein-reply@wiegand-gmbh.de';
+  const start=formatICSDateTime(draftLead.followup,'10:00');
+  const end=formatICSDateTime(draftLead.followup,'10:30');
+  const dtstamp=new Date().toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  const uid=`${draftLead.id||genId()}-${Date.now()}@salesos.wiegand-gmbh.de`;
+  const lines=[
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Wiegand GmbH//SalesOS//DE',
+    'METHOD:REQUEST',
+    'CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT',
+    icsFold('UID:'+uid),
+    icsFold('DTSTAMP:'+dtstamp),
+    icsFold('DTSTART;TZID=Europe/Berlin:'+start),
+    icsFold('DTEND;TZID=Europe/Berlin:'+end),
+    icsFold('SUMMARY:'+icsEscape('Telefontermin – '+draftLead.company)),
+    icsFold('DESCRIPTION:'+icsEscape(bodyText)),
+    icsFold('LOCATION:'+icsEscape('Telefonat')),
+    icsFold(`ORGANIZER;CN=${icsEscape(organizerName)}:mailto:${organizerEmail}`),
+    icsFold(`ATTENDEE;CN=${icsEscape(contactName)};RSVP=TRUE:mailto:${draftLead.email.trim()}`),
+    'STATUS:CONFIRMED',
+    'SEQUENCE:0',
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ];
+  const icsContent=lines.join('\r\n');
+  const blob=new Blob([icsContent],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`Termin_${(draftLead.company||'Lead').replace(/[^a-z0-9]+/gi,'_')}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 function openGoogleSearch(){
   const q=(document.getElementById('fCompany')?document.getElementById('fCompany').value:draftLead.company).trim();
   if(!q)return;
@@ -3738,8 +3813,9 @@ function renderLeadModal(){
           </div>`:''}
           <div class="field-row-2">
             <div><label>Datum Erstkontakt</label><input type="date" id="firstContactInput" value="${draftLead.firstContact}" onchange="draftLead.firstContact=this.value" style="width:100%"></div>
-            <div><label>Follow-up-Datum</label><input type="date" value="${draftLead.followup}" onchange="draftLead.followup=this.value" style="width:100%"></div>
+            <div><label>Follow-up-Datum</label><input type="date" id="followupInput" value="${draftLead.followup}" onchange="draftLead.followup=this.value" style="width:100%"></div>
           </div>
+          <button class="btn btn-sm" style="width:100%;justify-content:center;margin-top:8px" onclick="downloadCalendarInvite()" title="Lädt eine Kalendereinladung (.ics) herunter - per Doppelklick in Outlook öffnen und an den Kunden senden"><i class="ti ti-calendar-event"></i> Termineinladung für Kunde erstellen (Outlook)</button>
 
           <div class="label-row-editor" style="margin-top:10px">
             <span class="small-label" style="width:100%;margin-bottom:0">Labels</span>
