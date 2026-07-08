@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T14:53:52.088Z';
+const BUILD_VERSION='2026-07-08T15:07:23.570Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -781,7 +781,7 @@ let sbLastUpdatedAt=null;    // Zeitstempel des zuletzt bekannten, bestaetigten 
 let sbPushTimer=null;
 
 function buildStatePayload(){
-  return {leads, COLUMNS, LABELS, AGENTS, ARTICLES, PROJECT, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId, nextArticleId, nextMilestoneId, nextRiskId, nextNotifyRuleId};
+  return {leads, COLUMNS, LABELS, AGENTS, ARTICLES, PROJECT, LEADLOCKS, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId, nextArticleId, nextMilestoneId, nextRiskId, nextNotifyRuleId};
 }
 function applyStateData(data){
   if(data.leads)leads=data.leads;
@@ -789,6 +789,8 @@ function applyStateData(data){
   if(data.LABELS)LABELS=data.LABELS;
   if(data.AGENTS)AGENTS=data.AGENTS;
   if(data.ARTICLES)ARTICLES=data.ARTICLES;
+  if(data.LEADLOCKS)LEADLOCKS=data.LEADLOCKS;
+  pruneExpiredLocks();
   if(data.PROJECT)PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[],csvFields:[]},data.PROJECT);
   if(data.nextId)nextId=data.nextId;
   if(data.nextLabelId)nextLabelId=data.nextLabelId;
@@ -904,6 +906,7 @@ function mergeStateData(baseline,local,remote){
     LABELS:mergeArraysById(baseline.LABELS,local.LABELS,remote.LABELS),
     AGENTS:mergeArraysById(baseline.AGENTS,local.AGENTS,remote.AGENTS),
     ARTICLES:mergeArraysById(baseline.ARTICLES,local.ARTICLES,remote.ARTICLES),
+    LEADLOCKS:mergeArraysById(baseline.LEADLOCKS,local.LEADLOCKS,remote.LEADLOCKS),
     PROJECT:deepEqual(local.PROJECT,baseline.PROJECT)?remote.PROJECT:local.PROJECT,
     nextId:Math.max(local.nextId||0,remote.nextId||0),
     nextLabelId:Math.max(local.nextLabelId||0,remote.nextLabelId||0),
@@ -958,15 +961,16 @@ async function syncMerge(){
       return;
     }
     const localSnapshot=buildStatePayload();
+    const remoteData=remote.data||{};
     // Baseline und Remote-Stand vor dem Vergleich genauso normalisieren wie der lokale Stand
     // (der beim Laden bereits durch applyStateData()/normalizeLeads() gelaufen ist) - sonst
     // wuerden neu hinzugekommene Standardfelder faelschlich als "Aenderung" gewertet und
     // JEDER Lead schiene veraendert, obwohl inhaltlich nichts passiert ist.
-    const baselineForCompare=sbBaselineData?JSON.parse(JSON.stringify(sbBaselineData)):JSON.parse(JSON.stringify(remote.data));
+    const baselineForCompare=sbBaselineData?JSON.parse(JSON.stringify(sbBaselineData)):JSON.parse(JSON.stringify(remoteData));
     if(baselineForCompare.leads)normalizeLeads(baselineForCompare.leads);
     if(baselineForCompare.COLUMNS)normalizeColumns(baselineForCompare.COLUMNS);
     if(baselineForCompare.AGENTS)normalizeAgents(baselineForCompare.AGENTS);
-    const remoteForCompare=JSON.parse(JSON.stringify(remote.data));
+    const remoteForCompare=JSON.parse(JSON.stringify(remoteData));
     if(remoteForCompare.leads)normalizeLeads(remoteForCompare.leads);
     if(remoteForCompare.COLUMNS)normalizeColumns(remoteForCompare.COLUMNS);
     if(remoteForCompare.AGENTS)normalizeAgents(remoteForCompare.AGENTS);
@@ -975,14 +979,14 @@ async function syncMerge(){
     const localChanged=!sbBaselineData||!deepEqual(localSnapshot,baselineForCompare);
     if(!localChanged&&!remoteChanged){
       // Nichts hat sich irgendwo geaendert - nur Baseline/Zeitstempel aktuell halten
-      saveSyncBaseline(remote.data,remote.updated_at);
+      saveSyncBaseline(remoteData,remote.updated_at);
       setSbStatus('online');
       return;
     }
     if(!localChanged&&remoteChanged){
       // Nur die Cloud hat sich weiterbewegt (jemand anderes hat gespeichert) -> übernehmen
-      applyStateData(remote.data);
-      saveSyncBaseline(JSON.parse(JSON.stringify(remote.data)),remote.updated_at);
+      applyStateData(remoteData);
+      saveSyncBaseline(JSON.parse(JSON.stringify(remoteData)),remote.updated_at);
       try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
       clearPendingPush();
       setSbStatus('online');
@@ -1035,9 +1039,18 @@ async function sbInitialSync(){
   await syncMerge();
 }
 async function sbPoll(){
-  const modalOpen=!document.getElementById('leadModal').classList.contains('hidden');
-  if(modalOpen||(typeof bulkMode!=='undefined'&&bulkMode))return;
+  // Waehrend der Mehrfachauswahl wird nicht synchronisiert, um die aktuelle Auswahl nicht
+  // zu verlieren. Ein offenes Lead-Fenster blockiert den Abgleich dagegen NICHT mehr - das
+  // wird sogar gebraucht, damit Sperren durch Kollegen schnell erkannt werden.
+  if(typeof bulkMode!=='undefined'&&bulkMode)return;
   await syncMerge();
+  // Ist gerade ein schreibgeschuetztes Lead-Fenster offen und die Sperre wurde zwischenzeitlich
+  // freigegeben, wird automatisch auf Bearbeitbar umgeschaltet, ohne dass neu geklickt werden muss.
+  const modalOpen=!document.getElementById('leadModal').classList.contains('hidden');
+  if(modalOpen&&modalReadOnly&&editingLeadId){
+    const lock=getLeadLock(editingLeadId);
+    if(!lock||lock.agentId===currentUser)openLeadModal(editingLeadId);
+  }
 }
 
 function saveState(){
@@ -1246,6 +1259,9 @@ let addColumnFormOpen=false;
 
 let editingLeadId=null;
 let draftLead=null;
+let modalReadOnly=false;
+let modalLockInfo=null;
+let lockHeartbeatTimer=null;
 let labelPopoverOpen=false;
 let memberPopoverOpen=false;
 let editingLabelId=null;
@@ -3167,7 +3183,7 @@ function onColDragEnd(e){
 // Gilt nur für bereits existierende Leads - ein neuer, noch nicht gespeicherter Lead
 // bekommt erst beim ersten "Speichern" eine ID.
 function autoPersistIfEditing(){
-  if(!editingLeadId)return;
+  if(!editingLeadId||modalReadOnly)return;
   const original=leads.find(x=>x.id===editingLeadId);
   if(original){
     Object.assign(original, JSON.parse(JSON.stringify(draftLead)));
@@ -3175,10 +3191,51 @@ function autoPersistIfEditing(){
   }
 }
 
+// ── LEAD-SPERRE (verhindert, dass zwei Leute gleichzeitig am selben Lead arbeiten) ──
+// Sperren werden wie Leads/Listen als eigenes, nach "id" (= Lead-ID) indiziertes Array
+// im gemeinsamen Datenblock mitgefuehrt und laufen automatisch durch dieselbe 3-Wege-
+// Merge-Logik wie alles andere - so bleiben Sperren auch bei gleichzeitigen Aenderungen
+// an unterschiedlichen Leads konsistent.
+let LEADLOCKS=[];
+const LOCK_EXPIRY_MS=3*60*1000; // Sperre laeuft nach 3 Minuten Inaktivitaet automatisch ab
+function isLockExpired(lock){return !lock||(Date.now()-lock.lockedAt)>LOCK_EXPIRY_MS;}
+function pruneExpiredLocks(){LEADLOCKS=LEADLOCKS.filter(l=>!isLockExpired(l));}
+function getLeadLock(leadId){pruneExpiredLocks();return LEADLOCKS.find(l=>l.id===leadId);}
+// Belegt die Sperre fuer den aktuellen Nutzer (neu oder Verlaengerung/"Heartbeat" waehrend
+// er den Lead weiter offen hat) und schiebt das sofort in die Cloud, statt auf den
+// normalen Speicher-Rhythmus zu warten - damit Kollegen so schnell wie moeglich sehen,
+// dass der Lead gerade belegt ist.
+function acquireLeadLock(leadId){
+  LEADLOCKS=LEADLOCKS.filter(l=>l.id!==leadId);
+  LEADLOCKS.push({id:leadId,agentId:currentUser,agentName:currentAgent()?currentAgent().name:'Unbekannt',lockedAt:Date.now()});
+  saveState();
+  syncMerge();
+}
+function releaseLeadLock(leadId){
+  const before=LEADLOCKS.length;
+  LEADLOCKS=LEADLOCKS.filter(l=>!(l.id===leadId&&l.agentId===currentUser));
+  if(LEADLOCKS.length!==before){saveState();syncMerge();}
+}
+
 function openLeadModal(id){
   editingLeadId=id;
   draftLead=id?JSON.parse(JSON.stringify(leads.find(x=>x.id===id))):blankLead();
   labelPopoverOpen=false;memberPopoverOpen=false;activityFeedFilter='all';taskMentionPopoverOpen=false;pendingTaskAssigneeId=null;draftTaskText='';editingCommentId=null;
+  clearTimeout(lockHeartbeatTimer);
+  const existingLock=id?getLeadLock(id):null;
+  if(existingLock&&existingLock.agentId!==currentUser){
+    modalReadOnly=true;
+    modalLockInfo=existingLock;
+  }else{
+    modalReadOnly=false;
+    modalLockInfo=null;
+    if(id){
+      acquireLeadLock(id);
+      // Alle 60s die Sperre "verlaengern", solange der Lead offen bleibt - sonst wuerde sie
+      // waehrend einer laengeren Bearbeitung nach 3 Minuten automatisch ablaufen.
+      lockHeartbeatTimer=setInterval(()=>acquireLeadLock(id),60000);
+    }
+  }
   recomputeForecast();
   recomputeActual();
   renderLeadModal();
@@ -3524,13 +3581,16 @@ function renderLeadModal(){
 
   document.getElementById('leadModalInner').innerHTML=`
     <div class="modal-topline">
-      <input type="text" class="modal-title-input" id="fCompany" placeholder="Firmenname" value="${esc(draftLead.company)}" oninput="draftLead.company=this.value;clearModalError();checkDuplicateLead()">
+      <input type="text" class="modal-title-input" id="fCompany" placeholder="Firmenname" value="${esc(draftLead.company)}" ${modalReadOnly?'readonly':''} oninput="draftLead.company=this.value;clearModalError();checkDuplicateLead()">
       <button class="modal-close" title="Firma bei Google suchen" onclick="openGoogleSearch()"><i class="ti ti-brand-google"></i></button>
       <button class="modal-close" onclick="closeModal('leadModal')"><i class="ti ti-x"></i></button>
     </div>
+    ${modalReadOnly?`<div style="background:var(--amber-bg);color:var(--amber-dark);padding:10px 18px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;flex-shrink:0">
+      <i class="ti ti-lock"></i> Wird gerade von <strong>${esc(modalLockInfo.agentName)}</strong> bearbeitet – nur lesbar, bis die Bearbeitung dort abgeschlossen ist.
+    </div>`:''}
     <div id="duplicateWarning" style="display:none"></div>
     <div id="modalErrorMsg" style="display:none"></div>
-    <div class="modal-grid">
+    <div class="modal-grid" ${modalReadOnly?'style="pointer-events:none;user-select:none;opacity:.7"':''}>
       <div class="modal-left">
         <div class="info-section">
           <div class="section-hdr">Kundeninformationen</div>
@@ -3677,13 +3737,14 @@ function renderLeadModal(){
       </div>
     </div>
     <div class="modal-actions">
+      ${modalReadOnly?`<div></div><div style="display:flex;gap:8px;align-items:center"><button class="btn btn-primary" onclick="closeModal('leadModal')">Schließen</button></div>`:`
       ${isEdit?`<button class="btn btn-danger" onclick="deleteLead()"><i class="ti ti-trash"></i> Löschen</button>`:'<div></div>'}
       <div style="display:flex;gap:8px;align-items:center">
         <span id="saveFlashMsg" style="display:none;font-size:12px;color:var(--green-dark);font-weight:600"><i class="ti ti-check"></i> Gespeichert</span>
         <button class="btn" onclick="closeModal('leadModal')">Abbrechen</button>
         <button class="btn" onclick="saveLead(true)"><i class="ti ti-check"></i> Speichern</button>
         <button class="btn btn-primary" onclick="saveLead(false)"><i class="ti ti-check"></i> Speichern &amp; schließen</button>
-      </div>
+      </div>`}
     </div>`;
   const modalLeftAfter=document.querySelector('#leadModalInner .modal-left');
   if(modalLeftAfter)modalLeftAfter.scrollTop=savedScrollTop;
@@ -4088,6 +4149,7 @@ function deleteCheckItem(id){
 
 // Comments
 function addComment(){
+  if(modalReadOnly)return;
   const inp=document.getElementById('commentInput');
   const text=inp.value.trim();
   if(!text)return;
@@ -4197,6 +4259,7 @@ function logFieldChanges(original,draft){
 }
 function isValidCustomerNumber(v){return !v||/^\d+$/.test((v||'').trim());}
 function saveLead(keepOpen){
+  if(modalReadOnly){showModalError('Dieser Lead wird gerade von jemand anderem bearbeitet und kann nicht gespeichert werden.');return;}
   if(!draftLead.company.trim()){
     showModalError('Bitte zuerst einen Firmennamen eingeben (oben im Fenster) – erst dann lässt sich der Lead speichern.');
     const el=document.getElementById('fCompany');
@@ -4807,7 +4870,15 @@ function importArticleCSVFile(file){
 
 // ── MODAL HELPERS ──
 function openModal(id){document.getElementById(id).classList.remove('hidden');}
-function closeModal(id){document.getElementById(id).classList.add('hidden');}
+function closeModal(id){
+  document.getElementById(id).classList.add('hidden');
+  if(id==='leadModal'){
+    clearTimeout(lockHeartbeatTimer);
+    if(editingLeadId&&!modalReadOnly)releaseLeadLock(editingLeadId);
+    modalReadOnly=false;
+    modalLockInfo=null;
+  }
+}
 document.getElementById('leadModal').addEventListener('click',e=>{if(e.target.id==='leadModal')closeModal('leadModal');});
 document.getElementById('agentModal').addEventListener('click',e=>{if(e.target.id==='agentModal')closeAgentModal();});
 document.addEventListener('click',e=>{
@@ -4852,7 +4923,7 @@ function bootstrapApp(){
   switchView('board');
   setSbStatus('connecting');
   sbInitialSync();
-  setInterval(sbPoll,15000);
+  setInterval(sbPoll,5000);
   setInterval(checkForNewVersion,60000);
   // Ein Tab, der lange im Hintergrund lag (z.B. eine Nacht offen), soll beim Zurueckkehren
   // sofort geprueft werden - genau die Situation, in der veralteter Code am ehesten
