@@ -615,6 +615,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         <button class="page-tab-btn" id="settingsTabBtn_board" onclick="setSettingsTab('board')"><i class="ti ti-layout-kanban"></i> Board</button>
         <button class="page-tab-btn" id="settingsTabBtn_project" onclick="setSettingsTab('project')"><i class="ti ti-target-arrow"></i> Projekt</button>
         <button class="page-tab-btn" id="settingsTabBtn_system" onclick="setSettingsTab('system')"><i class="ti ti-database"></i> System</button>
+        <button class="page-tab-btn" id="settingsTabBtn_csv" onclick="setSettingsTab('csv')"><i class="ti ti-table"></i> Import/Export</button>
         <button class="page-tab-btn" id="settingsTabBtn_notify" onclick="setSettingsTab('notify')"><i class="ti ti-mail"></i> Auto. Benachrichtigungen</button>
       </div>
       <div class="view-scroll" id="settingsContent"></div>
@@ -770,7 +771,7 @@ function applyStateData(data){
   if(data.LABELS)LABELS=data.LABELS;
   if(data.AGENTS)AGENTS=data.AGENTS;
   if(data.ARTICLES)ARTICLES=data.ARTICLES;
-  if(data.PROJECT)PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[]},data.PROJECT);
+  if(data.PROJECT)PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[],csvFields:[]},data.PROJECT);
   if(data.nextId)nextId=data.nextId;
   if(data.nextLabelId)nextLabelId=data.nextLabelId;
   if(data.nextPrinterId)nextPrinterId=data.nextPrinterId;
@@ -2059,7 +2060,7 @@ function setSettingsTab(tab){
   renderSettings();
 }
 function renderSettings(){
-  ['team','board','project','system','notify'].forEach(t=>{
+  ['team','board','project','system','csv','notify'].forEach(t=>{
     const btn=document.getElementById('settingsTabBtn_'+t);
     if(btn)btn.classList.toggle('active',settingsTab===t);
   });
@@ -2140,6 +2141,19 @@ function renderSettings(){
       <input type="checkbox" ${!r.open?'checked':''} onchange="toggleRisk(${r.id})" title="Erledigt/behoben" style="width:16px;height:16px">
       <button class="check-item-del" onclick="deleteRisk(${r.id})"><i class="ti ti-trash"></i></button>
     </div>`).join('')||'<p style="font-size:12px;color:var(--text3)">Keine Risiken erfasst.</p>';
+
+  const csvFieldsHtml=getCsvFields().map((f,idx)=>{
+    const reg=FIELD_REGISTRY[f.key];
+    const optionsHtml=Object.entries(FIELD_REGISTRY).map(([key,r])=>
+      `<option value="${key}" ${f.key===key?'selected':''}>${esc(r.label)}${r.importable?'':' (nur Export)'}</option>`).join('');
+    return `<tr style="border-top:0.5px solid var(--border-c,#e5e5e0)">
+      <td style="padding:6px;text-align:center"><input type="checkbox" ${f.active?'checked':''} onchange="toggleCsvFieldActive(${idx})"></td>
+      <td style="padding:6px"><select style="width:100%" onchange="setCsvFieldKey(${idx},this.value)">${optionsHtml}</select></td>
+      <td style="padding:6px"><input type="text" value="${esc(f.csvName)}" style="width:100%" onchange="setCsvFieldName(${idx},this.value)"></td>
+      <td style="padding:6px;text-align:center;font-size:11px;color:var(--text3)">${reg&&reg.importable?'Ja':'Nur Export'}</td>
+      <td style="padding:6px;text-align:center"><button class="check-item-del" onclick="removeCsvField(${idx})" title="Feld entfernen"><i class="ti ti-trash"></i></button></td>
+    </tr>`;
+  }).join('');
 
   const notifyRulesHtml=(PROJECT.notificationRules||[]).map(r=>`
     <div class="settings-row">
@@ -2242,6 +2256,25 @@ function renderSettings(){
         <div class="section-hdr" style="margin-top:0;color:var(--red)"><i class="ti ti-alert-triangle"></i> Gefahrenzone</div>
         <p style="font-size:12px;color:var(--text2);line-height:1.6">Löscht <strong>alle Leads</strong> unwiderruflich. Die Board-Struktur (Listen/Spalten, Labels, Mitarbeiter, Projekt-Einstellungen) bleibt vollständig erhalten – nur die Kundendaten selbst werden entfernt. Nur für Admins verfügbar.</p>
         <button class="btn btn-sm" style="margin-top:8px;background:var(--red-bg);color:var(--red-dark);border-color:var(--red)" onclick="deleteAllLeads()"><i class="ti ti-trash"></i> Alle Leads löschen</button>
+      </div>`,
+    csv:`
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">CSV-Feldkonfiguration</div>
+        <p style="font-size:12px;color:var(--text2);line-height:1.6">Legt fest, welche Datenfelder beim <strong>CSV-Import</strong> (neue Leads) und <strong>CSV-Export</strong> verwendet werden, unter welchem Spaltennamen, und in welcher Reihenfolge sie exportiert werden. Beim Import wird eine Spalte erkannt, wenn ihre Kopfzeile exakt (Groß-/Kleinschreibung egal) mit dem hier hinterlegten Spaltennamen übereinstimmt. Felder, die als "Nur Export" markiert sind, sind berechnete Werte und können nicht importiert werden.</p>
+        <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:8px">
+          <tr style="text-align:left;color:var(--text2)">
+            <th style="padding:4px 6px;font-weight:600;width:60px">Aktiv</th>
+            <th style="padding:4px 6px;font-weight:600">Datenfeld</th>
+            <th style="padding:4px 6px;font-weight:600">CSV-Spaltenname</th>
+            <th style="padding:4px 6px;font-weight:600;width:90px">Import</th>
+            <th style="padding:4px 6px;width:40px"></th>
+          </tr>
+          ${csvFieldsHtml}
+        </table>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-sm" onclick="addCsvField()"><i class="ti ti-plus"></i> Feld hinzufügen</button>
+          <button class="btn btn-sm" onclick="resetCsvFields()"><i class="ti ti-refresh"></i> Auf Standard zurücksetzen</button>
+        </div>
       </div>`,
     notify:`
       <div class="info-section">
@@ -3967,44 +4000,111 @@ function exportFullBackup(){
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-function exportCSV(){
-  const headers=['Firmenname','Kundennummer','Art','Adresse','Anzahl Bestellungen','Umsatz (EUR)',
-    'Versand-Drucker','Versand-SKUs (EK/VK)','Investition gesamt EK (EUR)','Marge Versand gesamt (EUR)',
-    'Forecast: Drucker & SKU-Details (Menge, EK, VK, Marge)',
-    'Auftrag: Drucker & SKU-Details (Menge, EK, VK, Marge)',
-    'Ansprechpartner','Telefonnummer','E-Mail','Wettbewerber',
-    'Mitglieder','Status','Seit wann in dieser Liste','Free Toner verschickt','Datum Erstkontakt',
-    'Follow-up-Datum','Forecast (EUR)','Tatsächliches Ergebnis (EUR)','Verlust-Grund','Labels',
-    'Anzahl Kommentare','Offene Aufgaben','Aufgaben gesamt','Anzahl Anhänge','Notizen'];
-  // Baut je Drucker eine Detailzeile mit jeder einzelnen SKU inkl. Menge, EK, VK und Margen-Zeilensumme
-  const formatPrinterDetails=printers=>(printers||[]).map(p=>{
+// ── CSV-FELDKONFIGURATION (Einstellungen → Import/Export) ──
+// Baut je Drucker eine Detailzeile mit jeder einzelnen SKU inkl. Menge, EK, VK und Margen-Zeilensumme
+function formatPrinterDetails(printers){
+  return (printers||[]).map(p=>{
     const skuParts=p.skus.filter(s=>s.sku).map(s=>{
       const qty=parseFloat(s.qty)||0,ek=parseFloat(s.priceEk)||0,vk=parseFloat(s.priceVk)||0;
       return `${s.sku} (${qty} Stk. · EK ${fmtEur(ek)||'0 €'} · VK ${fmtEur(vk)||'0 €'} · Marge ${fmtEur(qty*(vk-ek))||'0 €'})`;
     }).join('; ');
     return `${p.model||'(ohne Modell)'}: ${skuParts||'keine SKUs'}`;
   }).join(' | ');
-  const rows=leads.map(l=>{
-    const shipSkus=l.shipPrinter.skus.filter(s=>s.sku).map(s=>`${s.sku}${(s.priceEk||s.priceVk)?` (EK ${fmtEur(s.priceEk)||'0 €'} / VK ${fmtEur(s.priceVk)||'0 €'})`:''}`).join(', ');
-    const investTotal=l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.priceEk)||0),0);
-    const shipMargin=l.shipPrinter.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0)),0);
-    const demandDetails=formatPrinterDetails(l.demandPrinters);
-    const actualDetails=formatPrinterDetails(l.actualPrinters);
-    const commentCount=(l.activity||[]).filter(a=>a.type==='comment').length;
-    const tasksTotal=(l.tasks||[]).length;
-    const tasksOpen=(l.tasks||[]).filter(t=>!t.done).length;
-    return [
-      l.company,l.customerNumber,l.art,l.address,l.orderCount,l.revenue,
-      l.shipPrinter.model,shipSkus,investTotal||'',shipMargin||'',demandDetails,actualDetails,
-      l.contact,l.phone,l.email,l.competitor||'',
-      l.members.map(id=>agentById(id)?.name).filter(Boolean).join('; '),
-      colById(l.status).name,fmtDate(l.statusSince)||'',l.tonerSent,l.firstContact,l.followup,
-      l.forecast,l.actual||'',l.lossReason||'',
-      l.labelIds.map(id=>labelById(id)?.name).filter(Boolean).join('; '),
-      commentCount,tasksOpen,tasksTotal,(l.files||[]).length,
-      l.notes
-    ];
-  });
+}
+// Register aller verfuegbaren Lead-Datenfelder. "importable:true" = kann per CSV befuellt werden
+// (einfache, direkt setzbare Werte). Berechnete/aggregierte Felder sind nur exportierbar.
+// aliases = zusaetzliche, alte Spaltennamen die beim Import weiterhin erkannt werden (Abwaertskompatibilitaet).
+const FIELD_REGISTRY={
+  company:{label:'Firmenname',importable:true,aliases:['firmenname','firma','company','unternehmen','name','kundenname'],get:l=>l.company,set:(l,v)=>l.company=v},
+  customerNumber:{label:'Kundennummer',importable:true,aliases:['kundennummer','kd-nr','kdnr','kundennr','customer number'],get:l=>l.customerNumber,set:(l,v)=>l.customerNumber=v},
+  art:{label:'Art',importable:true,aliases:['art','typ','type','kundentyp'],get:l=>l.art,set:(l,v)=>{const u=(v||'').toUpperCase();if(u==='B2B'||u==='B2C')l.art=u;}},
+  address:{label:'Adresse',importable:true,aliases:['adresse','address','anschrift'],get:l=>l.address,set:(l,v)=>l.address=v},
+  orderCount:{label:'Anzahl Bestellungen',importable:true,aliases:['anzahl bestellungen','bestellungen','anzahl'],get:l=>l.orderCount,set:(l,v)=>l.orderCount=v},
+  revenue:{label:'Umsatz (EUR)',importable:true,aliases:['umsatz (eur)','umsatz','revenue'],get:l=>l.revenue,set:(l,v)=>l.revenue=v},
+  contact:{label:'Ansprechpartner',importable:true,aliases:['ansprechpartner','kontakt','contact','ansprechperson'],get:l=>l.contact,set:(l,v)=>l.contact=v},
+  phone:{label:'Telefonnummer',importable:true,aliases:['telefonnummer','telefon','phone','tel','rufnummer'],get:l=>l.phone,set:(l,v)=>l.phone=v},
+  email:{label:'E-Mail',importable:true,aliases:['e-mail','email','mail'],get:l=>l.email,set:(l,v)=>l.email=v},
+  competitor:{label:'Wettbewerber',importable:true,aliases:['wettbewerber','competitor'],get:l=>l.competitor||'',set:(l,v)=>l.competitor=v},
+  notes:{label:'Notizen',importable:true,aliases:['notizen','notiz','notes','bemerkung','kommentar'],get:l=>l.notes,set:(l,v)=>l.notes=v},
+  firstContact:{label:'Datum Erstkontakt',importable:true,aliases:['datum erstkontakt','erstkontakt'],get:l=>l.firstContact,set:(l,v)=>l.firstContact=v},
+  followup:{label:'Follow-up-Datum',importable:true,aliases:['follow-up-datum','followup','follow-up','wiedervorlage'],get:l=>l.followup,set:(l,v)=>l.followup=v},
+  forecast:{label:'Forecast (EUR)',importable:true,aliases:['forecast (eur)','forecast'],get:l=>l.forecast,set:(l,v)=>l.forecast=v},
+  actual:{label:'Tatsächliches Ergebnis (EUR)',importable:true,aliases:['tatsächliches ergebnis (eur)'],get:l=>l.actual||'',set:(l,v)=>l.actual=v},
+  lossReason:{label:'Verlust-Grund',importable:true,aliases:['verlust-grund'],get:l=>l.lossReason||'',set:(l,v)=>l.lossReason=v},
+  tonerSent:{label:'Free Toner verschickt',importable:true,aliases:['free toner verschickt'],get:l=>l.tonerSent,set:(l,v)=>{if(v)l.tonerSent=v;}},
+  topSkuOem1:{label:'SKU OEM 1',importable:true,aliases:['sku oem 1','top artikel 1 sku oem','artikel 1 sku oem'],get:l=>l.topArticles[0]?.skuOem||'',set:(l,v)=>l.topArticles[0].skuOem=v},
+  topSkuKompa1:{label:'SKU Kompa 1',importable:true,aliases:['sku kompa 1','top artikel 1 sku kompa','artikel 1 sku kompa'],get:l=>l.topArticles[0]?.skuKompa||'',set:(l,v)=>l.topArticles[0].skuKompa=v},
+  topTitle1:{label:'Titel 1',importable:true,aliases:['titel 1','top artikel 1 titel','artikel 1 titel'],get:l=>l.topArticles[0]?.title||'',set:(l,v)=>l.topArticles[0].title=v},
+  topSkuOem2:{label:'SKU OEM 2',importable:true,aliases:['sku oem 2','top artikel 2 sku oem','artikel 2 sku oem'],get:l=>l.topArticles[1]?.skuOem||'',set:(l,v)=>l.topArticles[1].skuOem=v},
+  topSkuKompa2:{label:'SKU Kompa 2',importable:true,aliases:['sku kompa 2','top artikel 2 sku kompa','artikel 2 sku kompa'],get:l=>l.topArticles[1]?.skuKompa||'',set:(l,v)=>l.topArticles[1].skuKompa=v},
+  topTitle2:{label:'Titel 2',importable:true,aliases:['titel 2','top artikel 2 titel','artikel 2 titel'],get:l=>l.topArticles[1]?.title||'',set:(l,v)=>l.topArticles[1].title=v},
+  topSkuOem3:{label:'SKU OEM 3',importable:true,aliases:['sku oem 3','top artikel 3 sku oem','artikel 3 sku oem'],get:l=>l.topArticles[2]?.skuOem||'',set:(l,v)=>l.topArticles[2].skuOem=v},
+  topSkuKompa3:{label:'SKU Kompa 3',importable:true,aliases:['sku kompa 3','top artikel 3 sku kompa','artikel 3 sku kompa'],get:l=>l.topArticles[2]?.skuKompa||'',set:(l,v)=>l.topArticles[2].skuKompa=v},
+  topTitle3:{label:'Titel 3',importable:true,aliases:['titel 3','top artikel 3 titel','artikel 3 titel'],get:l=>l.topArticles[2]?.title||'',set:(l,v)=>l.topArticles[2].title=v},
+  shipPrinterModel:{label:'Versand-Drucker',importable:false,get:l=>l.shipPrinter.model},
+  shipSkus:{label:'Versand-SKUs (EK/VK)',importable:false,get:l=>l.shipPrinter.skus.filter(s=>s.sku).map(s=>`${s.sku}${(s.priceEk||s.priceVk)?` (EK ${fmtEur(s.priceEk)||'0 €'} / VK ${fmtEur(s.priceVk)||'0 €'})`:''}`).join(', ')},
+  investTotal:{label:'Investition gesamt EK (EUR)',importable:false,get:l=>l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.priceEk)||0),0)||''},
+  shipMargin:{label:'Marge Versand gesamt (EUR)',importable:false,get:l=>l.shipPrinter.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0)),0)||''},
+  demandDetails:{label:'Forecast: Drucker & SKU-Details (Menge, EK, VK, Marge)',importable:false,get:l=>formatPrinterDetails(l.demandPrinters)},
+  actualDetails:{label:'Auftrag: Drucker & SKU-Details (Menge, EK, VK, Marge)',importable:false,get:l=>formatPrinterDetails(l.actualPrinters)},
+  membersNames:{label:'Mitglieder',importable:false,get:l=>l.members.map(id=>agentById(id)?.name).filter(Boolean).join('; ')},
+  statusName:{label:'Status',importable:false,get:l=>colById(l.status).name},
+  statusSince:{label:'Seit wann in dieser Liste',importable:false,get:l=>fmtDate(l.statusSince)||''},
+  labelsNames:{label:'Labels',importable:false,get:l=>l.labelIds.map(id=>labelById(id)?.name).filter(Boolean).join('; ')},
+  commentCount:{label:'Anzahl Kommentare',importable:false,get:l=>(l.activity||[]).filter(a=>a.type==='comment').length},
+  tasksOpen:{label:'Offene Aufgaben',importable:false,get:l=>(l.tasks||[]).filter(t=>!t.done).length},
+  tasksTotal:{label:'Aufgaben gesamt',importable:false,get:l=>(l.tasks||[]).length},
+  filesCount:{label:'Anzahl Anhänge',importable:false,get:l=>(l.files||[]).length},
+};
+// Standard-Konfiguration (identisch zum bisherigen, fest eincodierten Export + Top-3-Artikel neu ergaenzt)
+function defaultCsvFields(){
+  const order=['company','customerNumber','art','address','orderCount','revenue',
+    'shipPrinterModel','shipSkus','investTotal','shipMargin','demandDetails','actualDetails',
+    'contact','phone','email','competitor','membersNames','statusName','statusSince','tonerSent',
+    'firstContact','followup','forecast','actual','lossReason','labelsNames',
+    'commentCount','tasksOpen','tasksTotal','filesCount','notes',
+    'topSkuOem1','topSkuKompa1','topTitle1','topSkuOem2','topSkuKompa2','topTitle2','topSkuOem3','topSkuKompa3','topTitle3'];
+  return order.map(key=>({key,csvName:FIELD_REGISTRY[key].label,active:true}));
+}
+function getCsvFields(){
+  if(!PROJECT.csvFields||!PROJECT.csvFields.length)PROJECT.csvFields=defaultCsvFields();
+  return PROJECT.csvFields;
+}
+function unusedFieldKeys(){
+  const used=new Set(getCsvFields().map(f=>f.key));
+  return Object.keys(FIELD_REGISTRY).filter(k=>!used.has(k));
+}
+function addCsvField(){
+  const free=unusedFieldKeys();
+  if(!free.length){alert('Alle verfügbaren Felder sind bereits in der Liste.');return;}
+  getCsvFields().push({key:free[0],csvName:FIELD_REGISTRY[free[0]].label,active:true});
+  saveState();renderSettings();
+}
+function removeCsvField(idx){
+  getCsvFields().splice(idx,1);
+  saveState();renderSettings();
+}
+function toggleCsvFieldActive(idx){
+  const f=getCsvFields()[idx];f.active=!f.active;
+  saveState();renderSettings();
+}
+function setCsvFieldKey(idx,key){
+  const f=getCsvFields()[idx];f.key=key;f.csvName=FIELD_REGISTRY[key].label;
+  saveState();renderSettings();
+}
+function setCsvFieldName(idx,val){
+  getCsvFields()[idx].csvName=val;
+  saveState();
+}
+function resetCsvFields(){
+  if(!confirm('Feldkonfiguration wirklich auf den Standard zurücksetzen?'))return;
+  PROJECT.csvFields=defaultCsvFields();
+  saveState();renderSettings();
+}
+function exportCSV(){
+  const fields=getCsvFields().filter(f=>f.active&&FIELD_REGISTRY[f.key]);
+  const headers=fields.map(f=>f.csvName);
+  const rows=leads.map(l=>fields.map(f=>FIELD_REGISTRY[f.key].get(l)));
   const csv=[headers,...rows].map(r=>r.map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
@@ -4043,29 +4143,6 @@ function parseCSV(text){
   return rows;
 }
 // Flexible Header-Erkennung: verschiedene gaengige Spaltennamen werden akzeptiert
-const CSV_FIELD_ALIASES={
-  company:['firmenname','firma','company','unternehmen','name','kundenname'],
-  customerNumber:['kundennummer','kd-nr','kdnr','kundennr','customer number'],
-  contact:['ansprechpartner','kontakt','contact','ansprechperson'],
-  phone:['telefonnummer','telefon','phone','tel','rufnummer'],
-  email:['e-mail','email','mail'],
-  address:['adresse','address','anschrift'],
-  art:['art','typ','type','kundentyp'],
-  orderCount:['anzahl bestellungen','bestellungen','anzahl'],
-  revenue:['umsatz (eur)','umsatz','revenue'],
-  notes:['notizen','notiz','notes','bemerkung','kommentar'],
-  firstContact:['datum erstkontakt','erstkontakt'],
-  followup:['follow-up-datum','followup','follow-up','wiedervorlage'],
-  topSkuOem1:['sku oem 1','top artikel 1 sku oem','artikel 1 sku oem'],
-  topSkuKompa1:['sku kompa 1','top artikel 1 sku kompa','artikel 1 sku kompa'],
-  topTitle1:['titel 1','top artikel 1 titel','artikel 1 titel'],
-  topSkuOem2:['sku oem 2','top artikel 2 sku oem','artikel 2 sku oem'],
-  topSkuKompa2:['sku kompa 2','top artikel 2 sku kompa','artikel 2 sku kompa'],
-  topTitle2:['titel 2','top artikel 2 titel','artikel 2 titel'],
-  topSkuOem3:['sku oem 3','top artikel 3 sku oem','artikel 3 sku oem'],
-  topSkuKompa3:['sku kompa 3','top artikel 3 sku kompa','artikel 3 sku kompa'],
-  topTitle3:['titel 3','top artikel 3 titel','artikel 3 titel'],
-};
 function importCSVFile(file){
   const reader=new FileReader();
   reader.onload=e=>{
@@ -4075,11 +4152,15 @@ function importCSVFile(file){
       const rows=parseCSV(text);
       if(rows.length<2){alert('Die Datei enthält keine Datenzeilen (nur Kopfzeile oder leer).');return;}
       const headers=rows[0].map(h=>h.replace(/\uFEFF/g,'').replace(/^["']|["']$/g,'').trim().toLowerCase());
-      // Spalten-Zuordnung aufbauen
+      // Spalten-Zuordnung aufbauen: fuer jedes importierbare Feld aus der konfigurierten Liste in den
+      // Einstellungen pruefen, ob eine Spalte mit dem konfigurierten Namen ODER einem der bekannten
+      // Alias-Namen (Abwaertskompatibilitaet zu bisherigen CSV-Vorlagen) in der Kopfzeile existiert.
       const colMap={};
-      Object.entries(CSV_FIELD_ALIASES).forEach(([field,aliases])=>{
-        const idx=headers.findIndex(h=>aliases.includes(h));
-        if(idx>-1)colMap[field]=idx;
+      getCsvFields().filter(f=>FIELD_REGISTRY[f.key]?.importable).forEach(f=>{
+        const reg=FIELD_REGISTRY[f.key];
+        const candidates=[f.csvName.trim().toLowerCase(),...(reg.aliases||[])];
+        const idx=headers.findIndex(h=>candidates.includes(h));
+        if(idx>-1)colMap[f.key]=idx;
       });
       if(colMap.company===undefined){
         alert('Keine Spalte "Firmenname" (oder "Firma") in der Kopfzeile gefunden. Bitte prüfe die CSV-Datei.\n\nGefundene Spalten: '+rows[0].join(', '));
@@ -4117,22 +4198,14 @@ function importCSVFile(file){
         nl.id=genId();
         nl.company=company;
         nl.customerNumber=custNo;
-        nl.contact=get('contact');
         nl.phone=phone;
         nl.email=email;
-        nl.address=get('address');
-        nl.orderCount=get('orderCount');
-        nl.revenue=get('revenue');
-        nl.notes=get('notes');
-        nl.firstContact=get('firstContact');
-        nl.followup=get('followup');
-        nl.topArticles=[1,2,3].map(n=>({
-          skuOem:get('topSkuOem'+n),
-          skuKompa:get('topSkuKompa'+n),
-          title:get('topTitle'+n)
-        }));
-        const art=get('art').toUpperCase();
-        if(art==='B2B'||art==='B2C')nl.art=art;
+        // Alle uebrigen konfigurierten, importierbaren Felder generisch uebernehmen
+        Object.keys(colMap).forEach(key=>{
+          if(['company','customerNumber','phone','email'].includes(key))return;
+          const val=get(key);
+          if(val!==''&&FIELD_REGISTRY[key]?.set)FIELD_REGISTRY[key].set(nl,val);
+        });
         nl.status=firstColId;
         nl.statusSince=TODAY;
         nl.activity=[{id:Date.now()+Math.random(),type:'activity',author:currentUser,text:'Lead per CSV-Import angelegt',date:nowISO()}];
