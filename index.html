@@ -785,6 +785,7 @@ function applyStateData(data){
   normalizeColumns();
   normalizeAgents();
   normalizeLeads();
+  if(repairDuplicateLeadIds()>0)saveState();
 }
 function setSbStatus(status,detail){
   sbStatus=status;sbStatusDetail=detail||'';
@@ -1006,6 +1007,27 @@ function normalizeLeads(){
     if(!l.labelIds) l.labelIds=[];
     if(l.order===undefined) l.order=l.id||Date.now();
   });
+}
+// Selbstheilung: falls durch einen frueheren Bug (siehe genId()-Fix) zwei Leads dieselbe
+// ID bekommen haben, wuerden Kartenklicks/Speicherungen den falschen Lead treffen - das
+// aeussert sich z.B. als "vertauschte" Firmenname/Kundennummer-Werte nach dem Oeffnen.
+// Hier wird bei jedem Laden geprueft und automatisch behoben: der erste Lead mit einer
+// ID behaelt sie, alle weiteren mit derselben ID bekommen eine frische, eindeutige ID -
+// alle Felder/Inhalte bleiben dabei unangetastet, nur die technische ID wird korrigiert.
+function repairDuplicateLeadIds(){
+  const seen=new Set();
+  let fixed=0;
+  leads.forEach(l=>{
+    if(seen.has(l.id)){
+      l.id=genId();
+      fixed++;
+    }
+    seen.add(l.id);
+  });
+  if(fixed>0){
+    console.warn(`${fixed} Lead(s) hatten doppelte IDs - wurden automatisch korrigiert.`);
+  }
+  return fixed;
 }
 normalizeLeads();
 let activeAgentFilter='all';
