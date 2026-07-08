@@ -3380,12 +3380,13 @@ function renderLeadModal(){
             <label style="color:var(--red-dark)">Verlust-Grund <span style="font-weight:400">(Pflichtfeld, hilft bei der Auswertung im Dashboard)</span></label>
             <select style="width:100%" onchange="draftLead.lossReason=this.value">
               <option value="">– Bitte auswählen –</option>
-              <option value="Preis zu hoch" ${draftLead.lossReason==='Preis zu hoch'?'selected':''}>Preis zu hoch</option>
-              <option value="Wettbewerber" ${draftLead.lossReason==='Wettbewerber'?'selected':''}>Wettbewerber</option>
-              <option value="Kein Bedarf mehr" ${draftLead.lossReason==='Kein Bedarf mehr'?'selected':''}>Kein Bedarf mehr</option>
-              <option value="Nicht erreichbar" ${draftLead.lossReason==='Nicht erreichbar'?'selected':''}>Nicht erreichbar</option>
-              <option value="Schlechte Qualität" ${draftLead.lossReason==='Schlechte Qualität'?'selected':''}>Schlechte Qualität</option>
+              <option value="Kein Interesse" ${draftLead.lossReason==='Kein Interesse'?'selected':''}>Kein Interesse</option>
+              <option value="Nicht Möglich" ${draftLead.lossReason==='Nicht Möglich'?'selected':''}>Nicht Möglich</option>
+              <option value="Nicht Erreichbar" ${draftLead.lossReason==='Nicht Erreichbar'?'selected':''}>Nicht Erreichbar</option>
               <option value="Offene RMA" ${draftLead.lossReason==='Offene RMA'?'selected':''}>Offene RMA</option>
+              <option value="Schlechte Qualität" ${draftLead.lossReason==='Schlechte Qualität'?'selected':''}>Schlechte Qualität</option>
+              <option value="Preis zu Hoch" ${draftLead.lossReason==='Preis zu Hoch'?'selected':''}>Preis zu Hoch</option>
+              <option value="Wettbewerber" ${draftLead.lossReason==='Wettbewerber'?'selected':''}>Wettbewerber</option>
               <option value="Sonstiges" ${draftLead.lossReason==='Sonstiges'?'selected':''}>Sonstiges</option>
             </select>
             <label style="color:var(--red-dark);margin-top:8px">Kommentar zum Verlust <span style="font-weight:400">(Pflichtfeld, erscheint im Verlauf)</span></label>
