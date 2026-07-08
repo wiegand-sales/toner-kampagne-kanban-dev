@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T20:27:47.539Z';
+const BUILD_VERSION='2026-07-08T20:33:37.830Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3454,7 +3454,6 @@ function renderLeadModal(){
   </div>`).join('');
 
   const shipInvestTotal=draftLead.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.priceEk)||0),0);
-  const shipMarginTotal=draftLead.shipPrinter.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0)),0);
   const shipPrinterHtml=`
     <div class="field" style="margin-bottom:8px;position:relative">
       <input type="text" id="shipPrinterModelInput" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${draftLead.shipPrinter.model}" oninput="handlePrinterModelInput(this,'ship',null)" onblur="setTimeout(closePrinterModelPopover,150)" style="width:100%">
@@ -3465,10 +3464,7 @@ function renderLeadModal(){
     <div class="sku-grid" style="margin-top:6px">
       ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis EK ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${draftLead.shipPrinter.skus[i].priceEk||''}" oninput="updateShipPrinterSku(${i},'priceEk',this.value)" style="width:100%"></div>`).join('')}
     </div>
-    <div class="sku-grid" style="margin-top:6px">
-      ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis VK ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${draftLead.shipPrinter.skus[i].priceVk||''}" oninput="updateShipPrinterSku(${i},'priceVk',this.value)" style="width:100%"></div>`).join('')}
-    </div>
-    ${(shipInvestTotal||shipMarginTotal)?`<p style="font-size:11px;color:var(--text2);margin-top:8px">Investition (EK gesamt): <strong>${fmtEur(shipInvestTotal)}</strong> &nbsp;·&nbsp; Marge gesamt: <strong style="color:${shipMarginTotal>=0?'var(--green-dark)':'var(--red)'}">${fmtEur(shipMarginTotal)}</strong></p>`:''}`;
+    ${shipInvestTotal?`<p style="font-size:11px;color:var(--text2);margin-top:8px">Investition (EK gesamt): <strong>${fmtEur(shipInvestTotal)}</strong></p>`:''}`;
 
   const topArticlesHtml=draftLead.topArticles.map((a,i)=>`
     <div class="field-row-3" style="${i===draftLead.topArticles.length-1?'margin-bottom:0':''}">
@@ -4668,9 +4664,8 @@ const FIELD_REGISTRY={
   competitor:{label:'Wettbewerber',group:'Kundeninformationen',importable:true,aliases:['wettbewerber','competitor'],example:'Wettbewerber GmbH',get:l=>l.competitor||'',set:(l,v)=>l.competitor=v},
   notes:{label:'Notizen',group:'Kundeninformationen',importable:true,aliases:['notizen','notiz','notes','bemerkung','kommentar'],example:'Interessiert, ruft nächste Woche zurück',get:l=>l.notes,set:(l,v)=>l.notes=v},
   shipPrinterModel:{label:'Versand-Drucker',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.shipPrinter.model},
-  shipSkus:{label:'Versand-SKUs (EK/VK)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.shipPrinter.skus.filter(s=>s.sku).map(s=>`${s.sku}${(s.priceEk||s.priceVk)?` (EK ${fmtEur(s.priceEk)||'0 €'} / VK ${fmtEur(s.priceVk)||'0 €'})`:''}`).join(', ')},
+  shipSkus:{label:'Versand-SKUs (EK)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.shipPrinter.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.priceEk?` (EK ${fmtEur(s.priceEk)||'0 €'})`:''}`).join(', ')},
   investTotal:{label:'Investition gesamt EK (EUR)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.priceEk)||0),0)||''},
-  shipMargin:{label:'Marge Versand gesamt (EUR)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.shipPrinter.skus.reduce((s,x)=>s+((parseFloat(x.priceVk)||0)-(parseFloat(x.priceEk)||0)),0)||''},
   tonerSent:{label:'Free Toner verschickt',group:'Drucker & Patronen (Versand)',importable:true,aliases:['free toner verschickt'],example:'Ja',get:l=>l.tonerSent,set:(l,v)=>{if(v)l.tonerSent=v;}},
   statusName:{label:'Status',group:'Lead-Status',importable:false,get:l=>colById(l.status).name},
   statusSince:{label:'Seit wann in dieser Liste',group:'Lead-Status',importable:false,get:l=>fmtDate(l.statusSince)||''},
