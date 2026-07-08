@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T20:33:37.830Z';
+const BUILD_VERSION='2026-07-08T20:57:05.560Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3564,14 +3564,20 @@ function renderLeadModal(){
     </div>`;
   }).join('')||`<div class="activity-item" style="padding-left:0">${activityFeedFilter==='comments'?'Noch keine Kommentare.':activityFeedFilter==='activity'?'Noch keine Aktivität.':'Noch keine Kommentare oder Aktivität.'}</div>`;
 
-  const filesHtml=(draftLead.files||[]).map(f=>`<div class="comment-item">
+  const filesHtml=(draftLead.files||[]).map(f=>{
+    const uploader=agentById(f.uploadedBy);
+    return `<div class="comment-item">
       <div class="comment-av" style="background:var(--bg3);color:var(--text2)"><i class="ti ti-paperclip"></i></div>
-      <div class="comment-bubble" style="display:flex;align-items:center;gap:8px">
-        <a href="${f.dataUrl}" download="${esc(f.name)}" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;color:var(--text)"><i class="ti ti-file" style="margin-right:4px"></i>${esc(f.name)}</a>
-        <span style="font-size:11px;color:var(--text3);flex-shrink:0">${formatBytes(f.size)}</span>
-        <button class="icon-btn icon-btn-danger" onclick="removeFile(${f.id})" title="Entfernen"><i class="ti ti-trash"></i></button>
+      <div class="comment-bubble">
+        <div style="display:flex;align-items:center;gap:8px">
+          <a href="${f.dataUrl}" download="${esc(f.name)}" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;color:var(--text)"><i class="ti ti-file" style="margin-right:4px"></i>${esc(f.name)}</a>
+          <span style="font-size:11px;color:var(--text3);flex-shrink:0">${formatBytes(f.size)}</span>
+          <button class="icon-btn icon-btn-danger" onclick="removeFile(${f.id})" title="Entfernen"><i class="ti ti-trash"></i></button>
+        </div>
+        ${f.uploadedAt?`<div style="font-size:11px;color:var(--text3);margin-top:4px">Hochgeladen von ${uploader?esc(uploader.name):'Unbekannt'} · ${fmtDateTime(f.uploadedAt)}</div>`:''}
       </div>
-    </div>`).join('')||`<div class="activity-item" style="padding-left:0">Noch keine Anhänge.</div>`;
+    </div>`;
+  }).join('')||`<div class="activity-item" style="padding-left:0">Noch keine Anhänge.</div>`;
 
   const sortedTasks=[...(draftLead.tasks||[])].sort((a,b)=>{
     if(a.done!==b.done)return a.done?1:-1;
@@ -4101,7 +4107,8 @@ function handleFileUpload(e){
   files.forEach(file=>{
     const reader=new FileReader();
     reader.onload=()=>{
-      draftLead.files.push({id:Date.now()+Math.random(),name:file.name,size:file.size,dataUrl:reader.result});
+      draftLead.files.push({id:Date.now()+Math.random(),name:file.name,size:file.size,dataUrl:reader.result,uploadedBy:currentUser,uploadedAt:nowISO()});
+      draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Datei hochgeladen: ${file.name}`,date:nowISO()});
       pending--;
       if(pending===0){autoPersistIfEditing();renderLeadModal();}
     };
@@ -4109,7 +4116,9 @@ function handleFileUpload(e){
   });
 }
 function removeFile(id){
+  const f=(draftLead.files||[]).find(x=>x.id===id);
   draftLead.files=draftLead.files.filter(f=>f.id!==id);
+  if(f)draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Datei entfernt: ${f.name}`,date:nowISO()});
   autoPersistIfEditing();
   renderLeadModal();
 }
