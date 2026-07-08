@@ -536,6 +536,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         <span id="bulkCountLabel">0 ausgewählt</span>
         <select id="bulkAgentSelect" style="width:180px"></select>
         <button class="btn btn-sm btn-primary" onclick="applyBulkReassign()">Mitarbeiter zuweisen</button>
+        <button class="btn btn-sm" id="bulkDeleteBtn" style="background:var(--red-bg);color:var(--red-dark);border-color:var(--red);display:none" onclick="applyBulkDelete()"><i class="ti ti-trash"></i> Löschen</button>
         <button class="btn btn-sm" onclick="toggleBulkMode()">Fertig</button>
       </div>
       <div class="board-wrap">
@@ -2559,6 +2560,8 @@ function toggleBulkMode(){
   document.getElementById('bulkModeBtn').classList.toggle('active',bulkMode);
   if(bulkMode){
     document.getElementById('bulkAgentSelect').innerHTML=AGENTS.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
+    const delBtn=document.getElementById('bulkDeleteBtn');
+    if(delBtn)delBtn.style.display=isAdmin()?'inline-flex':'none';
   }
   updateBulkCountLabel();
   renderBoard();
@@ -2598,6 +2601,16 @@ function applyBulkReassign(){
   });
   saveState();
   toggleBulkMode();
+}
+function applyBulkDelete(){
+  if(!requireAdmin('mehrere Leads auf einmal löschen'))return;
+  if(bulkSelected.size===0){alert('Bitte mindestens einen Lead auswählen.');return;}
+  const count=bulkSelected.size;
+  if(!confirm(`Wirklich ${count} ausgewählte Lead(s) unwiderruflich löschen?\n\nDas kann nicht rückgängig gemacht werden.`))return;
+  leads=leads.filter(l=>!bulkSelected.has(l.id));
+  saveState();
+  toggleBulkMode();
+  renderBoard();
 }
 
 // ── DRAG & DROP ──
@@ -3257,7 +3270,7 @@ function renderLeadModal(){
         <div class="info-section">
           <div class="section-hdr">Kundeninformationen</div>
           <div class="field-row-2">
-            <div><label>Kundennummer</label><input type="text" value="${esc(draftLead.customerNumber)}" oninput="draftLead.customerNumber=this.value" style="width:100%"></div>
+            <div><label>Kundennummer</label><input type="text" inputmode="numeric" placeholder="z. B. 10234" value="${esc(draftLead.customerNumber)}" oninput="draftLead.customerNumber=this.value;clearModalError()" style="width:100%" id="fCustomerNumber"></div>
             <div><label>Art</label>
               <select style="width:100%" onchange="draftLead.art=this.value">
                 <option value="B2B" ${draftLead.art==='B2B'?'selected':''}>B2B</option>
@@ -3883,10 +3896,17 @@ function logFieldChanges(original,draft){
   }
   return entries;
 }
+function isValidCustomerNumber(v){return !v||/^\d+$/.test((v||'').trim());}
 function saveLead(keepOpen){
   if(!draftLead.company.trim()){
     showModalError('Bitte zuerst einen Firmennamen eingeben (oben im Fenster) – erst dann lässt sich der Lead speichern.');
     const el=document.getElementById('fCompany');
+    if(el)el.focus();
+    return;
+  }
+  if(!isValidCustomerNumber(draftLead.customerNumber)){
+    showModalError('Die Kundennummer darf nur aus Ziffern bestehen (keine Buchstaben oder Sonderzeichen).');
+    const el=document.getElementById('fCustomerNumber');
     if(el)el.focus();
     return;
   }
@@ -4088,7 +4108,7 @@ function formatPrinterDetails(printers){
 // aliases = zusaetzliche, alte Spaltennamen die beim Import weiterhin erkannt werden (Abwaertskompatibilitaet).
 const FIELD_REGISTRY={
   company:{label:'Firmenname',group:'Kundeninformationen',importable:true,aliases:['firmenname','firma','company','unternehmen','name','kundenname'],example:'Musterfirma GmbH',get:l=>l.company,set:(l,v)=>l.company=v},
-  customerNumber:{label:'Kundennummer',group:'Kundeninformationen',importable:true,aliases:['kundennummer','kd-nr','kdnr','kundennr','customer number'],example:'K-10099',get:l=>l.customerNumber,set:(l,v)=>l.customerNumber=v},
+  customerNumber:{label:'Kundennummer',group:'Kundeninformationen',importable:true,aliases:['kundennummer','kd-nr','kdnr','kundennr','customer number'],example:'10099',get:l=>l.customerNumber,set:(l,v)=>{if(isValidCustomerNumber(v))l.customerNumber=v.trim();}},
   art:{label:'Art',group:'Kundeninformationen',importable:true,aliases:['art','typ','type','kundentyp'],example:'B2B',get:l=>l.art,set:(l,v)=>{const u=(v||'').toUpperCase();if(u==='B2B'||u==='B2C')l.art=u;}},
   address:{label:'Adresse',group:'Kundeninformationen',importable:true,aliases:['adresse','address','anschrift'],example:'Musterstraße 1, 12345 Musterstadt',get:l=>l.address,set:(l,v)=>l.address=v},
   orderCount:{label:'Anzahl Bestellungen',group:'Kundeninformationen',importable:true,aliases:['anzahl bestellungen','bestellungen','anzahl'],example:'3',get:l=>l.orderCount,set:(l,v)=>l.orderCount=v},
@@ -4287,13 +4307,21 @@ function importCSVFile(file){
       const dupDetails=[];
       const overwriteKeys=getCsvFields().filter(f=>f.importActive&&f.overwriteActive&&FIELD_REGISTRY[f.key]?.set).map(f=>f.key);
       const collisionBlocked=[];
+      const invalidCustNoDetails=[];
       const seenInFile=new Set(); // erkennt Duplikate auch INNERHALB der hochgeladenen Datei
       const firstColId=COLUMNS[0].id;
       rows.slice(1).forEach((r,rowIdx)=>{
         const get=f=>colMap[f]!==undefined?(r[colMap[f]]||'').trim():'';
         const company=get('company');
         if(!company){skippedEmpty++;return;}
-        const phone=get('phone'),email=get('email'),custNo=get('customerNumber');
+        const phone=get('phone'),email=get('email');
+        const custNoRaw=get('customerNumber');
+        // Kundennummer ist die eindeutige Referenz-ID und muss rein numerisch sein (z.B. bei vertauschten
+        // Spalten Firmenname/Kundennummer). Ungueltige Werte werden ignoriert statt uebernommen zu werden,
+        // damit keine falschen Werte (z.B. ein Firmenname) als Kundennummer gespeichert werden.
+        const custNoValid=isValidCustomerNumber(custNoRaw);
+        if(custNoRaw&&!custNoValid)invalidCustNoDetails.push(`Zeile ${rowIdx+2}: "${company}" – Kundennummer "${custNoRaw}" ist nicht rein numerisch und wurde ignoriert.`);
+        const custNo=custNoValid?custNoRaw:'';
         const existingMatch=leads.find(l=>
           (custNo&&norm(l.customerNumber)===norm(custNo))||
           (norm(l.company)===norm(company))||
@@ -4312,6 +4340,10 @@ function importCSVFile(file){
               const val=get(key);
               if(val==='')return;
               if(key==='customerNumber'){
+                if(!isValidCustomerNumber(val)){
+                  invalidCustNoDetails.push(`Zeile ${rowIdx+2}: "${company}" – Kundennummer "${val}" ist nicht rein numerisch, Aktualisierung dieses Felds übersprungen.`);
+                  return;
+                }
                 const collision=leads.find(l=>l!==existingMatch&&norm(l.customerNumber)===norm(val));
                 if(collision){
                   collisionBlocked.push(`Zeile ${rowIdx+2}: Kundennummer "${val}" ist bereits bei "${collision.company}" vergeben – Kundennummer von "${existingMatch.company}" wurde NICHT geändert.`);
@@ -4362,6 +4394,7 @@ function importCSVFile(file){
       if(overwriteKeys.length)msg+=`\n✎ ${updated} bestehende Leads aktualisiert (freigegebene Felder)`;
       msg+=`\n↷ ${skippedDup} übersprungen (bereits vorhanden, keine Änderung, oder doppelt in der Datei)\n∅ ${skippedEmpty} übersprungen (kein Firmenname)`;
       if(collisionBlocked.length)msg+=`\n⚠ ${collisionBlocked.length} Kundennummer(n) NICHT übernommen, da sie bereits bei einem anderen Lead vergeben sind`;
+      if(invalidCustNoDetails.length)msg+=`\n⚠ ${invalidCustNoDetails.length} Kundennummer(n) ignoriert, da nicht rein numerisch (evtl. Spalten vertauscht?)`;
       if(dupDetails.length){
         msg+='\n\nÜbersprungene Zeilen im Detail:\n'+dupDetails.slice(0,25).join('\n');
         if(dupDetails.length>25)msg+=`\n… und ${dupDetails.length-25} weitere`;
@@ -4369,6 +4402,10 @@ function importCSVFile(file){
       if(collisionBlocked.length){
         msg+='\n\nKundennummer-Konflikte im Detail:\n'+collisionBlocked.slice(0,25).join('\n');
         if(collisionBlocked.length>25)msg+=`\n… und ${collisionBlocked.length-25} weitere`;
+      }
+      if(invalidCustNoDetails.length){
+        msg+='\n\nUngültige Kundennummern im Detail:\n'+invalidCustNoDetails.slice(0,25).join('\n');
+        if(invalidCustNoDetails.length>25)msg+=`\n… und ${invalidCustNoDetails.length-25} weitere`;
       }
       alert(msg);
     }catch(err){
