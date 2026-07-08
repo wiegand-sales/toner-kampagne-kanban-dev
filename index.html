@@ -2927,7 +2927,7 @@ function autoPersistIfEditing(){
 function openLeadModal(id){
   editingLeadId=id;
   draftLead=id?JSON.parse(JSON.stringify(leads.find(x=>x.id===id))):blankLead();
-  labelPopoverOpen=false;memberPopoverOpen=false;activityFeedFilter='all';taskMentionPopoverOpen=false;pendingTaskAssigneeId=null;draftTaskText='';
+  labelPopoverOpen=false;memberPopoverOpen=false;activityFeedFilter='all';taskMentionPopoverOpen=false;pendingTaskAssigneeId=null;draftTaskText='';editingCommentId=null;
   recomputeForecast();
   recomputeActual();
   renderLeadModal();
@@ -3080,10 +3080,24 @@ function renderLeadModal(){
   const feedHtml=feedItems.map(item=>{
     const a=agentById(item.author);
     if(item.type==='comment'){
+      if(editingCommentId===item.id){
+        return `<div class="comment-item">
+          <div class="comment-av" style="background:${COLOR_BG[a?a.color:'gray']};color:${COLOR_TEXT[a?a.color:'gray']}">${a?ini(a.name):'?'}</div>
+          <div class="comment-bubble">
+            <span class="comment-author">${a?a.name:'Unbekannt'}</span><span class="comment-date">${fmtDateTime(item.date)}</span>
+            <textarea id="editCommentInput_${item.id}" style="width:100%;min-height:60px;margin-top:6px">${esc(item.text)}</textarea>
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <button class="btn btn-sm btn-primary" onclick="saveEditComment(${item.id})"><i class="ti ti-check"></i> Speichern</button>
+              <button class="btn btn-sm" onclick="cancelEditComment()">Abbrechen</button>
+            </div>
+          </div>
+        </div>`;
+      }
       return `<div class="comment-item">
         <div class="comment-av" style="background:${COLOR_BG[a?a.color:'gray']};color:${COLOR_TEXT[a?a.color:'gray']}">${a?ini(a.name):'?'}</div>
         <div class="comment-bubble">
-          <span class="comment-author">${a?a.name:'Unbekannt'}</span><span class="comment-date">${fmtDateTime(item.date)}</span>${item.backdated?'<span class="backdated-tag" title="Nachträglich mit vergangenem Datum erfasst"><i class="ti ti-history" style="font-size:10px"></i> nacherfasst</span>':''}
+          <span class="comment-author">${a?a.name:'Unbekannt'}</span><span class="comment-date">${fmtDateTime(item.date)}</span>${item.backdated?'<span class="backdated-tag" title="Nachträglich mit vergangenem Datum erfasst"><i class="ti ti-history" style="font-size:10px"></i> nacherfasst</span>':''}${item.edited?'<span class="backdated-tag" title="Von einem Admin bearbeitet"><i class="ti ti-pencil" style="font-size:10px"></i> bearbeitet</span>':''}
+          ${isAdmin()?`<span style="float:right;display:flex;gap:4px"><button class="icon-btn" style="width:22px;height:22px" onclick="startEditComment(${item.id})" title="Kommentar bearbeiten"><i class="ti ti-pencil" style="font-size:13px"></i></button><button class="icon-btn icon-btn-danger" style="width:22px;height:22px" onclick="deleteComment(${item.id})" title="Kommentar löschen"><i class="ti ti-trash" style="font-size:13px"></i></button></span>`:''}
           <div class="comment-text">${esc(item.text)}</div>
         </div>
       </div>`;
@@ -3827,6 +3841,37 @@ function addComment(){
   const customDate=dateInp&&dateInp.value?dateInp.value:null;
   const date=customDate?customDate+'T'+(new Date().toTimeString().slice(0,8)):nowISO();
   draftLead.activity.unshift({id:Date.now(),type:'comment',author:currentUser,text,date,backdated:!!customDate});
+  autoPersistIfEditing();
+  renderLeadModal();
+}
+let editingCommentId=null;
+function startEditComment(id){
+  if(!requireAdmin('Kommentare bearbeiten'))return;
+  editingCommentId=id;
+  renderLeadModal();
+  const el=document.getElementById(`editCommentInput_${id}`);
+  if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}
+}
+function cancelEditComment(){
+  editingCommentId=null;
+  renderLeadModal();
+}
+function saveEditComment(id){
+  if(!requireAdmin('Kommentare bearbeiten'))return;
+  const el=document.getElementById(`editCommentInput_${id}`);
+  if(!el)return;
+  const newText=el.value.trim();
+  if(!newText){alert('Ein Kommentar darf nicht leer sein. Zum Entfernen bitte stattdessen löschen.');return;}
+  const item=draftLead.activity.find(a=>a.id===id&&a.type==='comment');
+  if(item){item.text=newText;item.edited=true;}
+  editingCommentId=null;
+  autoPersistIfEditing();
+  renderLeadModal();
+}
+function deleteComment(id){
+  if(!requireAdmin('Kommentare löschen'))return;
+  if(!confirm('Diesen Kommentar wirklich unwiderruflich löschen?'))return;
+  draftLead.activity=draftLead.activity.filter(a=>!(a.id===id&&a.type==='comment'));
   autoPersistIfEditing();
   renderLeadModal();
 }
