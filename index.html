@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T13:54:19.473Z';
+const BUILD_VERSION='2026-07-08T14:10:07.985Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -788,9 +788,19 @@ function setSbSuppressPush(v){
     scheduleSbPush();
   }
 }
-function markPendingPush(){try{localStorage.setItem(PENDING_PUSH_KEY,'1');}catch(e){}}
+function markPendingPush(){try{localStorage.setItem(PENDING_PUSH_KEY,String(Date.now()));}catch(e){}}
 function clearPendingPush(){try{localStorage.removeItem(PENDING_PUSH_KEY);}catch(e){}}
-function hasPendingPush(){try{return localStorage.getItem(PENDING_PUSH_KEY)==='1';}catch(e){return false;}}
+function hasPendingPush(){try{return localStorage.getItem(PENDING_PUSH_KEY)!==null;}catch(e){return false;}}
+// Zeitpunkt, zu dem die letzte noch unbestaetigte lokale Aenderung gemacht wurde (oder 0,
+// falls keine vorhanden bzw. das gespeicherte Format ungueltig ist - wird dann konservativ
+// als "sehr alt" behandelt, damit ein zweifelhafter Altbestand niemals Vorrang bekommt).
+function getPendingPushTimestamp(){
+  try{
+    const raw=localStorage.getItem(PENDING_PUSH_KEY);
+    const n=parseInt(raw,10);
+    return isNaN(n)?0:n;
+  }catch(e){return 0;}
+}
 
 function buildStatePayload(){
   return {leads, COLUMNS, LABELS, AGENTS, ARTICLES, PROJECT, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId, nextArticleId, nextMilestoneId, nextRiskId, nextNotifyRuleId};
@@ -904,23 +914,30 @@ function refreshCurrentView(){
 }
 async function sbInitialSync(){
   try{
-    // Falls beim letzten Mal eine Aenderung lokal gespeichert, aber nie bestaetigt in der
-    // Cloud angekommen ist (z.B. weil die Seite genau in dem Moment neu geladen wurde),
-    // wird sie JETZT ZUERST hochgeladen - bevor der Cloud-Stand (der diese Aenderung noch
-    // nicht kennt) blind uebernommen und die Aenderung dadurch unbemerkt verworfen wuerde.
-    if(hasPendingPush()){
-      setSbSuppressPush(false);
-      await sbPush();
-    }
     const remote=await sbPull();
     if(remote){
-      // Cloud hat Daten -> Cloud gewinnt (fuehrende Quelle fuer das Team)
-      applyStateData(remote.data);
-      sbLastUpdatedAt=remote.updated_at;
-      try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
-      setSbSuppressPush(false);
-      setSbStatus('online');
-      refreshCurrentView();
+      const remoteTime=new Date(remote.updated_at).getTime();
+      const pendingTs=getPendingPushTimestamp();
+      // Nur wenn die eigene, noch unbestaetigte Aenderung NACHWEISLICH juenger ist als der
+      // aktuelle Cloud-Stand, wird sie hochgeladen - alles andere (kein Pending-Flag, oder
+      // ein alter/zweifelhafter Altbestand, der aelter als der Cloud-Stand ist) wird
+      // verworfen und NICHT blind gepusht. Das verhindert, dass ein Geraet mit einer
+      // laengst ueberholten, nie bestaetigten Aenderung (z.B. nach sehr langer Abwesenheit)
+      // beim naechsten Login alles Neuere in der Cloud ueberschreibt.
+      if(pendingTs&&pendingTs>remoteTime){
+        sbLastUpdatedAt=remote.updated_at; // Referenzpunkt setzen, DANACH ist sbPush()'s eigene Konfliktpruefung aktiv
+        setSbSuppressPush(false);
+        await sbPush();
+      }else{
+        if(pendingTs)clearPendingPush(); // veralteter/zweifelhafter Altbestand - verwerfen statt hochzuladen
+        // Cloud hat Daten -> Cloud gewinnt (fuehrende Quelle fuer das Team)
+        applyStateData(remote.data);
+        sbLastUpdatedAt=remote.updated_at;
+        try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
+        setSbSuppressPush(false);
+        setSbStatus('online');
+        refreshCurrentView();
+      }
     }else{
       // Tabelle existiert, aber noch leer -> lokalen Stand als Startpunkt hochladen
       setSbSuppressPush(false);
