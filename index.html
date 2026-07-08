@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T19:09:24.727Z';
+const BUILD_VERSION='2026-07-08T19:24:30.689Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1263,17 +1263,43 @@ normalizeLeads();
 // und meldet transparent, was gefunden/behoben wurde - statt nur unbemerkt im Hintergrund
 // zu laufen. Nuetzlich um zu pruefen, ob ein gemeldetes Problem (z.B. doppelte IDs nach
 // einem Massenimport) jetzt wirklich dauerhaft behoben ist.
+// Findet Leads, die sich dieselbe (nicht-leere) Kundennummer teilen. Wird NICHT automatisch
+// zusammengefuehrt, da die beiden Datensaetze inzwischen unterschiedliche Inhalte (Kommentare,
+// Status etc.) haben koennten - stattdessen wird das dem Admin zur manuellen Pruefung gemeldet.
+function findDuplicateCustomerNumbers(){
+  const groups={};
+  leads.forEach(l=>{
+    const cn=(l.customerNumber||'').trim();
+    if(!cn)return;
+    (groups[cn]=groups[cn]||[]).push(l);
+  });
+  return Object.entries(groups).filter(([,arr])=>arr.length>1);
+}
 function runDataIntegrityCheck(){
   if(!requireAdmin('die Datenintegrität prüfen'))return;
   const fixedIds=repairDuplicateLeadIds();
   const fixedSwaps=repairSwappedCompanyCustomerNumber();
+  const dupCustNos=findDuplicateCustomerNumbers();
   if(fixedIds>0||fixedSwaps>0){
     saveState();
     renderBoard();
-    alert(`Prüfung abgeschlossen - es wurde etwas gefunden und behoben:\n\n${fixedIds>0?`• ${fixedIds} Lead(s) mit doppelter interner ID → neue, eindeutige ID vergeben\n`:''}${fixedSwaps>0?`• ${fixedSwaps} Lead(s) mit vertauschtem Firmenname/Kundennummer → zurückgetauscht\n`:''}\nDie Korrektur wurde soeben gespeichert und in die Cloud hochgeladen.`);
-  }else{
-    alert('Prüfung abgeschlossen: Keine doppelten IDs und keine vertauschten Firmenname/Kundennummer-Werte gefunden. Alles in Ordnung.');
   }
+  let msg='Prüfung abgeschlossen:\n\n';
+  let foundAnything=false;
+  if(fixedIds>0){msg+=`• ${fixedIds} Lead(s) mit doppelter interner ID → neue, eindeutige ID vergeben\n`;foundAnything=true;}
+  if(fixedSwaps>0){msg+=`• ${fixedSwaps} Lead(s) mit vertauschtem Firmenname/Kundennummer → zurückgetauscht\n`;foundAnything=true;}
+  if(dupCustNos.length){
+    foundAnything=true;
+    msg+=`\n⚠ ${dupCustNos.length} Kundennummer(n) sind mehrfach vergeben – das muss manuell geprüft werden (nicht automatisch behebbar, da die Datensätze unterschiedliche Inhalte haben könnten):\n\n`;
+    dupCustNos.slice(0,15).forEach(([cn,arr])=>{
+      msg+=`Kundennummer ${cn}: ${arr.map(l=>`"${l.company}"`).join(', ')}\n`;
+    });
+    if(dupCustNos.length>15)msg+=`… und ${dupCustNos.length-15} weitere\n`;
+    msg+='\nBitte die betroffenen Leads öffnen, den richtigen behalten und den überflüssigen über "Löschen" entfernen.';
+  }
+  if(!foundAnything)msg='Prüfung abgeschlossen: Keine doppelten IDs, keine vertauschten Firmenname/Kundennummer-Werte und keine mehrfach vergebenen Kundennummern gefunden. Alles in Ordnung.';
+  else if(fixedIds>0||fixedSwaps>0)msg+='\n\nDie automatischen Korrekturen wurden bereits gespeichert und in die Cloud hochgeladen.';
+  alert(msg);
 }
 let activeAgentFilter='all';
 let activeLabelFilter='all';
@@ -4299,6 +4325,16 @@ function saveLead(keepOpen){
     const el=document.getElementById('fCustomerNumber');
     if(el)el.focus();
     return;
+  }
+  const custNoTrimmed=(draftLead.customerNumber||'').trim();
+  if(custNoTrimmed){
+    const duplicate=leads.find(l=>l.id!==editingLeadId&&(l.customerNumber||'').trim()===custNoTrimmed);
+    if(duplicate){
+      showModalError(`Die Kundennummer "${custNoTrimmed}" ist bereits bei "${duplicate.company}" vergeben. Kundennummern müssen eindeutig sein – bitte prüfen.`);
+      const el=document.getElementById('fCustomerNumber');
+      if(el)el.focus();
+      return;
+    }
   }
   clearModalError();
   if(editingLeadId){
