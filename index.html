@@ -785,7 +785,9 @@ function applyStateData(data){
   normalizeColumns();
   normalizeAgents();
   normalizeLeads();
-  if(repairDuplicateLeadIds()>0)saveState();
+  const fixedIds=repairDuplicateLeadIds();
+  const fixedSwaps=repairSwappedCompanyCustomerNumber();
+  if(fixedIds>0||fixedSwaps>0)saveState();
 }
 function setSbStatus(status,detail){
   sbStatus=status;sbStatusDetail=detail||'';
@@ -1026,6 +1028,30 @@ function repairDuplicateLeadIds(){
   });
   if(fixed>0){
     console.warn(`${fixed} Lead(s) hatten doppelte IDs - wurden automatisch korrigiert.`);
+  }
+  return fixed;
+}
+// Selbstheilung: erkennt Leads, bei denen Firmenname und Kundennummer offensichtlich
+// vertauscht sind (Kundennummer ist IMMER rein numerisch - siehe isValidCustomerNumber),
+// und tauscht die beiden Werte automatisch wieder zurueck. Erkennungsregel: die
+// "Kundennummer" ist NICHT numerisch, waehrend der "Firmenname" AUSSCHLIESSLICH aus
+// Ziffern besteht - das kann nur durch eine Vertauschung entstanden sein, ein echter
+// Firmenname besteht nie nur aus Zahlen.
+function repairSwappedCompanyCustomerNumber(){
+  let fixed=0;
+  leads.forEach(l=>{
+    const custNo=(l.customerNumber||'').trim();
+    const company=(l.company||'').trim();
+    const companyIsPureNumber=company!==''&&/^\d+$/.test(company);
+    const custNoIsInvalid=custNo!==''&&!/^\d+$/.test(custNo);
+    if(companyIsPureNumber&&custNoIsInvalid){
+      l.company=custNo;
+      l.customerNumber=company;
+      fixed++;
+    }
+  });
+  if(fixed>0){
+    console.warn(`${fixed} Lead(s) hatten vertauschte Firmenname/Kundennummer-Werte - wurden automatisch zurueckgetauscht.`);
   }
   return fixed;
 }
