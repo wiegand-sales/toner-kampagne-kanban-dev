@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T10:15:38.753Z';
+const BUILD_VERSION='2026-07-09T10:18:41.828Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -4875,13 +4875,27 @@ function getCsvFields(){
   // Export oder der Import-Vorlage auftaucht. Die jeweils ERSTE Version eines Feldes
   // (inkl. dessen individueller Einstellungen) bleibt dabei erhalten.
   const seen=new Set();
-  const deduped=PROJECT.csvFields.filter(f=>{
+  let changed=false;
+  let cleaned=PROJECT.csvFields.filter(f=>{
     if(seen.has(f.key))return false;
     seen.add(f.key);
     return true;
   });
-  if(deduped.length!==PROJECT.csvFields.length){
-    PROJECT.csvFields=deduped;
+  if(cleaned.length!==PROJECT.csvFields.length)changed=true;
+  // Zusaetzlich: Felder, die es im FIELD_REGISTRY laengst gibt, aber noch nie in die
+  // gespeicherte Liste aufgenommen wurden (z.B. weil sie erst NACH dem letzten Speichern
+  // der Konfiguration eingefuehrt wurden), werden automatisch ergaenzt - sonst blieben
+  // neue Felder fuer Bestandsprojekte dauerhaft unsichtbar im Menue und beim Export.
+  const missingKeys=FIELD_ORDER.filter(k=>!seen.has(k));
+  if(missingKeys.length){
+    changed=true;
+    missingKeys.forEach(key=>{
+      const r=FIELD_REGISTRY[key];
+      cleaned.push({key,csvName:`${r.group} – ${r.label}`,importActive:!!r.importable,exportActive:true,overwriteActive:false});
+    });
+  }
+  if(changed){
+    PROJECT.csvFields=cleaned;
     saveState();
   }
   return PROJECT.csvFields;
