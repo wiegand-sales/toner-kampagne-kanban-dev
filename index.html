@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T11:35:24.669Z';
+const BUILD_VERSION='2026-07-09T11:37:36.603Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -5063,12 +5063,20 @@ function importCSVFile(file){
         // Ganz ohne Firmenname UND ohne gueltige Kundennummer gibt es nichts, worueber sich
         // die Zeile einem Lead zuordnen liesse - so eine Zeile wird uebersprungen.
         if(!company&&!custNo){skippedEmpty++;return;}
-        const existingMatch=leads.find(l=>
-          (custNo&&norm(l.customerNumber)===norm(custNo))||
-          (company&&norm(l.company)===norm(company))||
-          (phone&&phone.length>4&&norm(l.phone)===norm(phone))||
-          (email&&norm(l.email)===norm(email))
-        );
+        // WICHTIG: Die Kundennummer ist die eindeutige, vorrangige Referenz. Liegt eine
+        // gueltige Kundennummer vor, wird AUSSCHLIESSLICH darueber zugeordnet - Firmenname,
+        // Telefon oder E-Mail spielen dann keine Rolle mehr fuer die Zuordnung. Das
+        // verhindert, dass ein zufaellig aehnlicher/gleicher Firmenname eines ANDEREN Leads
+        // versehentlich getroffen wird, obwohl die Kundennummer eindeutig einen bestimmten
+        // Lead bezeichnet. Nur wenn KEINE gueltige Kundennummer angegeben ist, wird auf die
+        // bisherige Zuordnung ueber Firmenname/Telefon/E-Mail zurueckgegriffen.
+        const existingMatch=custNo
+          ?leads.find(l=>norm(l.customerNumber)===norm(custNo))
+          :leads.find(l=>
+              (company&&norm(l.company)===norm(company))||
+              (phone&&phone.length>4&&norm(l.phone)===norm(phone))||
+              (email&&norm(l.email)===norm(email))
+            );
         // Ohne Firmenname kann kein NEUER Lead sinnvoll angelegt werden - das ist nur bei
         // einer reinen Aktualisierung eines bereits bestehenden (per Kundennummer
         // gefundenen) Leads in Ordnung, z.B. beim gezielten Nachtragen von Umsatzzahlen.
