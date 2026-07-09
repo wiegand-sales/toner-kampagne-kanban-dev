@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T12:26:16.429Z';
+const BUILD_VERSION='2026-07-09T12:42:18.872Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1507,12 +1507,45 @@ function fmtDateMaybeTime(d){
   if(timePart&&timePart!=='00:00')return`${dateFmt}, ${timePart} Uhr`;
   return dateFmt;
 }
-// Wandelt einen gespeicherten Datums- oder Datum+Uhrzeit-Wert in das Format um, das ein
-// <input type="datetime-local"> als value erwartet. Reine Alt-Datumswerte (ohne Uhrzeit,
-// aus der Zeit vor dieser Funktion) werden dabei automatisch um "T00:00" ergaenzt.
-function toDatetimeLocalValue(v){
-  if(!v)return'';
-  return v.includes('T')?v:v+'T00:00';
+// Zeigt ein unaufdringliches Uhr-Symbol neben dem Datumsfeld. Ohne gesetzte Uhrzeit bleibt
+// das Feld ein ganz normales, sauberes Datumsfeld wie ueberall sonst - erst ein Klick auf
+// das Symbol blendet ein kleines Uhrzeit-Feld ein. Ist schon eine Uhrzeit gesetzt, zeigt das
+// Symbol stattdessen direkt die Uhrzeit als kleinen, klickbaren Chip zum Entfernen an.
+let openTimePickerField=null;
+function renderContactTimeControl(field){
+  const val=draftLead[field]||'';
+  const timePart=val.includes('T')?val.split('T')[1]:'';
+  if(openTimePickerField===field){
+    return`<input type="time" autofocus value="${timePart||''}" onchange="setContactTimePart('${field}',this.value)" onblur="closeTimePicker()" style="width:88px;flex-shrink:0">`;
+  }
+  if(timePart&&timePart!=='00:00'){
+    return`<button type="button" class="btn btn-sm" style="flex-shrink:0;padding:0 8px" onclick="removeContactTime('${field}')" title="Uhrzeit entfernen"><i class="ti ti-clock"></i> ${timePart} <i class="ti ti-x" style="font-size:11px;margin-left:2px"></i></button>`;
+  }
+  return`<button type="button" class="icon-btn" style="flex-shrink:0" onclick="openTimePicker('${field}')" title="Uhrzeit hinzufügen (optional)"><i class="ti ti-clock-plus"></i></button>`;
+}
+function openTimePicker(field){
+  openTimePickerField=field;
+  renderLeadModal();
+  const inp=document.querySelector('#leadModalInner input[type="time"]');
+  if(inp)inp.focus();
+}
+function closeTimePicker(){openTimePickerField=null;renderLeadModal();}
+function setContactDatePart(field,newDate){
+  const val=draftLead[field]||'';
+  const timePart=val.includes('T')?val.split('T')[1]:'';
+  draftLead[field]=newDate?(timePart?`${newDate}T${timePart}`:newDate):'';
+}
+function setContactTimePart(field,newTime){
+  const val=draftLead[field]||'';
+  const datePart=val.split('T')[0];
+  if(!datePart)return; // ohne Datum ergibt eine Uhrzeit keinen Sinn
+  draftLead[field]=newTime?`${datePart}T${newTime}`:datePart;
+  openTimePickerField=null;
+  renderLeadModal();
+}
+function removeContactTime(field){
+  draftLead[field]=(draftLead[field]||'').split('T')[0];
+  renderLeadModal();
 }
 function daysUntil(d){if(!d)return null;const diff=(new Date(d)-new Date(TODAY))/86400000;return Math.round(diff);}
 function renderFollowupTimeline(lead){
@@ -3532,7 +3565,7 @@ function releaseLeadLock(leadId){
 function openLeadModal(id){
   editingLeadId=id;
   draftLead=id?JSON.parse(JSON.stringify(leads.find(x=>x.id===id))):blankLead();
-  labelPopoverOpen=false;memberPopoverOpen=false;activityFeedFilter='comments';taskMentionPopoverOpen=false;pendingTaskAssigneeId=null;draftTaskText='';editingCommentId=null;rightTab='comments';
+  labelPopoverOpen=false;memberPopoverOpen=false;activityFeedFilter='comments';taskMentionPopoverOpen=false;pendingTaskAssigneeId=null;draftTaskText='';editingCommentId=null;rightTab='comments';openTimePickerField=null;
   clearTimeout(lockHeartbeatTimer);
   const existingLock=id?getLeadLock(id):null;
   if(existingLock&&existingLock.agentId!==currentUser){
@@ -4000,8 +4033,20 @@ function renderLeadModal(){
             <textarea id="fLossComment" style="width:100%;min-height:60px" placeholder="Kurz beschreiben, was zum Verlust geführt hat…" onchange="draftLead.lossComment=this.value" oninput="draftLead.lossComment=this.value">${esc(draftLead.lossComment||'')}</textarea>
           </div>`:''}
           <div class="field-row-2">
-            <div><label>Datum Erstkontakt</label><input type="datetime-local" id="firstContactInput" value="${toDatetimeLocalValue(draftLead.firstContact)}" onchange="draftLead.firstContact=this.value" style="width:100%"></div>
-            <div><label>Datum FollowUp</label><input type="datetime-local" id="followupInput" value="${toDatetimeLocalValue(draftLead.followup)}" onchange="draftLead.followup=this.value" style="width:100%"></div>
+            <div>
+              <label>Datum Erstkontakt</label>
+              <div style="display:flex;gap:6px">
+                <input type="date" id="firstContactInput" value="${(draftLead.firstContact||'').split('T')[0]}" onchange="setContactDatePart('firstContact',this.value)" style="flex:1;min-width:0">
+                ${renderContactTimeControl('firstContact')}
+              </div>
+            </div>
+            <div>
+              <label>Datum FollowUp</label>
+              <div style="display:flex;gap:6px">
+                <input type="date" id="followupInput" value="${(draftLead.followup||'').split('T')[0]}" onchange="setContactDatePart('followup',this.value)" style="flex:1;min-width:0">
+                ${renderContactTimeControl('followup')}
+              </div>
+            </div>
           </div>
 
           <div class="label-row-editor" style="margin-top:10px">
