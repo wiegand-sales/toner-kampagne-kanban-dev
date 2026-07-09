@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T13:18:28.329Z';
+const BUILD_VERSION='2026-07-09T13:22:12.914Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1162,7 +1162,13 @@ function hasPendingPush(){try{return localStorage.getItem(PENDING_PUSH_KEY)!==nu
 function scheduleSbPush(){
   markPendingPush();
   clearTimeout(sbPushTimer);
-  sbPushTimer=setTimeout(()=>{sbPushTimer=null;syncMerge();},1500);
+  // 3s statt vorher 1,5s Verzoegerung: mehrere schnelle Aenderungen (z.B. mehrere
+  // Formularfelder direkt hintereinander) werden dadurch haeufiger zu EINEM einzigen
+  // Schreibvorgang zusammengefasst statt zu mehreren getrennten - das senkt direkt, wie
+  // oft ueberhaupt um die Sperre derselben Datenzeile konkurriert wird, wenn mehrere
+  // Leute gleichzeitig arbeiten. Lokal wird trotzdem sofort gespeichert, nur die
+  // Cloud-Synchronisierung ist minimal verzoegert.
+  sbPushTimer=setTimeout(()=>{sbPushTimer=null;syncMerge();},3000);
 }
 function handleSbAuthExpired(){
   sbSession=null;
