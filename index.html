@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T17:47:34.662Z';
+const BUILD_VERSION='2026-07-09T18:33:39.063Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1044,7 +1044,17 @@ async function syncLeadsLayer(){
       return !b||!deepEqual(l,b.data);
     });
     const locallyChangedIds=locallyChangedOrNew.map(l=>String(l.id));
-    const locallyDeletedIds=baselineIds.filter(id=>!localIds.includes(id));
+    let locallyDeletedIds=baselineIds.filter(id=>!localIds.includes(id));
+    // SICHERHEITSSPERRE: Wuerde diese Runde einen VERDAECHTIG GROSSEN Anteil aller
+    // bekannten Leads auf einmal loeschen (z.B. durch einen noch unbekannten
+    // Zwischenzustand beim allerersten Laden nach diesem Umbau), wird das NICHT
+    // ausgefuehrt, sondern nur gewarnt - dasselbe Prinzip wie beim Schutz gegen die
+    // faelschliche Massenloeschung bei frischen Sitzungen von heute frueh. Lieber einmal
+    // zu vorsichtig sein als echte Kundendaten zu verlieren.
+    if(locallyDeletedIds.length>5&&locallyDeletedIds.length>baselineIds.length*0.3){
+      console.warn(`SICHERHEITSSPERRE: ${locallyDeletedIds.length} von ${baselineIds.length} Leads wuerden geloescht werden - das ist verdaechtig viel auf einmal und wird NICHT ausgefuehrt. Bitte pruefen, bevor manuell Leads geloescht werden.`);
+      locallyDeletedIds=[];
+    }
 
     // 2) Remote-Aenderungen erkennen - billig, nur Zeitstempel
     const remoteTimestamps=await peekLeadTimestamps();
@@ -1053,7 +1063,15 @@ async function syncLeadsLayer(){
       const b=leadsBaseline[id];
       return !b||b.updatedAt!==remoteTimestamps[id];
     });
-    const remotelyDeletedIds=baselineIds.filter(id=>!remoteIds.includes(id)&&!locallyDeletedIds.includes(id));
+    let remotelyDeletedIds=baselineIds.filter(id=>!remoteIds.includes(id)&&!locallyDeletedIds.includes(id));
+    // Dieselbe Sicherheitssperre wie oben, jetzt fuer die umgekehrte Richtung: fehlen
+    // verdaechtig viele bekannte Leads ploetzlich in der Cloud-Antwort, wird das NICHT
+    // als "wurden geloescht" gewertet (z.B. bei einer unvollstaendigen Cloud-Antwort),
+    // sondern die lokalen Leads bleiben vorsichtshalber erhalten.
+    if(remotelyDeletedIds.length>5&&remotelyDeletedIds.length>baselineIds.length*0.3){
+      console.warn(`SICHERHEITSSPERRE: ${remotelyDeletedIds.length} von ${baselineIds.length} Leads fehlen verdaechtig in der Cloud-Antwort - werden NICHT lokal entfernt.`);
+      remotelyDeletedIds=[];
+    }
 
     // 3) Nur-remote geaenderte Leads (nicht auch lokal geaendert) vollstaendig abholen
     const idsToFetch=remotelyChangedIds.filter(id=>!locallyChangedIds.includes(id));
