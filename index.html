@@ -454,8 +454,8 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 
 <div id="newVersionBanner" class="hidden" style="position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1a1a1a;color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:center;gap:16px;font-size:14px;box-shadow:0 -2px 12px rgba(0,0,0,.25)">
   <i class="ti ti-refresh-alert" style="font-size:18px;color:#D9A509"></i>
-  <span>Eine neuere Version von SalesOS ist verfügbar. Bitte lade die Seite neu, um sicherzustellen, dass keine veralteten Daten gespeichert werden.</span>
-  <button class="btn btn-sm btn-primary" onclick="location.reload()"><i class="ti ti-refresh"></i> Jetzt neu laden</button>
+  <span>Eine neuere Version von SalesOS ist verfügbar. Lädt automatisch neu in <span id="reloadCountdown">10</span>s, um sicherzustellen, dass keine veralteten Daten gespeichert werden.</span>
+  <button class="btn btn-sm btn-primary" onclick="location.reload()"><i class="ti ti-refresh"></i> Jetzt sofort neu laden</button>
 </div>
 
 <div class="app-shell hidden">
@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T06:48:21.602Z';
+const BUILD_VERSION='2026-07-09T06:56:26.011Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -5155,11 +5155,13 @@ function showSyncFailureBanner(msg){
 }
 let newVersionDetected=false;
 // Prueft, ob die aktuell online liegende index.html eine neuere BUILD_VERSION hat als die,
-// mit der dieser Tab gerade laeuft. Falls ja: unuebersehbares Banner einblenden, das zum
-// Neuladen auffordert - verhindert, dass ein lange offener Tab unbemerkt mit veraltetem
-// Code weiterlaeuft und (moeglicherweise fehlerhafte) alte Daten hochlaedt.
+// mit der dieser Tab gerade laeuft. Falls ja: die Seite laedt sich SELBSTAENDIG nach einem
+// kurzen, sichtbaren Countdown automatisch neu - das darf nicht davon abhaengen, dass jemand
+// ein Banner bemerkt und manuell klickt. Waehrend des Countdowns ist das Hochladen (siehe
+// syncMerge) bereits vorsorglich gesperrt, damit in der kurzen Restzeit nichts mehr mit
+// potenziell veraltetem Code gespeichert wird.
 async function checkForNewVersion(){
-  if(newVersionDetected)return; // Banner ist schon sichtbar, nicht erneut pruefen noetig
+  if(newVersionDetected)return; // Reload ist schon angestossen, nicht erneut pruefen noetig
   try{
     const res=await fetch(location.pathname+'?_v='+Date.now(),{cache:'no-store'});
     if(!res.ok)return;
@@ -5169,6 +5171,16 @@ async function checkForNewVersion(){
       newVersionDetected=true;
       const banner=document.getElementById('newVersionBanner');
       if(banner)banner.classList.remove('hidden');
+      let secondsLeft=10;
+      const countdownEl=document.getElementById('reloadCountdown');
+      const timer=setInterval(()=>{
+        secondsLeft--;
+        if(countdownEl)countdownEl.textContent=secondsLeft;
+        if(secondsLeft<=0){
+          clearInterval(timer);
+          location.reload();
+        }
+      },1000);
     }
   }catch(e){
     // Netzwerkfehler bei der Versionspruefung sind unkritisch - beim naechsten
