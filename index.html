@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T20:05:07.899Z';
+const BUILD_VERSION='2026-07-09T21:14:40.680Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -4605,10 +4605,17 @@ function setRightTab(tab){rightTab=tab;renderLeadModal();}
 // Maximale Groesse pro einzelnem Anhang - reine Absicherung gegen Ausreisser, die den
 // Speicher unnoetig belasten wuerden.
 const MAX_ATTACHMENT_SIZE=10*1024*1024; // 10 MB
+// Kodiert jeden Pfad-ABSCHNITT einzeln (z.B. Lead-ID und Dateiname), laesst aber die
+// Ordner-Trennzeichen "/" selbst unveraendert. Eine komplette Kodierung des ganzen Pfades
+// (encodeURIComponent auf den gesamten String) wuerde "/" faelschlich zu "%2F" machen,
+// was zu einer ungueltigen Signatur beim spaeteren Herunterladen fuehrt.
+function encodeStoragePath(path){
+  return path.split('/').map(encodeURIComponent).join('/');
+}
 async function uploadAttachmentToStorage(leadId,fileId,file){
   const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
   const path=`${leadId}/${fileId}_${safeName}`;
-  const res=await fetch(`${SUPABASE_URL}/storage/v1/object/lead-attachments/${encodeURIComponent(path)}`,{
+  const res=await fetch(`${SUPABASE_URL}/storage/v1/object/lead-attachments/${encodeStoragePath(path)}`,{
     method:'POST',
     headers:Object.assign({},getSbHeaders(),{'Content-Type':file.type||'application/octet-stream','x-upsert':'true'}),
     body:file
@@ -4618,7 +4625,7 @@ async function uploadAttachmentToStorage(leadId,fileId,file){
 }
 async function downloadAttachment(storagePath,filename){
   try{
-    const res=await fetch(`${SUPABASE_URL}/storage/v1/object/sign/lead-attachments/${encodeURIComponent(storagePath)}`,{
+    const res=await fetch(`${SUPABASE_URL}/storage/v1/object/sign/lead-attachments/${encodeStoragePath(storagePath)}`,{
       method:'POST',
       headers:getSbHeaders(),
       body:JSON.stringify({expiresIn:120})
@@ -4658,7 +4665,7 @@ function removeFile(id){
   if(f){
     draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Datei entfernt: ${f.name}`,date:nowISO()});
     if(f.storagePath){
-      fetch(`${SUPABASE_URL}/storage/v1/object/lead-attachments/${encodeURIComponent(f.storagePath)}`,{method:'DELETE',headers:getSbHeaders()}).catch(()=>{});
+      fetch(`${SUPABASE_URL}/storage/v1/object/lead-attachments/${encodeStoragePath(f.storagePath)}`,{method:'DELETE',headers:getSbHeaders()}).catch(()=>{});
     }
   }
   autoPersistIfEditing();
@@ -4682,7 +4689,7 @@ async function migrateLegacyAttachmentsToStorage(){
       const blob=await blobRes.blob();
       const safeName=(f.name||'datei').replace(/[^a-zA-Z0-9._-]/g,'_');
       const path=`${lead.id}/${f.id}_${safeName}`;
-      const uploadRes=await fetch(`${SUPABASE_URL}/storage/v1/object/lead-attachments/${encodeURIComponent(path)}`,{
+      const uploadRes=await fetch(`${SUPABASE_URL}/storage/v1/object/lead-attachments/${encodeStoragePath(path)}`,{
         method:'POST',
         headers:Object.assign({},getSbHeaders(),{'Content-Type':blob.type||'application/octet-stream','x-upsert':'true'}),
         body:blob
