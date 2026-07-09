@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T11:41:00.542Z';
+const BUILD_VERSION='2026-07-09T12:02:05.104Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -5277,8 +5277,16 @@ function closeModal(id){
     modalLockInfo=null;
   }
 }
-document.getElementById('leadModal').addEventListener('click',e=>{if(e.target.id==='leadModal')closeModal('leadModal');});
-document.getElementById('agentModal').addEventListener('click',e=>{if(e.target.id==='agentModal')closeAgentModal();});
+// Schliessen bei Klick auf den Hintergrund: es reicht NICHT, dass der Klick dort endet -
+// er muss auch dort BEGONNEN haben. Sonst wuerde eine Textmarkierung, die man versehentlich
+// bis ausserhalb des Fensters zieht, das Fenster beim Loslassen der Maustaste schliessen,
+// obwohl man ja gar nicht schliessen, sondern nur Text markieren wollte.
+let leadModalMouseDownOnOverlay=false;
+document.getElementById('leadModal').addEventListener('mousedown',e=>{leadModalMouseDownOnOverlay=(e.target.id==='leadModal');});
+document.getElementById('leadModal').addEventListener('click',e=>{if(e.target.id==='leadModal'&&leadModalMouseDownOnOverlay)closeModal('leadModal');});
+let agentModalMouseDownOnOverlay=false;
+document.getElementById('agentModal').addEventListener('mousedown',e=>{agentModalMouseDownOnOverlay=(e.target.id==='agentModal');});
+document.getElementById('agentModal').addEventListener('click',e=>{if(e.target.id==='agentModal'&&agentModalMouseDownOnOverlay)closeAgentModal();});
 document.addEventListener('click',e=>{
   if(!e.target.closest('.label-row-editor')&&labelPopoverOpen){labelPopoverOpen=false;renderLeadModal();}
   if(!e.target.closest('.member-row-editor')&&memberPopoverOpen){memberPopoverOpen=false;renderLeadModal();}
