@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T06:39:15.269Z';
+const BUILD_VERSION='2026-07-09T06:41:12.641Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1292,6 +1292,44 @@ function findDuplicateCustomerNumbers(){
     (groups[cn]=groups[cn]||[]).push(l);
   });
   return Object.entries(groups).filter(([,arr])=>arr.length>1);
+}
+// ── BACKUP-UEBERSICHT & WIEDERHERSTELLUNG (Admin) ──
+async function listAvailableBackups(){
+  if(!requireAdmin('Backups verwalten'))return;
+  try{
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=like.backup_*&select=id,updated_at,data&order=id.desc`,{headers:getSbHeaders()});
+    if(!res.ok){alert('Backups konnten nicht geladen werden: HTTP '+res.status);return;}
+    const rows=await res.json();
+    if(!rows.length){alert('Es sind noch keine automatischen Backups vorhanden (das erste läuft beim naechsten taeglichen Login).');return;}
+    const list=rows.map(r=>{
+      const dateStr=r.id.replace('backup_','');
+      const leadCount=(r.data&&r.data.leads)?r.data.leads.length:0;
+      return `${dateStr} — ${leadCount} Leads (gesichert um ${fmtDateTime(r.updated_at)})`;
+    }).join('\n');
+    const answer=prompt(`Verfügbare Backups (neuestes zuerst):\n\n${list}\n\nAktuell im System: ${leads.length} Leads.\n\nGib das Datum (JJJJ-MM-TT) ein, das du dir ansehen/wiederherstellen möchtest - oder auf Abbrechen klicken, um nichts zu tun:`);
+    if(!answer)return;
+    await previewAndRestoreBackup(answer.trim());
+  }catch(e){
+    alert('Fehler beim Laden der Backups: '+e.message);
+  }
+}
+async function previewAndRestoreBackup(dateStr){
+  try{
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.backup_${dateStr}&select=data,updated_at`,{headers:getSbHeaders()});
+    if(!res.ok){alert('Backup konnte nicht geladen werden.');return;}
+    const rows=await res.json();
+    if(!rows.length){alert(`Kein Backup für "${dateStr}" gefunden. Bitte exaktes Format JJJJ-MM-TT verwenden (z.B. 2026-07-09).`);return;}
+    const backupData=rows[0].data;
+    const leadCount=(backupData.leads||[]).length;
+    if(!confirm(`Backup vom ${dateStr} enthält ${leadCount} Lead(s).\nAktuell im System: ${leads.length} Lead(s).\n\nWirklich diesen Stand wiederherstellen?\n\nACHTUNG: Das überschreibt den aktuellen Stand für ALLE im Team. Alles, was seit diesem Backup neu eingetragen wurde, geht dabei verloren. Nicht rückgängig zu machen (außer über ein anderes Backup).`))return;
+    applyStateData(JSON.parse(JSON.stringify(backupData)));
+    saveState();
+    await syncMerge();
+    renderBoard();
+    alert(`Backup vom ${dateStr} wurde wiederherstellt und in die Cloud hochgeladen (${leads.length} Leads).`);
+  }catch(e){
+    alert('Fehler bei der Wiederherstellung: '+e.message);
+  }
 }
 function runDataIntegrityCheck(){
   if(!requireAdmin('die Datenintegrität prüfen'))return;
@@ -2712,6 +2750,7 @@ function renderSettings(){
         <p style="font-size:12px;color:var(--text2);line-height:1.6">Alle Daten liegen in einer gemeinsamen Cloud-Datenbank (Supabase) – alle Mitarbeiter sehen denselben Stand, egal an welchem Gerät. Der Status oben links in der Seitenleiste zeigt, ob die Verbindung gerade aktiv ist. Bei fehlender Internetverbindung wird lokal weitergearbeitet und automatisch synchronisiert, sobald die Verbindung zurück ist.</p>
         <button class="btn btn-sm" style="margin-top:8px" onclick="exportFullBackup()"><i class="ti ti-database-export"></i> Alle Daten als Backup exportieren (JSON)</button>
         <button class="btn btn-sm" style="margin-top:8px;margin-left:8px" onclick="runDataIntegrityCheck()"><i class="ti ti-stethoscope"></i> Datenintegrität jetzt prüfen</button>
+        <button class="btn btn-sm" style="margin-top:8px;margin-left:8px" onclick="listAvailableBackups()"><i class="ti ti-history"></i> Backups anzeigen / wiederherstellen</button>
       </div>
       <div class="info-section" style="border-color:var(--red)">
         <div class="section-hdr" style="margin-top:0;color:var(--red)"><i class="ti ti-alert-triangle"></i> Gefahrenzone</div>
