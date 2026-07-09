@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T07:23:58.663Z';
+const BUILD_VERSION='2026-07-09T07:32:09.980Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -926,22 +926,44 @@ async function sbPull(){
   const rows=await res.json();
   return rows&&rows.length?rows[0]:null;
 }
-async function pushState(payload){
+// Schreibt den Stand in die Cloud. Wird expectedUpdatedAt uebergeben, geschieht das als
+// BEDINGTES Update (optimistisches Locking): die Zeile wird nur dann ueberschrieben, wenn
+// ihr Zeitstempel in der Cloud noch EXAKT dem entspricht, was wir zuletzt gelesen haben.
+// Hat in der (kurzen) Zeit zwischen unserem letzten Lesen und jetzt ein anderes Geraet
+// bereits geschrieben, schlaegt dieser Versuch bewusst fehl (gibt false zurueck), statt die
+// fremde Aenderung blind zu ueberschreiben - der Aufrufer synchronisiert dann einfach erneut.
+async function pushState(payload,expectedUpdatedAt){
   const ts=new Date().toISOString();
-  const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state`,{
-    method:'POST',
-    headers:Object.assign({},getSbHeaders(),{'Prefer':'resolution=merge-duplicates,return=representation'}),
-    body:JSON.stringify({id:'main',data:payload,updated_at:ts})
+  let url,method,body;
+  if(expectedUpdatedAt){
+    url=`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&updated_at=eq.${encodeURIComponent(expectedUpdatedAt)}`;
+    method='PATCH';
+    body={data:payload,updated_at:ts};
+  }else{
+    url=`${SUPABASE_URL}/rest/v1/app_state`;
+    method='POST';
+    body={id:'main',data:payload,updated_at:ts};
+  }
+  const res=await fetch(url,{
+    method,
+    headers:Object.assign({},getSbHeaders(),{'Prefer':(method==='POST'?'resolution=merge-duplicates,':'')+'return=representation'}),
+    body:JSON.stringify(body)
   });
-  if(res.status===401){handleSbAuthExpired();return;}
+  if(res.status===401){handleSbAuthExpired();return false;}
   if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
   const rows=await res.json();
+  if(method==='PATCH'&&rows.length===0){
+    // Zeitstempel stimmte nicht mehr ueberein - ein anderes Geraet war schneller. Kein
+    // Fehler, sondern ein bewusstes Signal an den Aufrufer: bitte erneut synchronisieren.
+    return false;
+  }
   const confirmedAt=(rows&&rows[0]&&rows[0].updated_at)?rows[0].updated_at:ts;
   saveSyncBaseline(JSON.parse(JSON.stringify(payload)),confirmedAt);
   clearPendingPush();
   const failBanner=document.getElementById('syncFailureBanner');
   if(failBanner)failBanner.classList.add('hidden');
   setSbStatus('online');
+  return true;
 }
 let syncInProgress=false;
 let syncQueued=false;
@@ -976,7 +998,8 @@ async function maybeRunDailyBackup(){
     console.warn('Taegliches Backup fehlgeschlagen (unkritisch, normale Arbeit ist nicht betroffen):',e);
   }
 }
-async function syncMerge(){
+async function syncMerge(retryCount){
+  retryCount=retryCount||0;
   if(syncInProgress){syncQueued=true;return;}
   if(newVersionDetected){
     // Sobald eine neuere Version erkannt wurde, wird nichts mehr von diesem Tab aus
@@ -1050,8 +1073,12 @@ async function syncMerge(){
       return;
     }
     if(localChanged&&!remoteChanged){
-      // Nur die eigene Aenderung ist neu -> direkt hochladen, kein Merge noetig
-      await pushState(localSnapshot);
+      // Nur die eigene Aenderung ist neu -> direkt hochladen, kein Merge noetig.
+      // Bedingtes Schreiben: schlaegt es fehl (jemand war zwischen unserem Lesen und
+      // Schreiben schneller), wird der komplette Sync-Durchlauf einmal automatisch
+      // wiederholt, statt den Konflikt zu ignorieren.
+      const ok=await pushState(localSnapshot,remote.updated_at);
+      if(!ok&&retryCount<3){syncInProgress=false;return syncMerge(retryCount+1);}
       return;
     }
     // Beide Seiten haben sich seit der Baseline veraendert -> zusammenfuehren statt verwerfen
@@ -1059,7 +1086,8 @@ async function syncMerge(){
     applyStateData(merged);
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
     refreshCurrentView();
-    await pushState(merged);
+    const ok2=await pushState(merged,remote.updated_at);
+    if(!ok2&&retryCount<3){syncInProgress=false;return syncMerge(retryCount+1);}
   }catch(e){
     console.warn('Sync fehlgeschlagen:',e);
     setSbStatus('offline','Sync fehlgeschlagen: '+e.message);
