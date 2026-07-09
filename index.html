@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T19:46:01.445Z';
+const BUILD_VERSION='2026-07-09T19:51:01.344Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1038,6 +1038,16 @@ async function syncLeadsLayer(){
     // "lokal geloescht" behandelt.
     if(!leadsBaseline){
       const rows=await pullAllLeadRows();
+      // SICHERHEITSCHECK: Kommt eine LEERE Antwort zurueck, obwohl lokal (z.B. aus dem
+      // Browser-Zwischenspeicher) bereits Leads angezeigt werden, wird das NICHT als "es
+      // gibt wirklich keine Leads" gewertet - das koennte z.B. an einer kurz noch nicht
+      // bereiten Datenbank-Schnittstelle liegen (etwa direkt nach dem Anlegen einer neuen
+      // Tabelle). Stattdessen wird beim naechsten Abgleich in Kuerze erneut versucht,
+      // ohne die bereits sichtbaren Leads zu verwerfen.
+      if(rows.length===0&&leads.length>0){
+        console.warn('Leere Antwort von der Lead-Tabelle erhalten, obwohl lokal bereits Leads angezeigt werden - wird NICHT uebernommen, naechster Versuch in Kuerze.');
+        return;
+      }
       const newBaseline={};
       const newLeads=[];
       rows.forEach(r=>{newBaseline[r.id]={data:r.data,updatedAt:r.updated_at};newLeads.push(r.data);});
