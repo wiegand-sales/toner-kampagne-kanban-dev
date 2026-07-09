@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T07:35:35.868Z';
+const BUILD_VERSION='2026-07-09T08:07:03.344Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -926,6 +926,19 @@ async function sbPull(){
   const rows=await res.json();
   return rows&&rows.length?rows[0]:null;
 }
+// Fragt NUR den Zeitstempel ab, nicht den kompletten (potenziell grossen) Datensatz mit
+// allen Leads/Kommentaren/Verlauf. Wird bei jedem 5-Sekunden-Abgleich als erster, sehr
+// billiger Schritt genutzt: hat sich der Zeitstempel seit dem letzten bekannten Stand NICHT
+// veraendert (und liegt auch selbst nichts Neues zum Hochladen an), kann der teure volle
+// Datenabruf komplett entfallen - das spart die uebertragene Datenmenge (Egress) massiv,
+// da sich in der ueberwiegenden Mehrheit der Pruefungen ohnehin nichts geaendert hat.
+async function sbPeekUpdatedAt(){
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=updated_at`,{headers:getSbHeaders()});
+  if(res.status===401){handleSbAuthExpired();throw new Error('Sitzung abgelaufen');}
+  if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
+  const rows=await res.json();
+  return rows&&rows.length?rows[0].updated_at:null;
+}
 // Schreibt den Stand in die Cloud. Wird expectedUpdatedAt uebergeben, geschieht das als
 // BEDINGTES Update (optimistisches Locking): die Zeile wird nur dann ueberschrieben, wenn
 // ihr Zeitstempel in der Cloud noch EXAKT dem entspricht, was wir zuletzt gelesen haben.
@@ -1024,6 +1037,19 @@ async function syncMerge(retryCount){
   }
   syncInProgress=true;
   try{
+    // Billiger Vorab-Check: nur den Zeitstempel abfragen statt gleich den ganzen
+    // Datensatz. Hat sich seit der letzten bestaetigten Baseline WEDER hier (kein
+    // ausstehender Push) NOCH in der Cloud (Zeitstempel unveraendert) etwas getan,
+    // kann der teure volle Datenabruf komplett entfallen - spart bei jedem der
+    // haeufigen 5-Sekunden-Abgleiche, bei denen ohnehin nichts passiert ist, die
+    // uebertragene Datenmenge (Egress) fast vollstaendig ein.
+    if(sbBaselineData&&!hasPendingPush()){
+      const peekedAt=await sbPeekUpdatedAt();
+      if(peekedAt!==null&&peekedAt===sbBaselineUpdatedAt){
+        setSbStatus('online');
+        return;
+      }
+    }
     const remote=await sbPull();
     if(!remote){
       // Cloud-Tabelle existiert, ist aber leer -> lokalen Stand als Startpunkt hochladen
