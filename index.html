@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T19:51:01.344Z';
+const BUILD_VERSION='2026-07-09T20:05:07.899Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1029,6 +1029,9 @@ async function deleteLeadRowRemote(id){
 let leadsSyncInProgress=false;
 async function syncLeadsLayer(){
   if(!sbSession||!sbSession.access_token)return;
+  // Genau wie beim Einstellungs-Abgleich: ist eine neuere Version erkannt worden, wird
+  // hier nichts mehr geschrieben - dieser Schutz fehlte bisher beim Lead-Abgleich.
+  if(newVersionDetected)return;
   if(leadsSyncInProgress)return;
   leadsSyncInProgress=true;
   try{
@@ -1080,6 +1083,17 @@ async function syncLeadsLayer(){
     // zu vorsichtig sein als echte Kundendaten zu verlieren.
     if(locallyDeletedIds.length>5&&locallyDeletedIds.length>baselineIds.length*0.3){
       console.warn(`SICHERHEITSSPERRE: ${locallyDeletedIds.length} von ${baselineIds.length} Leads wuerden geloescht werden - das ist verdaechtig viel auf einmal und wird NICHT ausgefuehrt. Bitte pruefen, bevor manuell Leads geloescht werden.`);
+      // Nicht nur die Loeschung in der Cloud verhindern, sondern auch die ANZEIGE aktiv
+      // reparieren: die faelschlich "fehlenden" Leads werden aus der letzten bekannten
+      // Baseline wieder ins sichtbare Board zurueckgeholt, damit der Nutzer nicht vor
+      // einem leeren Board sitzt, obwohl die Daten die ganze Zeit sicher waren.
+      locallyDeletedIds.forEach(id=>{
+        if(!leads.some(x=>String(x.id)===id)){
+          leads.push(JSON.parse(JSON.stringify(leadsBaseline[id].data)));
+        }
+      });
+      normalizeLeads();
+      refreshCurrentView();
       locallyDeletedIds=[];
     }
 
@@ -5782,10 +5796,12 @@ async function bootstrapApp(){
   // hier gesetzt - der direkt danach folgende sbInitialSync()/syncMerge() sieht das und
   // fuehrt dann NUR noch ein sicheres Lesen aus, laedt aber nichts von diesem Tab aus hoch.
   await checkForNewVersion();
-  sbInitialSync();
-  // Zufaellig versetzter Start (0-5s): verhindert, dass mehrere gleichzeitig geoeffnete
-  // Geraete exakt im selben 5-Sekunden-Takt synchron anfragen und dadurch haeufiger
-  // gleichzeitig auf dieselbe Datenzeile schreiben wollen.
+  // WICHTIG: sbInitialSync() wird jetzt vollstaendig ABGEWARTET, bevor der wiederkehrende
+  // Hintergrund-Abgleich (sbPoll) ueberhaupt geplant wird. Vorher lief sbInitialSync() im
+  // Hintergrund weiter, waehrend der naechste Abgleich (manchmal nach nur wenigen
+  // Millisekunden) schon parallel startete - zwei Ablaeufe, die gleichzeitig auf dieselben
+  // Daten zugreifen, konnten sich dabei gegenseitig in die Quere kommen.
+  await sbInitialSync();
   setTimeout(()=>{sbPoll();setInterval(sbPoll,5000);},Math.random()*5000);
   setInterval(checkForNewVersion,60000);
   // Ein Tab, der lange im Hintergrund lag (z.B. eine Nacht offen), soll beim Zurueckkehren
