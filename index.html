@@ -420,7 +420,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 </style>
 </head>
 <body>
-<div class="staging-topbar"><i class="ti ti-alert-triangle"></i> STAGING – Diese Version ist nicht live &nbsp;·&nbsp; <a href="https://wiegand-sales.github.io/SalesOS/" target="_blank">&rarr; Live ansehen</a></div>
+<div class="staging-topbar" style="background:#7c1fa0"><i class="ti ti-flask"></i> TESTDATENBANK – komplett getrennt von Live, nur Testdaten &nbsp;·&nbsp; <a href="https://wiegand-sales.github.io/SalesOS/" target="_blank">&rarr; Live ansehen</a></div>
 
 <div id="loginScreen" class="login-screen hidden">
   <div class="login-box">
@@ -731,9 +731,9 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T18:33:39.063Z';
-const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
-const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
+const BUILD_VERSION='2026-07-09T19:33:22.695Z';
+const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
+const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
 let sbSession=null; // {access_token, refresh_token, expires_at, email}
 function getSbHeaders(){
@@ -5837,7 +5837,7 @@ if(isSbSessionValid()){
 }
 </script>
 
-<div class="staging-bottombar">DEV / STAGING — Keine Produktivumgebung — <a href="https://wiegand-sales.github.io/SalesOS/" target="_blank">&rarr; Live</a></div>
+<div class="staging-bottombar" style="background:#7c1fa0">TESTDATENBANK — komplett eigene, getrennte Datenbank — <a href="https://wiegand-sales.github.io/SalesOS/" target="_blank">&rarr; Live</a></div>
 </body>
 </html>
 <!-- rebuild: 2026-07-05T15:00:00Z -->
