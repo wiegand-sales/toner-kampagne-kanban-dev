@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T12:17:42.976Z';
+const BUILD_VERSION='2026-07-09T12:22:12.152Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1496,7 +1496,24 @@ function requireAdmin(actionLabel){
 }
 function roleLabel(r){return r==='admin'?'Admin':r==='am'?'Account Manager':'Sales Agent';}
 function labelById(id){return LABELS.find(l=>l.id===id);}
-function fmtDate(d){if(!d)return'';const p=d.split('-');return`${p[2]}.${p[1]}.${p[0]}`;}
+function fmtDate(d){if(!d)return'';const p=d.split('T')[0].split('-');return`${p[2]}.${p[1]}.${p[0]}`;}
+// Formatiert Datum + Uhrzeit gemeinsam, aber nur wenn tatsaechlich eine Uhrzeit gesetzt ist
+// (nicht die Standard-Mitternacht, die entsteht, wenn beim datetime-local-Feld nur das
+// Datum, aber keine Uhrzeit ausgewaehlt wurde) - sonst wie gewohnt nur das Datum.
+function fmtDateMaybeTime(d){
+  if(!d)return'';
+  const [datePart,timePart]=d.split('T');
+  const dateFmt=fmtDate(datePart);
+  if(timePart&&timePart!=='00:00')return`${dateFmt}, ${timePart} Uhr`;
+  return dateFmt;
+}
+// Wandelt einen gespeicherten Datums- oder Datum+Uhrzeit-Wert in das Format um, das ein
+// <input type="datetime-local"> als value erwartet. Reine Alt-Datumswerte (ohne Uhrzeit,
+// aus der Zeit vor dieser Funktion) werden dabei automatisch um "T00:00" ergaenzt.
+function toDatetimeLocalValue(v){
+  if(!v)return'';
+  return v.includes('T')?v:v+'T00:00';
+}
 function daysUntil(d){if(!d)return null;const diff=(new Date(d)-new Date(TODAY))/86400000;return Math.round(diff);}
 function renderFollowupTimeline(lead){
   if(!lead.firstContact){
@@ -1582,8 +1599,17 @@ function downloadCalendarInvite(){
   const organizer=currentAgent();
   const organizerName=organizer?organizer.name:'Vertrieb';
   const organizerEmail=(organizer&&organizer.email)?organizer.email:'kein-reply@wiegand-gmbh.de';
-  const start=berlinLocalToUTCString(draftLead.followup,'10:00');
-  const end=berlinLocalToUTCString(draftLead.followup,'10:30');
+  // Wurde beim Follow-up-Datum tatsaechlich eine Uhrzeit gewaehlt (nicht die Standard-
+  // Mitternacht eines unangetasteten Zeitfelds), wird genau diese fuer den Termin
+  // verwendet - sonst greift wie bisher der Standard-Vorschlag 10:00 Uhr.
+  const [followupDatePart,followupTimePart]=draftLead.followup.split('T');
+  const hasExplicitTime=followupTimePart&&followupTimePart!=='00:00';
+  const startTime=hasExplicitTime?followupTimePart:'10:00';
+  const [startH,startM]=startTime.split(':').map(Number);
+  const endDate=new Date(2000,0,1,startH,startM+30);
+  const endTime=`${String(endDate.getHours()).padStart(2,'0')}:${String(endDate.getMinutes()).padStart(2,'0')}`;
+  const start=berlinLocalToUTCString(followupDatePart,startTime);
+  const end=berlinLocalToUTCString(followupDatePart,endTime);
   const dtstamp=new Date().toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
   const uid=`${draftLead.id||genId()}-${Date.now()}@salesos.wiegand-gmbh.de`;
   const lines=[
@@ -3974,8 +4000,8 @@ function renderLeadModal(){
             <textarea id="fLossComment" style="width:100%;min-height:60px" placeholder="Kurz beschreiben, was zum Verlust geführt hat…" onchange="draftLead.lossComment=this.value" oninput="draftLead.lossComment=this.value">${esc(draftLead.lossComment||'')}</textarea>
           </div>`:''}
           <div class="field-row-2">
-            <div><label>Datum Erstkontakt</label><input type="date" id="firstContactInput" value="${draftLead.firstContact}" onchange="draftLead.firstContact=this.value" style="width:100%"></div>
-            <div><label>Follow-up-Datum</label><input type="date" id="followupInput" value="${draftLead.followup}" onchange="draftLead.followup=this.value" style="width:100%"></div>
+            <div><label>Datum Erstkontakt</label><input type="datetime-local" id="firstContactInput" value="${toDatetimeLocalValue(draftLead.firstContact)}" onchange="draftLead.firstContact=this.value" style="width:100%"></div>
+            <div><label>Datum FollowUp</label><input type="datetime-local" id="followupInput" value="${toDatetimeLocalValue(draftLead.followup)}" onchange="draftLead.followup=this.value" style="width:100%"></div>
           </div>
 
           <div class="label-row-editor" style="margin-top:10px">
@@ -4827,7 +4853,7 @@ const FIELD_REGISTRY={
   statusName:{label:'Status',group:'Lead-Status',importable:false,get:l=>colById(l.status).name},
   statusSince:{label:'Seit wann in dieser Liste',group:'Lead-Status',importable:false,get:l=>fmtDate(l.statusSince)||''},
   firstContact:{label:'Datum Erstkontakt',group:'Lead-Status',importable:true,aliases:['datum erstkontakt','erstkontakt'],example:'2026-07-01',get:l=>l.firstContact,set:(l,v)=>l.firstContact=v},
-  followup:{label:'Follow-up-Datum',group:'Lead-Status',importable:true,aliases:['follow-up-datum','followup','follow-up','wiedervorlage'],example:'2026-07-15',get:l=>l.followup,set:(l,v)=>l.followup=v},
+  followup:{label:'Datum FollowUp',group:'Lead-Status',importable:true,aliases:['follow-up-datum','followup','follow-up','wiedervorlage','datum followup'],example:'2026-07-15',get:l=>l.followup,set:(l,v)=>l.followup=v},
   membersNames:{label:'Mitglieder',group:'Lead-Status',importable:false,get:l=>l.members.map(id=>agentById(id)?.name).filter(Boolean).join('; ')},
   labelsNames:{label:'Labels',group:'Lead-Status',importable:false,get:l=>l.labelIds.map(id=>labelById(id)?.name).filter(Boolean).join('; ')},
   checklistItems:{label:'Checkliste',group:'Lead-Status',importable:false,get:l=>(l.checklist||[]).map(c=>`${c.done?'[x]':'[ ]'} ${c.text}`).join('; ')},
