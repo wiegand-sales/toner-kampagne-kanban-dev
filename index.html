@@ -667,6 +667,9 @@ const COLOR_BG={purple:'var(--purple-bg)',teal:'var(--teal-bg)',amber:'var(--amb
 const COLOR_TEXT={purple:'var(--purple-dark)',teal:'var(--teal-dark)',amber:'var(--amber-dark)',gray:'var(--gray-dark)',green:'var(--green-dark)',red:'var(--red-dark)'};
 const LABEL_PALETTE=['#206A72','#32A8B4','#7ED2DB','#D94109','#ED8B4C','#F5C69A','#BD2D29','#676660','#0F3D42'];
 const TODAY=new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Berlin'});
+// Feste Versandkosten pro tatsaechlich verschicktem Toner - fliesst sowohl in die
+// Investitions-Anzeige im Lead selbst als auch als eigene Kennzahl ins Dashboard ein.
+const SHIPPING_COST_PER_SEND=4.95;
 
 // ── STATE (in-memory, kein Backend – Vorstufe fuer Supabase) ──
 let LABELS=[
@@ -728,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T12:05:38.014Z';
+const BUILD_VERSION='2026-07-09T12:17:42.976Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1895,6 +1898,8 @@ function renderDashboard(){
   const winRateClosed=closedCount?Math.round(won/closedCount*100):null;
   const forecastSum=dl.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
   const investSum=dl.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.priceEk)||0),0),0);
+  const shippedCount=dl.filter(l=>l.tonerSent==='Ja').length;
+  const shippingCostSum=shippedCount*SHIPPING_COST_PER_SEND;
 
   // Vertriebszyklus-Laenge: Tage von Erstkontakt bis Abschluss (gewonnen/verloren)
   const cycleDays=dl.filter(l=>isClosedLead(l)&&l.firstContact&&l.closedAt)
@@ -1964,12 +1969,13 @@ function renderDashboard(){
   }).join('');
 
   const kpiHtml=`
-    <div class="dash-kpi-row">
+    <div class="dash-kpi-row" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
       <div class="dash-kpi"><i class="ti ti-phone-outgoing dash-kpi-icon"></i><div class="dash-kpi-label">Kontaktierte Leads</div><div class="dash-kpi-val">${contacted}<span style="font-size:13px;font-weight:500;color:var(--text3)"> / ${total}</span></div></div>
       <div class="dash-kpi"><i class="ti ti-alert-triangle dash-kpi-icon" style="color:${overdue?'var(--red)':'var(--text3)'}"></i><div class="dash-kpi-label">Follow-up überfällig</div><div class="dash-kpi-val" style="color:${overdue?'var(--red)':'var(--text)'}">${overdue}</div></div>
       <div class="dash-kpi"><i class="ti ti-trophy dash-kpi-icon" style="color:var(--green)"></i><div class="dash-kpi-label">Gewinnrate (abgeschlossen)</div><div class="dash-kpi-val" style="color:var(--green)">${winRateClosed!==null?winRateClosed+'%':'–'}</div></div>
       <div class="dash-kpi"><i class="ti ti-chart-line dash-kpi-icon" style="color:var(--purple)"></i><div class="dash-kpi-label">Forecast gesamt</div><div class="dash-kpi-val" style="color:var(--purple)">${fmtEur(forecastSum)||'0 €'}</div></div>
       <div class="dash-kpi"><i class="ti ti-truck-delivery dash-kpi-icon" style="color:var(--amber-dark)"></i><div class="dash-kpi-label">Investition (Versand)</div><div class="dash-kpi-val" style="color:var(--amber-dark)">${fmtEur(investSum)||'0 €'}</div></div>
+      <div class="dash-kpi"><i class="ti ti-package dash-kpi-icon" style="color:var(--red)"></i><div class="dash-kpi-label">Versandkosten (${shippedCount}× ${fmtEur(SHIPPING_COST_PER_SEND)})</div><div class="dash-kpi-val" style="color:var(--red)">${fmtEur(shippingCostSum)||'0 €'}</div></div>
       <div class="dash-kpi"><i class="ti ti-clock-hour-4 dash-kpi-icon" style="color:var(--teal-dark)"></i><div class="dash-kpi-label">Ø Vertriebszyklus</div><div class="dash-kpi-val" style="color:var(--teal-dark)">${avgCycle!==null?avgCycle+' Tage':'–'}</div></div>
     </div>`;
 
@@ -3585,7 +3591,9 @@ function renderLeadModal(){
     <button class="check-item-del" onclick="deleteCheckItem(${c.id})"><i class="ti ti-x"></i></button>
   </div>`).join('');
 
-  const shipInvestTotal=draftLead.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.priceEk)||0),0);
+  const shipSkuTotal=draftLead.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.priceEk)||0),0);
+  const shipCostApplies=draftLead.tonerSent==='Ja';
+  const shipInvestTotal=shipSkuTotal+(shipCostApplies?SHIPPING_COST_PER_SEND:0);
   const shipPrinterHtml=`
     <div class="field" style="margin-bottom:8px;position:relative">
       <input type="text" id="shipPrinterModelInput" placeholder="Modell, z. B. HP LaserJet Pro M404" value="${draftLead.shipPrinter.model}" oninput="handlePrinterModelInput(this,'ship',null)" onblur="setTimeout(closePrinterModelPopover,150)" style="width:100%">
@@ -3596,7 +3604,8 @@ function renderLeadModal(){
     <div class="sku-grid" style="margin-top:6px">
       ${['I','II','III','IV'].map((rn,i)=>`<div><label>Preis EK ${rn} (EUR)</label><input type="number" min="0" step="0.5" placeholder="0" value="${draftLead.shipPrinter.skus[i].priceEk||''}" oninput="updateShipPrinterSku(${i},'priceEk',this.value)" style="width:100%"></div>`).join('')}
     </div>
-    ${shipInvestTotal?`<p style="font-size:11px;color:var(--text2);margin-top:8px">Investition (EK gesamt): <strong>${fmtEur(shipInvestTotal)}</strong></p>`:''}`;
+    ${shipCostApplies?`<p style="font-size:11px;color:var(--text2);margin-top:8px">Versandkosten (pauschal): <strong>${fmtEur(SHIPPING_COST_PER_SEND)}</strong></p>`:''}
+    ${shipInvestTotal?`<p style="font-size:11px;color:var(--text2);margin-top:4px">Investition gesamt (Patronen${shipCostApplies?' + Versand':''}): <strong>${fmtEur(shipInvestTotal)}</strong></p>`:''}`;
 
   const topArticlesHtml=draftLead.topArticles.map((a,i)=>`
     <div class="field-row-3" style="${i===draftLead.topArticles.length-1?'margin-bottom:0':''}">
@@ -3941,7 +3950,7 @@ function renderLeadModal(){
               </select>
             </div>
             <div><label>Free Toner verschickt</label>
-              <select style="width:100%" onchange="draftLead.tonerSent=this.value">
+              <select style="width:100%" onchange="draftLead.tonerSent=this.value;renderLeadModal()">
                 <option value="Nein" ${draftLead.tonerSent==='Nein'?'selected':''}>Nein</option>
                 <option value="Ja" ${draftLead.tonerSent==='Ja'?'selected':''}>Ja</option>
               </select>
@@ -4812,7 +4821,8 @@ const FIELD_REGISTRY={
   notes:{label:'Notizen',group:'Kundeninformationen',importable:true,aliases:['notizen','notiz','notes','bemerkung','kommentar'],example:'Interessiert, ruft nächste Woche zurück',get:l=>l.notes,set:(l,v)=>l.notes=v},
   shipPrinterModel:{label:'Versand-Drucker',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.shipPrinter.model},
   shipSkus:{label:'Versand-SKUs (EK)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.shipPrinter.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.priceEk?` (EK ${fmtEur(s.priceEk)||'0 €'})`:''}`).join(', ')},
-  investTotal:{label:'Investition gesamt EK (EUR)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.priceEk)||0),0)||''},
+  investTotal:{label:'Investition gesamt EK + Versand (EUR)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>{const skuTotal=l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.priceEk)||0),0);const total=skuTotal+(l.tonerSent==='Ja'?SHIPPING_COST_PER_SEND:0);return total||'';}},
+  shippingCost:{label:'Versandkosten (EUR)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.tonerSent==='Ja'?SHIPPING_COST_PER_SEND:''},
   tonerSent:{label:'Free Toner verschickt',group:'Drucker & Patronen (Versand)',importable:true,aliases:['free toner verschickt'],example:'Ja',get:l=>l.tonerSent,set:(l,v)=>{if(v)l.tonerSent=v;}},
   statusName:{label:'Status',group:'Lead-Status',importable:false,get:l=>colById(l.status).name},
   statusSince:{label:'Seit wann in dieser Liste',group:'Lead-Status',importable:false,get:l=>fmtDate(l.statusSince)||''},
