@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T13:03:37.341Z';
+const BUILD_VERSION='2026-07-09T13:18:28.329Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1121,7 +1121,13 @@ async function syncMerge(retryCount){
       // Schreiben schneller), wird der komplette Sync-Durchlauf einmal automatisch
       // wiederholt, statt den Konflikt zu ignorieren.
       const ok=await pushState(localSnapshot,remote.updated_at);
-      if(!ok&&retryCount<3){syncInProgress=false;return syncMerge(retryCount+1);}
+      if(!ok&&retryCount<3){
+        syncInProgress=false;
+        // Kurze zufaellige Pause vor dem naechsten Versuch (verteilt konkurrierende
+        // Schreibversuche mehrerer Geraete, statt dass sie sofort wieder aufeinanderprallen).
+        await new Promise(r=>setTimeout(r,300+Math.random()*700));
+        return syncMerge(retryCount+1);
+      }
       return;
     }
     // Beide Seiten haben sich seit der Baseline veraendert -> zusammenfuehren statt verwerfen
@@ -1130,12 +1136,21 @@ async function syncMerge(retryCount){
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
     refreshCurrentView();
     const ok2=await pushState(merged,remote.updated_at);
-    if(!ok2&&retryCount<3){syncInProgress=false;return syncMerge(retryCount+1);}
+    if(!ok2&&retryCount<3){
+      syncInProgress=false;
+      await new Promise(r=>setTimeout(r,300+Math.random()*700));
+      return syncMerge(retryCount+1);
+    }
   }catch(e){
     console.warn('Sync fehlgeschlagen:',e);
     setSbStatus('offline','Sync fehlgeschlagen: '+e.message);
     if(hasPendingPush())showSyncFailureBanner('Deine letzte Änderung konnte gerade nicht in die Cloud hochgeladen werden ('+e.message+'). Sie ist lokal in diesem Browser gesichert und wird automatisch erneut versucht - bitte lade die Seite währenddessen NICHT neu und schließe diesen Tab nicht.');
-    setTimeout(()=>{if(hasPendingPush())scheduleSbPush();},10000);
+    // Zufaellige Wartezeit (8-14s statt starr 10s): sind mehrere Geraete gleichzeitig auf
+    // dieselbe Zeitueberschreitung gestossen (z.B. weil sie zur gleichen Sekunde versucht
+    // haben, dieselbe Datenzeile zu schreiben), wuerden sie sonst alle exakt zur gleichen
+    // Sekunde erneut aufeinanderprallen - der zufaellige Versatz verteilt die Versuche.
+    const retryDelay=8000+Math.random()*6000;
+    setTimeout(()=>{if(hasPendingPush())scheduleSbPush();},retryDelay);
   }finally{
     syncInProgress=false;
     if(syncQueued){syncQueued=false;syncMerge();}
@@ -5437,7 +5452,10 @@ async function bootstrapApp(){
   // fuehrt dann NUR noch ein sicheres Lesen aus, laedt aber nichts von diesem Tab aus hoch.
   await checkForNewVersion();
   sbInitialSync();
-  setInterval(sbPoll,5000);
+  // Zufaellig versetzter Start (0-5s): verhindert, dass mehrere gleichzeitig geoeffnete
+  // Geraete exakt im selben 5-Sekunden-Takt synchron anfragen und dadurch haeufiger
+  // gleichzeitig auf dieselbe Datenzeile schreiben wollen.
+  setTimeout(()=>{sbPoll();setInterval(sbPoll,5000);},Math.random()*5000);
   setInterval(checkForNewVersion,60000);
   // Ein Tab, der lange im Hintergrund lag (z.B. eine Nacht offen), soll beim Zurueckkehren
   // sofort geprueft werden - genau die Situation, in der veralteter Code am ehesten
