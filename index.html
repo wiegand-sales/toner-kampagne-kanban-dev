@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T13:22:12.914Z';
+const BUILD_VERSION='2026-07-09T17:47:34.662Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -786,6 +786,15 @@ let sbPushTimer=null;
 function buildStatePayload(){
   return {leads, COLUMNS, LABELS, AGENTS, ARTICLES, PROJECT, LEADLOCKS, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId, nextArticleId, nextMilestoneId, nextRiskId, nextNotifyRuleId};
 }
+// Wie buildStatePayload(), aber OHNE die Leads - die leben jetzt in eigenen
+// Datenbank-Zeilen (Tabelle sales_leads) und werden getrennt ueber syncLeadsLayer()
+// synchronisiert. Diese Funktion wird speziell fuer den Cloud-Abgleich der restlichen
+// Einstellungen (Spalten, Labels, Mitarbeiter, Projekt-Einstellungen, Sperren) genutzt -
+// buildStatePayload() selbst bleibt fuer die LOKALE Zwischenspeicherung unveraendert,
+// damit ein Neuladen der Seite weiterhin alles aus dem Browser-Speicher wiederherstellen kann.
+function buildSettingsPayload(){
+  return {COLUMNS, LABELS, AGENTS, ARTICLES, PROJECT, LEADLOCKS, nextId, nextLabelId, nextPrinterId, nextColId, nextAgentId, nextArticleId, nextMilestoneId, nextRiskId, nextNotifyRuleId};
+}
 function applyStateData(data){
   if(data.leads)leads=data.leads;
   if(data.COLUMNS)COLUMNS=data.COLUMNS;
@@ -837,6 +846,23 @@ function setSbStatus(status,detail){
 const SYNC_BASELINE_KEY='toner_kanban_sync_baseline_v1';
 let sbBaselineData=null;
 let sbBaselineUpdatedAt=null;
+// NEUE Baseline speziell fuer Leads: jeder Lead lebt jetzt in einer EIGENEN Datenbank-Zeile
+// (Tabelle sales_leads) statt im gemeinsamen Datenblock. Diese Baseline merkt sich pro
+// Lead-ID den zuletzt bekannten, synchronisierten Stand - der Vergleich "aktueller Stand
+// vs. diese Baseline" verrät, welche Leads sich seitdem geaendert haben, OHNE dass jede
+// einzelne Speicherstelle im Code das selbst melden muesste.
+const LEADS_BASELINE_KEY='toner_kanban_leads_baseline_v1';
+let leadsBaseline=null; // {[id]: {data, updatedAt}} oder null = noch nie synchronisiert
+function loadLeadsBaseline(){
+  try{
+    const raw=localStorage.getItem(LEADS_BASELINE_KEY);
+    leadsBaseline=raw?JSON.parse(raw):null;
+  }catch(e){leadsBaseline=null;}
+}
+function saveLeadsBaseline(newBaseline){
+  leadsBaseline=newBaseline;
+  try{localStorage.setItem(LEADS_BASELINE_KEY,JSON.stringify(newBaseline));}catch(e){}
+}
 function loadSyncBaseline(){
   try{
     const raw=localStorage.getItem(SYNC_BASELINE_KEY);
@@ -921,6 +947,173 @@ function mergeStateData(baseline,local,remote){
     nextRiskId:Math.max(local.nextRiskId||0,remote.nextRiskId||0),
     nextNotifyRuleId:Math.max(local.nextNotifyRuleId||0,remote.nextNotifyRuleId||0)
   };
+}
+// ===== Lead-Zeilen-Synchronisierung (jeder Lead = eigene Datenbank-Zeile) =====
+// Holt NUR id+updated_at ALLER Leads - eine sehr billige Abfrage, die zeigt, welche
+// Leads sich seit der letzten bekannten Baseline ueberhaupt veraendert haben, OHNE die
+// (potenziell grossen) Lead-Daten selbst zu uebertragen.
+async function peekLeadTimestamps(){
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/sales_leads?select=id,updated_at`,{headers:getSbHeaders()});
+  if(res.status===401||res.status===403){handleSbAuthExpired();throw new Error('Sitzung abgelaufen oder Zugriff verweigert');}
+  if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
+  const rows=await res.json();
+  const map={};
+  rows.forEach(r=>{map[r.id]=r.updated_at;});
+  return map;
+}
+// Holt die vollen Daten NUR fuer die uebergebenen Lead-IDs (z.B. nur die, die sich laut
+// peekLeadTimestamps() tatsaechlich veraendert haben) - vermeidet, bei jedem Abgleich
+// ALLE 1000 Leads komplett neu herunterzuladen, wenn nur einer sich geaendert hat.
+async function pullLeadRowsByIds(ids){
+  if(!ids.length)return[];
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/sales_leads?select=id,data,updated_at&id=in.(${ids.join(',')})`,{headers:getSbHeaders()});
+  if(res.status===401||res.status===403){handleSbAuthExpired();throw new Error('Sitzung abgelaufen oder Zugriff verweigert');}
+  if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
+  return await res.json();
+}
+async function pullAllLeadRows(){
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/sales_leads?select=id,data,updated_at`,{headers:getSbHeaders()});
+  if(res.status===401||res.status===403){handleSbAuthExpired();throw new Error('Sitzung abgelaufen oder Zugriff verweigert');}
+  if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
+  return await res.json();
+}
+// Schreibt EINEN einzelnen Lead. Bedingtes Update (optimistisches Locking) genau wie bei
+// pushState(): schlaegt fehl, wenn ein anderes Geraet diesen EINEN Lead zwischenzeitlich
+// bereits geaendert hat - der Aufrufer synchronisiert dann diesen Lead einfach erneut.
+async function pushLeadRow(leadData,expectedUpdatedAt){
+  const ts=new Date().toISOString();
+  let url,method,body;
+  if(expectedUpdatedAt){
+    url=`${SUPABASE_URL}/rest/v1/sales_leads?id=eq.${leadData.id}&updated_at=eq.${encodeURIComponent(expectedUpdatedAt)}`;
+    method='PATCH';
+    body={data:leadData,updated_at:ts};
+  }else{
+    url=`${SUPABASE_URL}/rest/v1/sales_leads`;
+    method='POST';
+    body={id:leadData.id,data:leadData,updated_at:ts};
+  }
+  const res=await fetch(url,{
+    method,
+    headers:Object.assign({},getSbHeaders(),{'Prefer':(method==='POST'?'resolution=merge-duplicates,':'')+'return=representation'}),
+    body:JSON.stringify(body)
+  });
+  if(res.status===401||res.status===403){handleSbAuthExpired();return false;}
+  if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
+  const rows=await res.json();
+  if(method==='PATCH'&&rows.length===0)return false; // Konflikt: jemand anderes war schneller
+  return(rows&&rows[0]&&rows[0].updated_at)?rows[0].updated_at:ts;
+}
+async function deleteLeadRowRemote(id){
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/sales_leads?id=eq.${id}`,{method:'DELETE',headers:getSbHeaders()});
+  if(res.status===401||res.status===403){handleSbAuthExpired();return;}
+  // Fehler beim Loeschen sind unkritisch (wird beim naechsten Abgleich einfach erneut
+  // versucht) - kein throw, um den restlichen Sync-Vorgang nicht zu blockieren.
+}
+let leadsSyncInProgress=false;
+async function syncLeadsLayer(){
+  if(!sbSession||!sbSession.access_token)return;
+  if(leadsSyncInProgress)return;
+  leadsSyncInProgress=true;
+  try{
+    // Fall A: noch nie synchronisiert (frische Sitzung, neues Geraet, geleerter
+    // Browser-Speicher) -> genau wie beim alten Blob gilt: die Cloud ist die Wahrheit,
+    // NIEMALS die Merge-Logik greifen lassen, sonst wuerden echte Leads faelschlich als
+    // "lokal geloescht" behandelt.
+    if(!leadsBaseline){
+      const rows=await pullAllLeadRows();
+      const newBaseline={};
+      const newLeads=[];
+      rows.forEach(r=>{newBaseline[r.id]={data:r.data,updatedAt:r.updated_at};newLeads.push(r.data);});
+      leads=newLeads;
+      normalizeLeads();
+      // Dieselben Selbstheilungs-Reparaturen, die frueher beim Laden des gemeinsamen
+      // Blocks liefen, gelten jetzt hier - sie muessen weiterhin greifen, egal ob die
+      // Leads aus dem alten Block oder der neuen Tabelle kommen.
+      repairDuplicateLeadIds();
+      repairSwappedCompanyCustomerNumber();
+      saveLeadsBaseline(newBaseline);
+      refreshCurrentView();
+      return;
+    }
+
+    // 1) Lokale Aenderungen/Neuanlagen erkennen (aktueller `leads`-Array vs. Baseline)
+    const baselineIds=Object.keys(leadsBaseline);
+    const localIds=leads.map(l=>String(l.id));
+    const locallyChangedOrNew=leads.filter(l=>{
+      const b=leadsBaseline[l.id];
+      return !b||!deepEqual(l,b.data);
+    });
+    const locallyChangedIds=locallyChangedOrNew.map(l=>String(l.id));
+    const locallyDeletedIds=baselineIds.filter(id=>!localIds.includes(id));
+
+    // 2) Remote-Aenderungen erkennen - billig, nur Zeitstempel
+    const remoteTimestamps=await peekLeadTimestamps();
+    const remoteIds=Object.keys(remoteTimestamps);
+    const remotelyChangedIds=remoteIds.filter(id=>{
+      const b=leadsBaseline[id];
+      return !b||b.updatedAt!==remoteTimestamps[id];
+    });
+    const remotelyDeletedIds=baselineIds.filter(id=>!remoteIds.includes(id)&&!locallyDeletedIds.includes(id));
+
+    // 3) Nur-remote geaenderte Leads (nicht auch lokal geaendert) vollstaendig abholen
+    const idsToFetch=remotelyChangedIds.filter(id=>!locallyChangedIds.includes(id));
+    if(idsToFetch.length){
+      const fetchedRows=await pullLeadRowsByIds(idsToFetch);
+      fetchedRows.forEach(r=>{
+        const idx=leads.findIndex(l=>String(l.id)===String(r.id));
+        if(idx>=0)leads[idx]=r.data;else leads.push(r.data);
+        leadsBaseline[r.id]={data:JSON.parse(JSON.stringify(r.data)),updatedAt:r.updated_at};
+      });
+      normalizeLeads();
+    }
+
+    // 4) Remote geloeschte Leads (die lokal NICHT geaendert wurden) auch lokal entfernen
+    remotelyDeletedIds.forEach(id=>{
+      if(!locallyChangedIds.includes(id)){
+        leads=leads.filter(l=>String(l.id)!==id);
+        delete leadsBaseline[id];
+      }
+    });
+
+    // 5) Lokale Aenderungen/Neuanlagen hochschreiben - PARALLEL statt nacheinander, denn
+    // unterschiedliche Leads sind unterschiedliche Datenbank-Zeilen und blockieren sich
+    // nie gegenseitig. Das ist besonders wichtig fuer den geplanten woechentlichen
+    // CSV-Import von 100-200 neuen Leads auf einmal.
+    await Promise.all(locallyChangedOrNew.map(async(lead)=>{
+      const b=leadsBaseline[lead.id];
+      const expected=b?b.updatedAt:null;
+      try{
+        let confirmedAt=await pushLeadRow(lead,expected);
+        if(confirmedAt===false){
+          // Konflikt: ein anderes Geraet hat GENAU diesen Lead zwischenzeitlich auch
+          // geaendert. Etablierte, bereits dokumentierte Regel: lokale Version gewinnt
+          // fuer diesen einen Lead (kein Effekt auf alle anderen Leads).
+          confirmedAt=await pushLeadRow(lead,null);
+        }
+        leadsBaseline[lead.id]={data:JSON.parse(JSON.stringify(lead)),updatedAt:confirmedAt};
+      }catch(e){
+        console.warn('Lead '+lead.id+' konnte nicht synchronisiert werden (wird beim naechsten Abgleich erneut versucht):',e);
+      }
+    }));
+
+    // 6) Lokal geloeschte Leads auch remote entfernen - ebenfalls parallel
+    await Promise.all(locallyDeletedIds.map(async(id)=>{
+      await deleteLeadRowRemote(id);
+      delete leadsBaseline[id];
+    }));
+
+    // Dieselben Selbstheilungs-Reparaturen wie beim frischen Start - laufen bei jedem
+    // Abgleich erneut mit (guenstige reine Array-Pruefung, keine Netzwerk-Kosten), damit
+    // sie unabhaengig davon greifen, wie ein Lead ins System gekommen ist.
+    repairDuplicateLeadIds();
+    repairSwappedCompanyCustomerNumber();
+
+    saveLeadsBaseline(leadsBaseline);
+  }catch(e){
+    console.warn('Lead-Synchronisierung fehlgeschlagen:',e);
+  }finally{
+    leadsSyncInProgress=false;
+  }
 }
 async function sbPull(){
   const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=data,updated_at`,{headers:getSbHeaders()});
@@ -1060,11 +1253,11 @@ async function syncMerge(retryCount){
     const remote=await sbPull();
     if(!remote){
       // Cloud-Tabelle existiert, ist aber leer -> lokalen Stand als Startpunkt hochladen
-      await pushState(buildStatePayload());
+      await pushState(buildSettingsPayload());
       return;
     }
     maybeRunDailyBackup();
-    const localSnapshot=buildStatePayload();
+    const localSnapshot=buildSettingsPayload();
     const remoteData=remote.data||{};
     // Baseline und Remote-Stand vor dem Vergleich genauso normalisieren wie der lokale Stand
     // (der beim Laden bereits durch applyStateData()/normalizeLeads() gelaufen ist) - sonst
@@ -1168,7 +1361,7 @@ function scheduleSbPush(){
   // oft ueberhaupt um die Sperre derselben Datenzeile konkurriert wird, wenn mehrere
   // Leute gleichzeitig arbeiten. Lokal wird trotzdem sofort gespeichert, nur die
   // Cloud-Synchronisierung ist minimal verzoegert.
-  sbPushTimer=setTimeout(()=>{sbPushTimer=null;syncMerge();},3000);
+  sbPushTimer=setTimeout(()=>{sbPushTimer=null;syncMerge();syncLeadsLayer();},3000);
 }
 function handleSbAuthExpired(){
   sbSession=null;
@@ -1184,7 +1377,9 @@ function refreshCurrentView(){
 // bleiben koennen - beide fuehren jetzt einfach den zentralen Merge-Sync aus.
 async function sbInitialSync(){
   loadSyncBaseline();
+  loadLeadsBaseline();
   await syncMerge();
+  await syncLeadsLayer();
 }
 async function sbPoll(){
   // Waehrend der Mehrfachauswahl wird nicht synchronisiert, um die aktuelle Auswahl nicht
@@ -1196,6 +1391,7 @@ async function sbPoll(){
   // weiter geschrieben und dieselbe Berechtigungs-Ablehnung endlos wiederholt.
   if(!sbSession||!sbSession.access_token)return;
   await syncMerge();
+  await syncLeadsLayer();
   // Ist gerade ein schreibgeschuetztes Lead-Fenster offen und die Sperre wurde zwischenzeitlich
   // freigegeben, wird automatisch auf Bearbeitbar umgeschaltet, ohne dass neu geklickt werden muss.
   const modalOpen=!document.getElementById('leadModal').classList.contains('hidden');
@@ -2920,6 +3116,7 @@ function renderSettings(){
         <button class="btn btn-sm" style="margin-top:8px" onclick="exportFullBackup()"><i class="ti ti-database-export"></i> Alle Daten als Backup exportieren (JSON)</button>
         <button class="btn btn-sm" style="margin-top:8px;margin-left:8px" onclick="runDataIntegrityCheck()"><i class="ti ti-stethoscope"></i> Datenintegrität jetzt prüfen</button>
         <button class="btn btn-sm" style="margin-top:8px;margin-left:8px" onclick="listAvailableBackups()"><i class="ti ti-history"></i> Backups anzeigen / wiederherstellen</button>
+        <button class="btn btn-sm" style="margin-top:8px;margin-left:8px" onclick="migrateLegacyAttachmentsToStorage()"><i class="ti ti-file-upload"></i> Alte Anhänge in den Dateispeicher übertragen</button>
       </div>
       <div class="info-section" style="border-color:var(--red)">
         <div class="section-hdr" style="margin-top:0;color:var(--red)"><i class="ti ti-alert-triangle"></i> Gefahrenzone</div>
@@ -3795,11 +3992,18 @@ function renderLeadModal(){
 
   const filesHtml=(draftLead.files||[]).map(f=>{
     const uploader=agentById(f.uploadedBy);
+    // Rueckwaertskompatibel: alte Anhaenge (vor dem Umbau) haben noch eingebettete Daten
+    // (f.dataUrl) und werden weiterhin direkt verlinkt; neue Anhaenge liegen im echten
+    // Dateispeicher (f.storagePath) und werden per Klick ueber einen kurzlebigen,
+    // gesicherten Link heruntergeladen.
+    const linkHtml=f.dataUrl
+      ?`<a href="${f.dataUrl}" download="${esc(f.name)}" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;color:var(--text)"><i class="ti ti-file" style="margin-right:4px"></i>${esc(f.name)}</a>`
+      :`<a href="#" onclick="downloadAttachment('${f.storagePath}','${esc(f.name).replace(/'/g,"\\'")}');return false;" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;color:var(--text)"><i class="ti ti-file" style="margin-right:4px"></i>${esc(f.name)}</a>`;
     return `<div class="comment-item">
       <div class="comment-av" style="background:var(--bg3);color:var(--text2)"><i class="ti ti-paperclip"></i></div>
       <div class="comment-bubble">
         <div style="display:flex;align-items:center;gap:8px">
-          <a href="${f.dataUrl}" download="${esc(f.name)}" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;color:var(--text)"><i class="ti ti-file" style="margin-right:4px"></i>${esc(f.name)}</a>
+          ${linkHtml}
           <span style="font-size:11px;color:var(--text3);flex-shrink:0">${formatBytes(f.size)}</span>
           <button class="icon-btn icon-btn-danger" onclick="removeFile(${f.id})" title="Entfernen"><i class="ti ti-trash"></i></button>
         </div>
@@ -4339,27 +4543,103 @@ function copyForecastToActual(){
 function setRightTab(tab){rightTab=tab;renderLeadModal();}
 
 // Dateien
-function handleFileUpload(e){
+// Maximale Groesse pro einzelnem Anhang - reine Absicherung gegen Ausreisser, die den
+// Speicher unnoetig belasten wuerden.
+const MAX_ATTACHMENT_SIZE=10*1024*1024; // 10 MB
+async function uploadAttachmentToStorage(leadId,fileId,file){
+  const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path=`${leadId}/${fileId}_${safeName}`;
+  const res=await fetch(`${SUPABASE_URL}/storage/v1/object/lead-attachments/${encodeURIComponent(path)}`,{
+    method:'POST',
+    headers:Object.assign({},getSbHeaders(),{'Content-Type':file.type||'application/octet-stream','x-upsert':'true'}),
+    body:file
+  });
+  if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
+  return path;
+}
+async function downloadAttachment(storagePath,filename){
+  try{
+    const res=await fetch(`${SUPABASE_URL}/storage/v1/object/sign/lead-attachments/${encodeURIComponent(storagePath)}`,{
+      method:'POST',
+      headers:getSbHeaders(),
+      body:JSON.stringify({expiresIn:120})
+    });
+    if(!res.ok){alert('Datei konnte nicht geladen werden (HTTP '+res.status+').');return;}
+    const result=await res.json();
+    window.open(`${SUPABASE_URL}/storage/v1${result.signedURL}`,'_blank');
+  }catch(e){
+    alert('Datei konnte nicht geladen werden: '+e.message);
+  }
+}
+async function handleFileUpload(e){
   const files=Array.from(e.target.files);
   if(!files.length)return;
-  let pending=files.length;
-  files.forEach(file=>{
-    const reader=new FileReader();
-    reader.onload=()=>{
-      draftLead.files.push({id:Date.now()+Math.random(),name:file.name,size:file.size,dataUrl:reader.result,uploadedBy:currentUser,uploadedAt:nowISO()});
+  const leadId=draftLead.id;
+  for(const file of files){
+    if(file.size>MAX_ATTACHMENT_SIZE){
+      alert(`Datei "${file.name}" ist zu groß (${formatBytes(file.size)}). Maximal erlaubt sind ${formatBytes(MAX_ATTACHMENT_SIZE)} pro Datei.`);
+      continue;
+    }
+    const fileId=Date.now()+Math.random();
+    try{
+      const storagePath=await uploadAttachmentToStorage(leadId,fileId,file);
+      draftLead.files.push({id:fileId,name:file.name,size:file.size,storagePath,uploadedBy:currentUser,uploadedAt:nowISO()});
       draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Datei hochgeladen: ${file.name}`,date:nowISO()});
-      pending--;
-      if(pending===0){autoPersistIfEditing();renderLeadModal();}
-    };
-    reader.readAsDataURL(file);
-  });
+    }catch(err){
+      alert(`Datei "${file.name}" konnte nicht hochgeladen werden: ${err.message}`);
+    }
+  }
+  autoPersistIfEditing();
+  renderLeadModal();
+  e.target.value='';
 }
 function removeFile(id){
   const f=(draftLead.files||[]).find(x=>x.id===id);
   draftLead.files=draftLead.files.filter(f=>f.id!==id);
-  if(f)draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Datei entfernt: ${f.name}`,date:nowISO()});
+  if(f){
+    draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Datei entfernt: ${f.name}`,date:nowISO()});
+    if(f.storagePath){
+      fetch(`${SUPABASE_URL}/storage/v1/object/lead-attachments/${encodeURIComponent(f.storagePath)}`,{method:'DELETE',headers:getSbHeaders()}).catch(()=>{});
+    }
+  }
   autoPersistIfEditing();
   renderLeadModal();
+}
+// Einmalige, bewusst per Knopfdruck ausgeloeste Migration: alte Anhaenge, die noch als
+// eingebettete Daten (dataUrl) im Lead selbst stecken, werden in den echten Dateispeicher
+// hochgeladen und im Lead nur noch als kleiner Verweis (storagePath) hinterlegt. Das ist
+// der Kern der Loesung gegen die "wird ueber den Tag langsamer"-Beobachtung: der
+// gemeinsame Datensatz wird dadurch massiv kleiner.
+async function migrateLegacyAttachmentsToStorage(){
+  if(!requireAdmin('Anhänge migrieren'))return;
+  const legacyFiles=[];
+  leads.forEach(lead=>{(lead.files||[]).forEach(f=>{if(f.dataUrl)legacyFiles.push({lead,f});});});
+  if(legacyFiles.length===0){alert('Keine alten, eingebetteten Anhänge gefunden - nichts zu migrieren.');return;}
+  if(!confirm(`${legacyFiles.length} alte Anhänge gefunden. Jetzt in den Dateispeicher übertragen?\n\nDie Dateien selbst bleiben dabei unverändert erhalten - nur der Speicherort wird umgestellt.`))return;
+  let migratedCount=0,failedCount=0;
+  await Promise.all(legacyFiles.map(async({lead,f})=>{
+    try{
+      const blobRes=await fetch(f.dataUrl);
+      const blob=await blobRes.blob();
+      const safeName=(f.name||'datei').replace(/[^a-zA-Z0-9._-]/g,'_');
+      const path=`${lead.id}/${f.id}_${safeName}`;
+      const uploadRes=await fetch(`${SUPABASE_URL}/storage/v1/object/lead-attachments/${encodeURIComponent(path)}`,{
+        method:'POST',
+        headers:Object.assign({},getSbHeaders(),{'Content-Type':blob.type||'application/octet-stream','x-upsert':'true'}),
+        body:blob
+      });
+      if(!uploadRes.ok)throw new Error('HTTP '+uploadRes.status);
+      delete f.dataUrl;
+      f.storagePath=path;
+      migratedCount++;
+    }catch(e){
+      console.warn('Anhang von Lead '+lead.id+' ("'+f.name+'") konnte nicht migriert werden:',e);
+      failedCount++;
+    }
+  }));
+  if(migratedCount>0)saveState();
+  alert(`Migration abgeschlossen: ${migratedCount} Anhänge übertragen${failedCount?`, ${failedCount} fehlgeschlagen (bitte später erneut versuchen)`:''}.`);
+  if(currentView==='settings')renderSettings();
 }
 
 // Aufgaben
@@ -5477,7 +5757,7 @@ async function bootstrapApp(){
         fetch(`${SUPABASE_URL}/rest/v1/app_state`,{
           method:'POST',
           headers:Object.assign({},getSbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
-          body:JSON.stringify({id:'main',data:buildStatePayload(),updated_at:new Date().toISOString()}),
+          body:JSON.stringify({id:'main',data:buildSettingsPayload(),updated_at:new Date().toISOString()}),
           keepalive:true
         });
       }catch(e){}
