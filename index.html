@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T07:32:09.980Z';
+const BUILD_VERSION='2026-07-09T07:35:35.868Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -978,16 +978,26 @@ let syncQueued=false;
 // Tabelle (id: "backup_JJJJ-MM-TT"). Die letzten 30 Tage bleiben erhalten, aeltere werden
 // automatisch aufgeraeumt. Schlaegt das Backup aus irgendeinem Grund fehl (z.B. Rechte),
 // wird das nur leise geloggt - blockiert NIE die normale Arbeit oder den eigentlichen Sync.
+// Ermittelt, fuer welchen Tag JETZT ein Backup faellig ist: ab 19 Uhr abends gilt der
+// heutige Tag (Feierabend-Stand), davor gilt noch der VORHERIGE Tag - falls dessen
+// 19-Uhr-Backup nie gelaufen ist (weil um 19 Uhr niemand mehr online war), wird es beim
+// naechsten Öffnen der Seite automatisch nachgeholt, sobald jemand die App wieder oeffnet.
+function getDueBackupDate(){
+  const hour=parseInt(new Date().toLocaleString('en-US',{timeZone:'Europe/Berlin',hour:'2-digit',hour12:false}),10);
+  if(hour>=19)return TODAY;
+  return new Date(Date.now()-24*60*60*1000).toLocaleDateString('en-CA',{timeZone:'Europe/Berlin'});
+}
 async function maybeRunDailyBackup(){
   try{
-    if(PROJECT.lastBackupDate===TODAY)return;
+    const dueDate=getDueBackupDate();
+    if(PROJECT.lastBackupDate===dueDate)return;
     const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state`,{
       method:'POST',
       headers:Object.assign({},getSbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
-      body:JSON.stringify({id:'backup_'+TODAY,data:buildStatePayload(),updated_at:new Date().toISOString()})
+      body:JSON.stringify({id:'backup_'+dueDate,data:buildStatePayload(),updated_at:new Date().toISOString()})
     });
     if(!res.ok)return;
-    PROJECT.lastBackupDate=TODAY;
+    PROJECT.lastBackupDate=dueDate;
     saveState();
     const cutoffDate='backup_'+new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
     fetch(`${SUPABASE_URL}/rest/v1/app_state?id=lt.${cutoffDate}&id=like.backup_*`,{
