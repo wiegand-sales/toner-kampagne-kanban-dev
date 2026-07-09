@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T08:07:03.344Z';
+const BUILD_VERSION='2026-07-09T10:15:38.753Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -4870,6 +4870,20 @@ function migrateLegacyCsvFields(){
 function getCsvFields(){
   migrateLegacyCsvFields();
   if(!PROJECT.csvFields||!PROJECT.csvFields.length)PROJECT.csvFields=defaultCsvFields();
+  // Selbstheilung: entfernt versehentliche Dopplungen (z.B. aus einer aelteren Version
+  // oder einem frueheren Migrationsschritt), damit dasselbe Feld nicht mehrfach im
+  // Export oder der Import-Vorlage auftaucht. Die jeweils ERSTE Version eines Feldes
+  // (inkl. dessen individueller Einstellungen) bleibt dabei erhalten.
+  const seen=new Set();
+  const deduped=PROJECT.csvFields.filter(f=>{
+    if(seen.has(f.key))return false;
+    seen.add(f.key);
+    return true;
+  });
+  if(deduped.length!==PROJECT.csvFields.length){
+    PROJECT.csvFields=deduped;
+    saveState();
+  }
   return PROJECT.csvFields;
 }
 function unusedFieldKeys(){
