@@ -210,7 +210,7 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .tb-stat-val{font-size:16px;font-weight:700;}
 .tb-stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;}
 .tb-right{display:flex;align-items:center;gap:8px;}
-input[type=text],input[type=date],input[type=tel],input[type=email],input[type=number],input[type=file],input[type=password],select,textarea{
+input[type=text],input[type=date],input[type=datetime-local],input[type=tel],input[type=email],input[type=number],input[type=file],input[type=password],select,textarea{
   font-size:13px;padding:8px 11px;border-radius:var(--r-md);border:1px solid var(--border2);
   background:var(--bg2);color:var(--text);font-family:inherit;outline:none;transition:border-color .12s;box-sizing:border-box;height:37px;}
 input:focus,select:focus,textarea:focus{border-color:var(--purple);}
@@ -349,7 +349,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .info-section{border:1px solid var(--border2);border-radius:10px;padding:15px 16px;margin-bottom:14px;background:var(--bg);box-shadow:0 1px 2px rgba(0,0,0,.03);}
 .info-section:last-child{margin-bottom:0;}
 .info-section .section-hdr{margin-top:0;}
-.info-section input[type=text],.info-section input[type=date],.info-section input[type=tel],.info-section input[type=email],.info-section input[type=number],.info-section select,.info-section textarea{background:var(--bg3);}
+.info-section input[type=text],.info-section input[type=date],.info-section input[type=datetime-local],.info-section input[type=tel],.info-section input[type=email],.info-section input[type=number],.info-section select,.info-section textarea{background:var(--bg3);}
 .section-hdr{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .pill-btn{font-size:11px;padding:4px 10px;border-radius:20px;border:1px dashed var(--border2);background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;}
 .pill-btn:hover{border-color:var(--purple);color:var(--text);}
@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T12:22:12.152Z';
+const BUILD_VERSION='2026-07-09T12:26:16.429Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
