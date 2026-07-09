@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-08T20:57:05.560Z';
+const BUILD_VERSION='2026-07-09T06:39:15.269Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -997,13 +997,31 @@ async function syncMerge(){
     if(baselineForCompare.leads)normalizeLeads(baselineForCompare.leads);
     if(baselineForCompare.COLUMNS)normalizeColumns(baselineForCompare.COLUMNS);
     if(baselineForCompare.AGENTS)normalizeAgents(baselineForCompare.AGENTS);
+    if(baselineForCompare.PROJECT)baselineForCompare.PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[],csvFields:[],lastBackupDate:''},baselineForCompare.PROJECT);
+    if(!baselineForCompare.LEADLOCKS)baselineForCompare.LEADLOCKS=[];
     const remoteForCompare=JSON.parse(JSON.stringify(remoteData));
     if(remoteForCompare.leads)normalizeLeads(remoteForCompare.leads);
     if(remoteForCompare.COLUMNS)normalizeColumns(remoteForCompare.COLUMNS);
     if(remoteForCompare.AGENTS)normalizeAgents(remoteForCompare.AGENTS);
+    if(remoteForCompare.PROJECT)remoteForCompare.PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[],csvFields:[],lastBackupDate:''},remoteForCompare.PROJECT);
+    if(!remoteForCompare.LEADLOCKS)remoteForCompare.LEADLOCKS=[];
     const baseline=baselineForCompare;
-    const remoteChanged=!sbBaselineData||!deepEqual(remoteForCompare,baselineForCompare);
-    const localChanged=!sbBaselineData||!deepEqual(localSnapshot,baselineForCompare);
+    // KRITISCH: Gibt es noch KEINE bekannte Baseline (z.B. eine ganz frische Sitzung, ein
+    // neues Geraet, oder ein geleerter Browser-Speicher), darf NIEMALS die Merge-Logik
+    // greifen. Ohne Baseline sieht JEDER Lead, der im (evtl. unvollstaendigen) lokalen
+    // Stand fehlt, so aus wie "lokal geloescht" - das wuerde echte Leads faelschlich aus
+    // der Cloud entfernen. Stattdessen gilt hier IMMER: die Cloud ist die Wahrheit.
+    if(!sbBaselineData){
+      applyStateData(remoteData);
+      saveSyncBaseline(JSON.parse(JSON.stringify(remoteData)),remote.updated_at);
+      try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
+      clearPendingPush();
+      setSbStatus('online');
+      refreshCurrentView();
+      return;
+    }
+    const remoteChanged=!deepEqual(remoteForCompare,baselineForCompare);
+    const localChanged=!deepEqual(localSnapshot,baselineForCompare);
     if(!localChanged&&!remoteChanged){
       // Nichts hat sich irgendwo geaendert - nur Baseline/Zeitstempel aktuell halten
       saveSyncBaseline(remoteData,remote.updated_at);
