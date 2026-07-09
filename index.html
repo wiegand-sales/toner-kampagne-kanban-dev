@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T11:37:36.603Z';
+const BUILD_VERSION='2026-07-09T11:41:00.542Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3805,9 +3805,7 @@ function renderLeadModal(){
         <div class="section-hdr" style="margin-top:0">Neue Aufgabe</div>
         <div class="field" style="margin-bottom:10px;position:relative">
           <textarea id="newTaskText" placeholder="Aufgabe beschreiben… mit @Name einer Person zuweisen (Strg+Enter zum Erstellen)" style="min-height:44px" onkeydown="if((event.key==='Enter')&&(event.ctrlKey||event.metaKey))addTask()" oninput="clearTaskFormError();handleTaskMentionInput(this)">${esc(draftTaskText)}</textarea>
-          ${taskMentionPopoverOpen?`<div class="mention-popover" onclick="event.stopPropagation()">
-            ${taskMentionMatches.length?taskMentionMatches.map(a=>`<div class="mention-item" onclick="selectTaskMention('${a.id}')"><div class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</div>${esc(a.name)}</div>`).join(''):'<div class="mention-item" style="color:var(--text3);cursor:default">Keine Treffer</div>'}
-          </div>`:''}
+          <div id="taskMentionPopoverContainer">${renderTaskMentionPopoverHtml()}</div>
         </div>
         <div id="taskFormError" style="display:none;color:var(--red);font-size:11px;margin-bottom:6px"></div>
         <div class="field-row-2" style="margin-bottom:0;align-items:end">
@@ -4266,6 +4264,12 @@ let taskMentionPopoverOpen=false;
 let taskMentionMatches=[];
 let pendingTaskAssigneeId=null;
 let draftTaskText='';
+function renderTaskMentionPopoverHtml(){
+  if(!taskMentionPopoverOpen)return'';
+  return`<div class="mention-popover" onclick="event.stopPropagation()">
+    ${taskMentionMatches.length?taskMentionMatches.map(a=>`<div class="mention-item" onclick="selectTaskMention('${a.id}')"><div class="member-av" style="position:static;margin:0;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}">${ini(a.name)}</div>${esc(a.name)}</div>`).join(''):'<div class="mention-item" style="color:var(--text3);cursor:default">Keine Treffer</div>'}
+  </div>`;
+}
 function handleTaskMentionInput(el){
   draftTaskText=el.value;
   const val=el.value;
@@ -4274,15 +4278,17 @@ function handleTaskMentionInput(el){
   const match=uptoCaret.match(/@([^\s@]*)$/);
   if(!match){
     taskMentionPopoverOpen=false;
-    renderLeadModal();
-    return;
+  }else{
+    const query=match[1].toLowerCase();
+    taskMentionMatches=activeAgents().filter(a=>a.name.toLowerCase().includes(query));
+    taskMentionPopoverOpen=true;
   }
-  const query=match[1].toLowerCase();
-  taskMentionMatches=activeAgents().filter(a=>a.name.toLowerCase().includes(query));
-  taskMentionPopoverOpen=true;
-  renderLeadModal();
-  const ta=document.getElementById('newTaskText');
-  if(ta){ta.focus();ta.selectionStart=ta.selectionEnd=caret;}
+  // Nur das kleine Vorschlags-Fenster aktualisieren, NICHT das ganze Lead-Fenster neu
+  // aufbauen - sonst wird das Eingabefeld bei jedem Tastendruck zerstoert und neu erzeugt,
+  // wodurch der Fokus/Cursor verloren gehen kann und man nur noch Buchstabe fuer Buchstabe
+  // eintragen kann, bevor man wieder hineinklicken muss.
+  const container=document.getElementById('taskMentionPopoverContainer');
+  if(container)container.innerHTML=renderTaskMentionPopoverHtml();
 }
 function selectTaskMention(agentId){
   const a=agentById(agentId);
