@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T11:32:24.970Z';
+const BUILD_VERSION='2026-07-09T11:35:24.669Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -5037,8 +5037,8 @@ function importCSVFile(file){
         const idx=headers.findIndex(h=>candidates.includes(h));
         if(idx>-1)colMap[f.key]=idx;
       });
-      if(colMap.company===undefined){
-        alert('Keine Spalte "Firmenname" (oder "Firma") in der Kopfzeile gefunden. Bitte prüfe die CSV-Datei.\n\nGefundene Spalten: '+rows[0].join(', '));
+      if(colMap.company===undefined&&colMap.customerNumber===undefined){
+        alert('Es wurde weder eine Spalte "Firmenname" noch "Kundennummer" in der Kopfzeile gefunden. Für einen Import wird mindestens eines von beiden benötigt.\n\nGefundene Spalten: '+rows[0].join(', '));
         return;
       }
       const norm=v=>(v||'').trim().toLowerCase();
@@ -5052,21 +5052,27 @@ function importCSVFile(file){
       rows.slice(1).forEach((r,rowIdx)=>{
         const get=f=>colMap[f]!==undefined?(r[colMap[f]]||'').trim():'';
         const company=get('company');
-        if(!company){skippedEmpty++;return;}
         const phone=get('phone'),email=get('email');
         const custNoRaw=get('customerNumber');
         // Kundennummer ist die eindeutige Referenz-ID und muss rein numerisch sein (z.B. bei vertauschten
         // Spalten Firmenname/Kundennummer). Ungueltige Werte werden ignoriert statt uebernommen zu werden,
         // damit keine falschen Werte (z.B. ein Firmenname) als Kundennummer gespeichert werden.
         const custNoValid=isValidCustomerNumber(custNoRaw);
-        if(custNoRaw&&!custNoValid)invalidCustNoDetails.push(`Zeile ${rowIdx+2}: "${company}" – Kundennummer "${custNoRaw}" ist nicht rein numerisch und wurde ignoriert.`);
+        if(custNoRaw&&!custNoValid)invalidCustNoDetails.push(`Zeile ${rowIdx+2}: "${company||'–'}" – Kundennummer "${custNoRaw}" ist nicht rein numerisch und wurde ignoriert.`);
         const custNo=custNoValid?custNoRaw:'';
+        // Ganz ohne Firmenname UND ohne gueltige Kundennummer gibt es nichts, worueber sich
+        // die Zeile einem Lead zuordnen liesse - so eine Zeile wird uebersprungen.
+        if(!company&&!custNo){skippedEmpty++;return;}
         const existingMatch=leads.find(l=>
           (custNo&&norm(l.customerNumber)===norm(custNo))||
-          (norm(l.company)===norm(company))||
+          (company&&norm(l.company)===norm(company))||
           (phone&&phone.length>4&&norm(l.phone)===norm(phone))||
           (email&&norm(l.email)===norm(email))
         );
+        // Ohne Firmenname kann kein NEUER Lead sinnvoll angelegt werden - das ist nur bei
+        // einer reinen Aktualisierung eines bereits bestehenden (per Kundennummer
+        // gefundenen) Leads in Ordnung, z.B. beim gezielten Nachtragen von Umsatzzahlen.
+        if(!existingMatch&&!company){skippedEmpty++;return;}
         const fileKey=custNo?'kdnr:'+norm(custNo):'firma:'+norm(company);
         if(existingMatch||seenInFile.has(fileKey)){
           if(existingMatch&&overwriteKeys.length){
@@ -5131,7 +5137,7 @@ function importCSVFile(file){
       renderBoard();
       let msg=`CSV-Import abgeschlossen:\n\n✓ ${added} neue Leads angelegt (in "${COLUMNS[0].name}")`;
       if(overwriteKeys.length)msg+=`\n✎ ${updated} bestehende Leads aktualisiert (freigegebene Felder)`;
-      msg+=`\n↷ ${skippedDup} übersprungen (bereits vorhanden, keine Änderung, oder doppelt in der Datei)\n∅ ${skippedEmpty} übersprungen (kein Firmenname)`;
+      msg+=`\n↷ ${skippedDup} übersprungen (bereits vorhanden, keine Änderung, oder doppelt in der Datei)\n∅ ${skippedEmpty} übersprungen (weder Firmenname noch gültige Kundennummer zur Zuordnung, oder kein Firmenname für einen neuen Lead)`;
       if(collisionBlocked.length)msg+=`\n⚠ ${collisionBlocked.length} Kundennummer(n) NICHT übernommen, da sie bereits bei einem anderen Lead vergeben sind`;
       if(invalidCustNoDetails.length)msg+=`\n⚠ ${invalidCustNoDetails.length} Kundennummer(n) ignoriert, da nicht rein numerisch (evtl. Spalten vertauscht?)`;
       if(dupDetails.length){
