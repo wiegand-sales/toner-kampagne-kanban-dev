@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T06:56:26.011Z';
+const BUILD_VERSION='2026-07-09T07:23:58.663Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -5187,7 +5187,7 @@ async function checkForNewVersion(){
     // Intervall wird es einfach erneut versucht.
   }
 }
-function bootstrapApp(){
+async function bootstrapApp(){
   loadState();
   renderUserSelect();
   renderAgentChips();
@@ -5196,6 +5196,11 @@ function bootstrapApp(){
   window.addEventListener('resize',()=>{if(currentView==='dashboard')equalizeRowHeights();});
   switchView('board');
   setSbStatus('connecting');
+  // WICHTIG: Die Versionspruefung laeuft jetzt VOR dem allerersten Sync ab, nicht erst im
+  // 60-Sekunden-Rhythmus danach. Ist dieser Tab veraltet, wird "newVersionDetected" bereits
+  // hier gesetzt - der direkt danach folgende sbInitialSync()/syncMerge() sieht das und
+  // fuehrt dann NUR noch ein sicheres Lesen aus, laedt aber nichts von diesem Tab aus hoch.
+  await checkForNewVersion();
   sbInitialSync();
   setInterval(sbPoll,5000);
   setInterval(checkForNewVersion,60000);
