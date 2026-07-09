@@ -728,7 +728,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T10:18:41.828Z';
+const BUILD_VERSION='2026-07-09T11:32:24.970Z';
 const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
 const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
@@ -4797,8 +4797,8 @@ const FIELD_REGISTRY={
   customerNumber:{label:'Kundennummer',group:'Kundeninformationen',importable:true,aliases:['kundennummer','kd-nr','kdnr','kundennr','customer number'],example:'10099',get:l=>l.customerNumber,set:(l,v)=>{if(isValidCustomerNumber(v))l.customerNumber=v.trim();}},
   art:{label:'Art',group:'Kundeninformationen',importable:true,aliases:['art','typ','type','kundentyp'],example:'B2B',get:l=>l.art,set:(l,v)=>{const u=(v||'').toUpperCase();if(u==='B2B'||u==='B2C')l.art=u;}},
   address:{label:'Adresse',group:'Kundeninformationen',importable:true,aliases:['adresse','address','anschrift'],example:'Musterstraße 1, 12345 Musterstadt',get:l=>l.address,set:(l,v)=>l.address=v},
-  orderCount:{label:'Anzahl Bestellungen',group:'Kundeninformationen',importable:true,aliases:['anzahl bestellungen','bestellungen','anzahl'],example:'3',get:l=>l.orderCount,set:(l,v)=>l.orderCount=v},
-  revenue:{label:'Umsatz (EUR)',group:'Kundeninformationen',importable:true,aliases:['umsatz (eur)','umsatz','revenue'],example:'1500',get:l=>l.revenue,set:(l,v)=>l.revenue=v},
+  orderCount:{label:'Anzahl Bestellungen',group:'Kundeninformationen',importable:true,aliases:['anzahl bestellungen','bestellungen','anzahl'],example:'3',get:l=>l.orderCount,set:(l,v)=>l.orderCount=parseGermanNumber(v)},
+  revenue:{label:'Umsatz (EUR)',group:'Kundeninformationen',importable:true,aliases:['umsatz (eur)','umsatz','revenue'],example:'1500',get:l=>l.revenue,set:(l,v)=>l.revenue=parseGermanNumber(v)},
   contact:{label:'Ansprechpartner',group:'Kundeninformationen',importable:true,aliases:['ansprechpartner','kontakt','contact','ansprechperson'],example:'Max Mustermann',get:l=>l.contact,set:(l,v)=>l.contact=v},
   phone:{label:'Telefonnummer',group:'Kundeninformationen',importable:true,aliases:['telefonnummer','telefon','phone','tel','rufnummer'],example:'+49 89 1234567',get:l=>l.phone,set:(l,v)=>l.phone=v},
   email:{label:'E-Mail',group:'Kundeninformationen',importable:true,aliases:['e-mail','email','mail'],example:'max@musterfirma.de',get:l=>l.email,set:(l,v)=>l.email=v},
@@ -4964,6 +4964,32 @@ function downloadImportTemplate(){
 
 // ── CSV IMPORT ──
 // Robuster Mini-CSV-Parser (kann Anfuehrungszeichen, Kommas und Semikolons in Feldern)
+// Wandelt einen aus einer CSV importierten Zahlenwert zuverlaessig in das Format um, das
+// <input type="number"> versteht (Punkt als Dezimaltrennzeichen, keine Tausendertrennzeichen).
+// Ohne das wuerde z.B. "1.500,00" (deutsches Format aus Excel) im Feld einfach leer
+// erscheinen, weil der Browser den Text nicht als gueltige Zahl erkennt - der Wert WAERE
+// technisch importiert, saehe fuer den Nutzer aber wie ein fehlgeschlagener Import aus.
+function parseGermanNumber(v){
+  if(v===undefined||v===null)return '';
+  let s=String(v).trim();
+  if(!s)return '';
+  s=s.replace(/[^\d,.\-]/g,''); // Waehrungssymbole, Leerzeichen etc. entfernen
+  if(!s)return '';
+  if(/,\d{1,2}$/.test(s)){
+    // Komma steht wie ein Dezimaltrennzeichen am Ende (z.B. "1.500,50" oder "1500,5")
+    s=s.replace(/\./g,'').replace(',','.');
+  }else if(/\.\d{3}$/.test(s)&&!s.includes(',')){
+    // Ein einzelner Punkt mit genau 3 Nachkommastellen und KEIN Komma vorhanden (z.B.
+    // "1.500") - im deutschen Kontext mit hoher Wahrscheinlichkeit ein Tausenderpunkt,
+    // keine Dezimalstelle - wird daher als Tausendertrennzeichen entfernt.
+    s=s.replace(/\./g,'');
+  }else{
+    // Kein deutsches Dezimalkomma erkennbar - Kommas sind dann Tausendertrennzeichen
+    s=s.replace(/,/g,'');
+  }
+  const num=parseFloat(s);
+  return isNaN(num)?'':String(num);
+}
 function parseCSV(text){
   // Trennzeichen erkennen: Semikolon (deutsches Excel) oder Komma
   const firstLine=text.split(/\r?\n/)[0]||'';
