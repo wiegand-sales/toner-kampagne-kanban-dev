@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-10T08:05:27.283Z';
+const BUILD_VERSION='2026-07-10T10:56:31.014Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -855,15 +855,20 @@ let sbBaselineUpdatedAt=null;
 // einzelne Speicherstelle im Code das selbst melden muesste.
 const LEADS_BASELINE_KEY='toner_kanban_leads_baseline_v1';
 let leadsBaseline=null; // {[id]: {data, updatedAt}} oder null = noch nie synchronisiert
+// WICHTIG: leadsBaseline wird bewusst NICHT mehr zusaetzlich im Browser-Speicher
+// dupliziert (das war im Kern eine komplette Zweitkopie aller Lead-Daten und damit der
+// groesste Speicherfresser - fuehrte bei ausreichend vielen/grossen Leads zu
+// "QuotaExceededError", wonach ueberhaupt nichts mehr lokal gespeichert werden konnte).
+// leadsBaseline lebt jetzt nur noch im Arbeitsspeicher fuer die Dauer der Sitzung. Das
+// ist sicher: der "erster Abgleich nach dem Laden"-Mechanismus (siehe syncLeadsLayer)
+// holt bei leerer Baseline ohnehin immer verlaesslich den aktuellen, vollstaendigen
+// Stand direkt aus der Cloud.
 function loadLeadsBaseline(){
-  try{
-    const raw=localStorage.getItem(LEADS_BASELINE_KEY);
-    leadsBaseline=raw?JSON.parse(raw):null;
-  }catch(e){leadsBaseline=null;}
+  leadsBaseline=null;
+  try{localStorage.removeItem(LEADS_BASELINE_KEY);}catch(e){}
 }
 function saveLeadsBaseline(newBaseline){
   leadsBaseline=newBaseline;
-  try{localStorage.setItem(LEADS_BASELINE_KEY,JSON.stringify(newBaseline));}catch(e){}
 }
 function loadSyncBaseline(){
   try{
@@ -3200,6 +3205,11 @@ function renderSettings(){
           <p style="font-size:11px;color:var(--text3);margin-top:6px">Budget-Auslastung (Toner-Investition gesamt) siehst du im Dashboard.</p>
         </div>
         <div class="info-section">
+          <div class="section-hdr" style="margin-top:0">"Nicht erreicht"-Verhalten</div>
+          <div class="field"><label>Follow-up automatisch verschieben um (Tage)</label><input type="number" min="1" max="90" step="1" value="${PROJECT.notReachedFollowupDays!==undefined?PROJECT.notReachedFollowupDays:6}" onchange="setProjectField('notReachedFollowupDays',Math.max(1,parseInt(this.value)||6))" style="width:100%"></div>
+          <p style="font-size:11px;color:var(--text3);margin-top:6px">Klickt jemand im Lead auf "Nicht erreicht", wird das Follow-up-Datum automatisch um diese Anzahl Tage ab heute gesetzt.</p>
+        </div>
+        <div class="info-section">
           <div class="section-hdr" style="margin-top:0">Meilensteine</div>
           ${milestonesHtml}
           <div class="add-check-row" style="margin-top:10px;flex-wrap:wrap;gap:6px">
@@ -4258,7 +4268,7 @@ function renderLeadModal(){
           <textarea id="commentInput" placeholder="Kommentar schreiben… (Strg+Enter zum Senden)" onkeydown="if((event.key==='Enter')&&(event.ctrlKey||event.metaKey))addComment()"></textarea>
         </div>
         <div style="display:flex;gap:8px">
-          <button class="btn" style="flex:1;justify-content:center" onclick="markNotReached()" title="Trägt automatisch einen Kommentar ein und setzt das Follow-up-Datum auf in 3 Tagen"><i class="ti ti-phone-off"></i> Nicht erreicht</button>
+          <button class="btn" style="flex:1;justify-content:center" onclick="markNotReached()" title="Trägt automatisch einen Kommentar ein und setzt das Follow-up-Datum auf in ${PROJECT.notReachedFollowupDays!==undefined?PROJECT.notReachedFollowupDays:6} Tagen (einstellbar unter Einstellungen)"><i class="ti ti-phone-off"></i> Nicht erreicht</button>
           <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="addComment()"><i class="ti ti-send"></i> Kommentieren</button>
         </div>
       </div>
@@ -4970,8 +4980,9 @@ function addComment(){
 // liegen bleibt.
 function markNotReached(){
   if(modalReadOnly)return;
+  const days=PROJECT.notReachedFollowupDays!==undefined?PROJECT.notReachedFollowupDays:6;
   const d=new Date(TODAY+'T00:00:00');
-  d.setDate(d.getDate()+3);
+  d.setDate(d.getDate()+days);
   const newFollowup=d.toISOString().slice(0,10);
   const oldFollowup=draftLead.followup;
   draftLead.activity.unshift({id:Date.now(),type:'comment',author:currentUser,text:'Nicht erreicht ... erneut probieren',date:nowISO()});
