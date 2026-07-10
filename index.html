@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-10T07:34:39.487Z';
+const BUILD_VERSION='2026-07-10T07:45:47.839Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1078,6 +1078,7 @@ async function syncLeadsLayer(){
       repairDuplicateLeadIds();
       repairSwappedCompanyCustomerNumber();
       saveLeadsBaseline(newBaseline);
+      try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
       refreshCurrentView();
       return;
     }
@@ -1184,6 +1185,12 @@ async function syncLeadsLayer(){
     repairSwappedCompanyCustomerNumber();
 
     saveLeadsBaseline(leadsBaseline);
+    // WICHTIG: Der lokale Zwischenspeicher (fuer den Fall eines Neuladens/erneuten
+    // Anmeldens) wird jetzt auch hier aktualisiert - vorher geschah das nur, wenn man
+    // selbst etwas geaendert hat. Wurden nur Aenderungen von KOLLEGEN uebernommen, blieb
+    // der lokale Cache sonst veraltet, waehrend die Baseline schon weiter war - genau das
+    // fuehrte beim naechsten Neuladen/Anmelden zu einem falschen "alles geloescht"-Alarm.
+    try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
   }catch(e){
     console.warn('Lead-Synchronisierung fehlgeschlagen:',e);
   }finally{
