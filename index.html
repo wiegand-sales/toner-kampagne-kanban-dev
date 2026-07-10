@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-09T21:14:40.680Z';
+const BUILD_VERSION='2026-07-10T07:05:32.771Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1027,12 +1027,18 @@ async function deleteLeadRowRemote(id){
   // versucht) - kein throw, um den restlichen Sync-Vorgang nicht zu blockieren.
 }
 let leadsSyncInProgress=false;
+let leadsSyncQueued=false;
 async function syncLeadsLayer(){
   if(!sbSession||!sbSession.access_token)return;
   // Genau wie beim Einstellungs-Abgleich: ist eine neuere Version erkannt worden, wird
   // hier nichts mehr geschrieben - dieser Schutz fehlte bisher beim Lead-Abgleich.
   if(newVersionDetected)return;
-  if(leadsSyncInProgress)return;
+  // Laeuft bereits ein Durchlauf, wird NICHT einfach verworfen, sondern fuer danach
+  // vorgemerkt - so geht keine zwischenzeitliche Aenderung verloren, und zwei sich
+  // ueberschneidende Ausloeser (5-Sekunden-Hintergrundpruefung und Speichern nach einer
+  // Aenderung) koennen sich nicht mehr gegenseitig mit einem halbfertigen Stand
+  // ueberschreiben. Gleiches, bereits bewaehrtes Prinzip wie beim Einstellungs-Abgleich.
+  if(leadsSyncInProgress){leadsSyncQueued=true;return;}
   leadsSyncInProgress=true;
   try{
     // Fall A: noch nie synchronisiert (frische Sitzung, neues Geraet, geleerter
@@ -1172,6 +1178,7 @@ async function syncLeadsLayer(){
     console.warn('Lead-Synchronisierung fehlgeschlagen:',e);
   }finally{
     leadsSyncInProgress=false;
+    if(leadsSyncQueued){leadsSyncQueued=false;syncLeadsLayer();}
   }
 }
 async function sbPull(){
@@ -1420,7 +1427,10 @@ function scheduleSbPush(){
   // oft ueberhaupt um die Sperre derselben Datenzeile konkurriert wird, wenn mehrere
   // Leute gleichzeitig arbeiten. Lokal wird trotzdem sofort gespeichert, nur die
   // Cloud-Synchronisierung ist minimal verzoegert.
-  sbPushTimer=setTimeout(()=>{sbPushTimer=null;syncMerge();syncLeadsLayer();},3000);
+  // WICHTIG: syncMerge() und syncLeadsLayer() laufen jetzt sauber NACHEINANDER (mit
+  // await), nicht mehr als zwei unabhaengige, nicht abgewartete Aufrufe gleichzeitig -
+  // das konnte sich mit dem parallel laufenden 5-Sekunden-Hintergrundabgleich ueberschneiden.
+  sbPushTimer=setTimeout(async()=>{sbPushTimer=null;await syncMerge();await syncLeadsLayer();},3000);
 }
 function handleSbAuthExpired(){
   sbSession=null;
