@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-10T07:45:47.839Z';
+const BUILD_VERSION='2026-07-10T08:05:27.283Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1038,6 +1038,13 @@ async function deleteLeadRowRemote(id){
 }
 let leadsSyncInProgress=false;
 let leadsSyncQueued=false;
+// Markiert den ALLERERSTEN Lead-Abgleich nach einem Neuladen/Anmelden dieser Seite -
+// unabhaengig davon, ob technisch schon eine Baseline existiert. Direkt nach dem Laden
+// koennte der lokale Zwischenspeicher (aus fruehreren Sitzungen) leicht hinter dem
+// tatsaechlichen Stand zurueckliegen - fuer genau diesen ersten Abgleich wird daher
+// vorsichtshalber der komplette, aktuelle Stand von der Cloud geholt, statt sich auf den
+// (potenziell leicht veralteten) lokalen Vergleich zu verlassen.
+let isFirstLeadsSyncSinceLoad=true;
 async function syncLeadsLayer(){
   if(!sbSession||!sbSession.access_token)return;
   // Genau wie beim Einstellungs-Abgleich: ist eine neuere Version erkannt worden, wird
@@ -1055,7 +1062,7 @@ async function syncLeadsLayer(){
     // Browser-Speicher) -> genau wie beim alten Blob gilt: die Cloud ist die Wahrheit,
     // NIEMALS die Merge-Logik greifen lassen, sonst wuerden echte Leads faelschlich als
     // "lokal geloescht" behandelt.
-    if(!leadsBaseline){
+    if(!leadsBaseline||isFirstLeadsSyncSinceLoad){
       const rows=await pullAllLeadRows();
       // SICHERHEITSCHECK: Kommt eine LEERE Antwort zurueck, obwohl lokal (z.B. aus dem
       // Browser-Zwischenspeicher) bereits Leads angezeigt werden, wird das NICHT als "es
@@ -1067,9 +1074,27 @@ async function syncLeadsLayer(){
         console.warn('Leere Antwort von der Lead-Tabelle erhalten, obwohl lokal bereits Leads angezeigt werden - wird NICHT uebernommen, naechster Versuch in Kuerze.');
         return;
       }
+      // Eigene, noch nicht synchronisierte Aenderungen erkennen (falls schon eine
+      // Baseline existiert) - die bleiben in JEDEM Fall erhalten, auch wenn sonst
+      // komplett der frische Cloud-Stand uebernommen wird. So geht eine Aenderung, die
+      // genau in den paar Sekunden vor diesem ersten Abgleich gemacht wurde, nicht verloren.
+      const localChangedMap={};
+      if(leadsBaseline){
+        leads.forEach(l=>{
+          const b=leadsBaseline[l.id];
+          if(!b||!deepEqual(l,b.data))localChangedMap[l.id]=l;
+        });
+      }
       const newBaseline={};
-      const newLeads=[];
-      rows.forEach(r=>{newBaseline[r.id]={data:r.data,updatedAt:r.updated_at};newLeads.push(r.data);});
+      const newLeads=rows.map(r=>{
+        newBaseline[r.id]={data:r.data,updatedAt:r.updated_at};
+        return localChangedMap[r.id]!==undefined?localChangedMap[r.id]:r.data;
+      });
+      // Ganz neue, noch nie synchronisierte eigene Leads (z.B. gerade erst angelegt, kurz
+      // bevor dieser erste Abgleich abgeschlossen war) zusaetzlich mit aufnehmen.
+      Object.keys(localChangedMap).forEach(id=>{
+        if(!newBaseline[id])newLeads.push(localChangedMap[id]);
+      });
       leads=newLeads;
       normalizeLeads();
       // Dieselben Selbstheilungs-Reparaturen, die frueher beim Laden des gemeinsamen
@@ -1080,6 +1105,7 @@ async function syncLeadsLayer(){
       saveLeadsBaseline(newBaseline);
       try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
       refreshCurrentView();
+      isFirstLeadsSyncSinceLoad=false;
       return;
     }
 
@@ -1185,6 +1211,7 @@ async function syncLeadsLayer(){
     repairSwappedCompanyCustomerNumber();
 
     saveLeadsBaseline(leadsBaseline);
+    isFirstLeadsSyncSinceLoad=false;
     // WICHTIG: Der lokale Zwischenspeicher (fuer den Fall eines Neuladens/erneuten
     // Anmeldens) wird jetzt auch hier aktualisiert - vorher geschah das nur, wenn man
     // selbst etwas geaendert hat. Wurden nur Aenderungen von KOLLEGEN uebernommen, blieb
