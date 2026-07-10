@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-10T07:16:02.280Z';
+const BUILD_VERSION='2026-07-10T07:30:13.146Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1040,6 +1040,7 @@ async function syncLeadsLayer(){
   // ueberschreiben. Gleiches, bereits bewaehrtes Prinzip wie beim Einstellungs-Abgleich.
   if(leadsSyncInProgress){leadsSyncQueued=true;return;}
   leadsSyncInProgress=true;
+  console.warn('DIAGNOSE-EINTRITT syncLeadsLayer: leads.length JETZT beim Start =',leads.length,'| leadsBaseline vorhanden:',!!leadsBaseline,'| Anzahl Baseline-Einträge:',leadsBaseline?Object.keys(leadsBaseline).length:0);
   try{
     // Fall A: noch nie synchronisiert (frische Sitzung, neues Geraet, geleerter
     // Browser-Speicher) -> genau wie beim alten Blob gilt: die Cloud ist die Wahrheit,
@@ -1141,6 +1142,8 @@ async function syncLeadsLayer(){
     // 4) Remote geloeschte Leads (die lokal NICHT geaendert wurden) auch lokal entfernen
     remotelyDeletedIds.forEach(id=>{
       if(!locallyChangedIds.includes(id)){
+        console.warn('DIAGNOSE: Lead',id,'wird als remote-geloescht lokal entfernt. leads.length vorher:',leads.length);
+        console.trace();
         leads=leads.filter(l=>String(l.id)!==id);
         delete leadsBaseline[id];
       }
@@ -3520,6 +3523,7 @@ function applyBulkDelete(){
   if(bulkSelected.size===0){alert('Bitte mindestens einen Lead auswählen.');return;}
   const count=bulkSelected.size;
   if(!confirm(`Wirklich ${count} ausgewählte Lead(s) unwiderruflich löschen?\n\nDas kann nicht rückgängig gemacht werden.`))return;
+  console.warn('DIAGNOSE: applyBulkDelete ausgeloest, Anzahl:',count,'leads.length vorher:',leads.length);
   leads=leads.filter(l=>!bulkSelected.has(l.id));
   saveState();
   toggleBulkMode();
