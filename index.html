@@ -731,7 +731,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-10T07:05:32.771Z';
+const BUILD_VERSION='2026-07-10T07:16:02.280Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -1081,6 +1081,12 @@ async function syncLeadsLayer(){
     });
     const locallyChangedIds=locallyChangedOrNew.map(l=>String(l.id));
     let locallyDeletedIds=baselineIds.filter(id=>!localIds.includes(id));
+    // DIAGNOSE (temporaer): zeigt bei einem Verdachtsfall die genauen Rohdaten, damit
+    // sich nachvollziehen laesst, ob "leads" selbst zu kurz ist, ob "leadsBaseline"
+    // unerwartet lang ist, oder ob die IDs aus irgendeinem Grund nicht zueinander passen.
+    if(locallyDeletedIds.length>5&&locallyDeletedIds.length>baselineIds.length*0.3){
+      console.warn('DIAGNOSE leads.length:',leads.length,'| baselineIds.length:',baselineIds.length,'| localIds (erste 5):',localIds.slice(0,5),'| baselineIds (erste 5):',baselineIds.slice(0,5),'| Beispiel-ID aus leads[0]:',leads[0]&&leads[0].id,typeof(leads[0]&&leads[0].id));
+    }
     // SICHERHEITSSPERRE: Wuerde diese Runde einen VERDAECHTIG GROSSEN Anteil aller
     // bekannten Leads auf einmal loeschen (z.B. durch einen noch unbekannten
     // Zwischenzustand beim allerersten Laden nach diesem Umbau), wird das NICHT
