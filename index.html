@@ -1037,7 +1037,12 @@ async function pushLeadRow(leadData,expectedUpdatedAt){
     headers:Object.assign({},getSbHeaders(),{'Prefer':(method==='POST'?'resolution=merge-duplicates,':'')+'return=representation'}),
     body:JSON.stringify(body)
   });
-  if(res.status===401||res.status===403){handleSbAuthExpired();return false;}
+  // WICHTIG: Sitzungsablauf (401/403) und ein echter Schreibkonflikt (jemand anderes war
+  // schneller) muessen unterscheidbar sein - beide lieferten vorher denselben Rueckgabewert
+  // (false), wodurch ein abgelaufener Zugriff faelschlich als Konflikt behandelt wurde und
+  // der Aufrufer die Aenderung anschliessend lautlos als "synchronisiert" markierte, obwohl
+  // sie nie in der Cloud ankam (Ursache eines echten Datenverlust-Vorfalls am 12.07.2026).
+  if(res.status===401||res.status===403){handleSbAuthExpired();return 'AUTH_EXPIRED';}
   if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
   const rows=await res.json();
   if(method==='PATCH'&&rows.length===0)return false; // Konflikt: jemand anderes war schneller
@@ -1244,6 +1249,14 @@ async function syncLeadsLayer(){
       const expected=b?b.updatedAt:null;
       try{
         let confirmedAt=await pushLeadRow(lead,expected);
+        if(confirmedAt==='AUTH_EXPIRED'){
+          // Sitzung ist waehrend des Schreibens abgelaufen - das ist KEIN Konflikt und darf
+          // NIEMALS die Baseline aktualisieren, sonst gilt die Aenderung faelschlich als
+          // synchronisiert, obwohl sie nie in der Cloud ankam. Stattdessen wird geworfen,
+          // damit der bestehende catch-Block greift und der naechste Abgleich es erneut
+          // versucht, sobald wieder eine gueltige Sitzung vorliegt.
+          throw new Error('Sitzung abgelaufen beim Speichern von Lead '+lead.id);
+        }
         if(confirmedAt===false){
           // Konflikt: ein anderes Geraet hat GENAU diesen Lead zwischenzeitlich auch
           // geaendert. Bevor die eigene Version einfach druebergeschrieben wird, wird
@@ -1263,6 +1276,9 @@ async function syncLeadsLayer(){
             // lokalen Fassung fortgefahren (besser als den ganzen Sync abzubrechen).
           }
           confirmedAt=await pushLeadRow(lead,null);
+          if(confirmedAt==='AUTH_EXPIRED'){
+            throw new Error('Sitzung abgelaufen beim erneuten Speichern von Lead '+lead.id);
+          }
         }
         leadsBaseline[lead.id]={data:JSON.parse(JSON.stringify(lead)),updatedAt:confirmedAt};
       }catch(e){
@@ -1340,7 +1356,10 @@ async function pushState(payload,expectedUpdatedAt){
     headers:Object.assign({},getSbHeaders(),{'Prefer':(method==='POST'?'resolution=merge-duplicates,':'')+'return=representation'}),
     body:JSON.stringify(body)
   });
-  if(res.status===401||res.status===403){handleSbAuthExpired();return false;}
+  // Gleiche Unterscheidung wie bei pushLeadRow: Sitzungsablauf ist kein Konflikt und darf
+  // nicht denselben Rueckgabewert liefern, sonst wertet der Aufrufer einen abgelaufenen
+  // Zugriff faelschlich als "jemand anderes war schneller".
+  if(res.status===401||res.status===403){handleSbAuthExpired();return 'AUTH_EXPIRED';}
   if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
   const rows=await res.json();
   if(method==='PATCH'&&rows.length===0){
@@ -1506,6 +1525,13 @@ async function syncMerge(retryCount){
       // Schreiben schneller), wird der komplette Sync-Durchlauf einmal automatisch
       // wiederholt, statt den Konflikt zu ignorieren.
       const ok=await pushState(localSnapshot,remote.updated_at);
+      if(ok==='AUTH_EXPIRED'){
+        // Sitzung abgelaufen, kein Konflikt - erneutes Versuchen in derselben Sekunde
+        // bringt nichts, solange keine gueltige Sitzung vorliegt. Die Aenderung bleibt
+        // als "pending" markiert und wird automatisch erneut versucht, sobald die naechste
+        // gueltige Sitzung wieder synct.
+        return;
+      }
       if(!ok&&retryCount<3){
         syncInProgress=false;
         // Kurze zufaellige Pause vor dem naechsten Versuch (verteilt konkurrierende
@@ -1521,6 +1547,7 @@ async function syncMerge(retryCount){
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(buildStatePayload()));}catch(e){}
     refreshCurrentView();
     const ok2=await pushState(merged,remote.updated_at);
+    if(ok2==='AUTH_EXPIRED')return;
     if(!ok2&&retryCount<3){
       syncInProgress=false;
       await new Promise(r=>setTimeout(r,300+Math.random()*700));
@@ -3773,7 +3800,7 @@ function onCardDrop(e,targetId){
   }
   if(dragged.status!==target.status){
     const oldName=colById(dragged.status).name,newName=colById(target.status).name;
-    dragged.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
+    dragged.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
     trackClosedStage(dragged,dragged.status,target.status);trackStatusSince(dragged,dragged.status,target.status);maybeSendListNotification(dragged,dragged.status,target.status);
   }
   dragged.status=target.status;
@@ -3816,7 +3843,7 @@ function onDrop(e,colId){
       return;
     }
     const oldName=colById(l.status).name,newName=colById(colId).name;
-    l.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
+    l.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Status geändert: ${oldName} → ${newName}`,date:nowISO()});
     trackClosedStage(l,l.status,colId);trackStatusSince(l,l.status,colId);maybeSendListNotification(l,l.status,colId);
     l.status=colId;
     l.order=Date.now();
@@ -5075,7 +5102,7 @@ function toggleDraftLabel(id){
   const lb=labelById(id);
   const added=i===-1;
   if(i>-1)draftLead.labelIds.splice(i,1);else draftLead.labelIds.push(id);
-  draftLead.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Label "${lb?lb.name:''}" ${added?'hinzugefügt':'entfernt'}`,date:nowISO()});
+  draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Label "${lb?lb.name:''}" ${added?'hinzugefügt':'entfernt'}`,date:nowISO()});
   autoPersistIfEditing();
   renderLeadModal();
 }
@@ -5136,7 +5163,7 @@ function toggleDraftMember(id){
   const ag=agentById(id);
   const added=i===-1;
   if(i>-1)draftLead.members.splice(i,1);else draftLead.members.push(id);
-  draftLead.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:`Mitglied "${ag?ag.name:''}" ${added?'hinzugefügt':'entfernt'}`,date:nowISO()});
+  draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Mitglied "${ag?ag.name:''}" ${added?'hinzugefügt':'entfernt'}`,date:nowISO()});
   autoPersistIfEditing();
   renderLeadModal();
 }
@@ -5380,7 +5407,7 @@ function saveLead(keepOpen){
     if(draftLead.followup){
       draftLead.followupHistory=[{date:draftLead.followup,setAt:nowISO()}];
     }
-    draftLead.activity.unshift({id:Date.now(),type:'activity',author:currentUser,text:'Lead erstellt',date:nowISO()});
+    draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:'Lead erstellt',date:nowISO()});
     leads.push(draftLead);
     editingLeadId=draftLead.id; // wichtig: weitere Speichervorgaenge (bei "im Lead bleiben") aktualisieren jetzt diesen Lead statt neue anzulegen
   }
@@ -6220,7 +6247,17 @@ async function bootstrapApp(){
   // Hintergrund weiter, waehrend der naechste Abgleich (manchmal nach nur wenigen
   // Millisekunden) schon parallel startete - zwei Ablaeufe, die gleichzeitig auf dieselben
   // Daten zugreifen, konnten sich dabei gegenseitig in die Quere kommen.
-  await sbInitialSync();
+  // KRITISCH: in try/catch abgesichert - schlaegt dieser allererste Sync-Versuch fehl (z.B.
+  // weil die Sitzung genau in diesem Moment als abgelaufen erkannt wird), darf das NICHT den
+  // Rest von bootstrapApp() verhindern. Ohne dieses try/catch wurde der wiederkehrende
+  // 5-Sekunden-Abgleich in diesem Fall NIE eingerichtet - der Tab zeigte "Cloud verbunden",
+  // synchronisierte aber bis zum naechsten kompletten Neuladen ueberhaupt nichts mehr
+  // (Ursache eines echten Datenverlust-Vorfalls am 12.07.2026).
+  try{
+    await sbInitialSync();
+  }catch(e){
+    console.warn('Initialer Sync beim Start fehlgeschlagen (wird automatisch per Hintergrund-Abgleich erneut versucht):',e);
+  }
   setTimeout(()=>{sbPoll();setInterval(sbPoll,5000);},Math.random()*5000);
   setInterval(checkForNewVersion,60000);
   setInterval(maybeRunClientAutoBackup,60000);
