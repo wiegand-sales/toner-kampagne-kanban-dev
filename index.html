@@ -1176,7 +1176,17 @@ async function syncLeadsLayer(){
       }
       const newBaseline={};
       const newLeads=rows.map(r=>{
-        newBaseline[r.id]={data:r.data,updatedAt:r.updated_at};
+        // KRITISCH: Die Baseline muss eine EIGENE, unabhaengige Kopie von r.data bekommen -
+        // nicht dieselbe Objekt-Referenz, die weiter unten auch als `leads`-Eintrag verwendet
+        // wird (return r.data). Ohne diese Kopie zeigen `leads[i]` und `leadsBaseline[i].data`
+        // auf EXAKT DASSELBE Objekt im Speicher: jede spaetere lokale Aenderung (z.B. ein neuer
+        // Kommentar via activity.unshift(...)) "aendert" dadurch unbemerkt auch die Baseline
+        // mit, ohne dass je etwas hochgeladen wurde. deepEqual() vergleicht dann faktisch ein
+        // Objekt mit sich selbst und liefert immer "gleich" - die Aenderung gilt faelschlich als
+        // synchronisiert und wird nie in die Cloud geschrieben (Ursache des grossen
+        // Datenverlust-Vorfalls vom 12.07.2026, der sich nach JEDEM Neuladen reproduzierte,
+        // weil dieser "Fall A"-Zweig bei jedem Neuladen erneut durchlaeuft).
+        newBaseline[r.id]={data:JSON.parse(JSON.stringify(r.data)),updatedAt:r.updated_at};
         if(localChangedMap[r.id]!==undefined)return localChangedMap[r.id];
         const existingLocal=leads.find(l=>String(l.id)===String(r.id));
         if(!existingLocal)return r.data;
