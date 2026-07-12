@@ -289,8 +289,8 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 
 /* CARD */
 .card{background:#f6f7f5;border:1px solid rgba(0,0,0,.07);border-radius:var(--r-md);padding:10px 11px;margin-bottom:8px;cursor:grab;transition:box-shadow .18s ease,transform .18s ease,border-color .18s,background .18s;height:156px;display:flex;flex-direction:column;overflow:hidden;position:relative;}
-.card-has-open-tasks{background:var(--red-bg);border-left:3px solid var(--red);padding-left:9px;}
-.chip-badge-task-open{background:#fff;color:var(--red-dark);font-weight:600;}
+.card-followup-overdue{background:var(--red-bg);border-left:3px solid var(--red);padding-left:9px;}
+.card-task-corner{position:absolute;top:-8px;right:-8px;background:var(--red);color:#fff;min-width:20px;height:20px;padding:0 5px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff;z-index:2;}
 .card-selected{outline:2px solid var(--purple);border-color:var(--purple);}
 .card-bulk-checkbox{position:absolute;top:8px;right:8px;width:16px;height:16px;z-index:5;cursor:pointer;}
 .aging-badge{font-size:9px;font-weight:600;color:var(--amber-dark);background:var(--amber-bg);border-radius:8px;padding:1px 5px;white-space:nowrap;display:inline-flex;align-items:center;gap:2px;vertical-align:middle;}
@@ -3695,8 +3695,10 @@ function cardHtml(l,isFirst,isLast){
   const checkTotal=(l.checklist||[]).length;
   const checkDone=(l.checklist||[]).filter(c=>c.done).length;
   let dueHtml='';
+  let isOverdueFollowup=false;
   if(l.followup){
     const d=daysUntil(l.followup);
+    isOverdueFollowup=d<0;
     const cls=d<0?'due-overdue':(d<=2?'due-soon':'due-ok');
     const dlabel=d<0?`${Math.abs(d)}T überfällig`:(d===0?'heute':fmtDate(l.followup));
     dueHtml=`<span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${dlabel}</span>`;
@@ -3704,14 +3706,15 @@ function cardHtml(l,isFirst,isLast){
   const metaBadges=[];
   if(checkTotal)metaBadges.push(`<span class="chip-badge"><i class="ti ti-checklist" style="font-size:11px"></i>${checkDone}/${checkTotal}</span>`);
   const openTasks=(l.tasks||[]).filter(t=>!t.done).length;
-  if(openTasks)metaBadges.push(`<span class="chip-badge chip-badge-task-open"><i class="ti ti-list-check" style="font-size:11px"></i>${openTasks} offen</span>`);
+  if(openTasks)metaBadges.push(`<span class="chip-badge"><i class="ti ti-list-check" style="font-size:11px"></i>${openTasks} offen</span>`);
   if(l.forecast)metaBadges.push(`<span class="chip-badge chip-badge-money"><i class="ti ti-currency-euro" style="font-size:11px"></i>${fmtEur(l.forecast)}</span>`);
   const colColor=colById(l.status)?colById(l.status).color:'gray';
   const agingDays=l.statusSince?Math.abs(daysUntil(l.statusSince)):null;
   const agingHtml=(agingDays!==null&&agingDays>=7&&!isClosedLead(l))?`<span class="aging-badge" title="Seit ${agingDays} Tagen in dieser Liste"><i class="ti ti-hourglass" style="font-size:10px"></i>${agingDays}T</span>`:'';
   const isSelected=bulkSelected.has(l.id);
   const clickAction=bulkMode?`toggleBulkSelect(${l.id})`:`openLeadModal(${l.id})`;
-  return `<div class="card ${isSelected?'card-selected':''} ${openTasks?'card-has-open-tasks':''}" style="border-top:3px solid ${COLOR_HEX[colColor]}" draggable="${!bulkMode}" data-id="${l.id}" ondragstart="onDragStart(event,${l.id})" ondragend="onDragEnd(event)" ondragover="onCardDragOver(event)" ondragleave="onCardDragLeave(event)" ondrop="onCardDrop(event,${l.id})" onclick="${clickAction}">
+  return `<div class="card ${isSelected?'card-selected':''} ${isOverdueFollowup?'card-followup-overdue':''}" style="border-top:3px solid ${COLOR_HEX[colColor]}" draggable="${!bulkMode}" data-id="${l.id}" ondragstart="onDragStart(event,${l.id})" ondragend="onDragEnd(event)" ondragover="onCardDragOver(event)" ondragleave="onCardDragLeave(event)" ondrop="onCardDrop(event,${l.id})" onclick="${clickAction}">
+    ${openTasks?`<div class="card-task-corner" title="${openTasks} offene Aufgabe${openTasks>1?'n':''}">${openTasks}</div>`:''}
     ${bulkMode?`<input type="checkbox" class="card-bulk-checkbox" ${isSelected?'checked':''} onclick="event.stopPropagation();toggleBulkSelectPreserveScroll(this,${l.id})">`:`
     <div class="card-reorder" onclick="event.stopPropagation()">
       ${!isFirst?`<button onclick="event.stopPropagation();moveLeadUp(${l.id})" title="Nach oben"><i class="ti ti-chevron-up"></i></button>`:''}
