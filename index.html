@@ -291,6 +291,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .card{background:#f6f7f5;border:1px solid rgba(0,0,0,.07);border-radius:var(--r-md);padding:10px 11px;margin-bottom:8px;cursor:grab;transition:box-shadow .18s ease,transform .18s ease,border-color .18s,background .18s;height:156px;display:flex;flex-direction:column;overflow:hidden;position:relative;}
 .card-followup-overdue{background:var(--red-bg);border-left:3px solid var(--red);padding-left:9px;}
 .chip-badge-task-open{background:#FAC775;color:#412402;font-weight:600;}
+.chip-badge-task-overdue{background:var(--red);color:#fff;font-weight:600;}
 .card-selected{outline:2px solid var(--purple);border-color:var(--purple);}
 .card-bulk-checkbox{position:absolute;top:8px;right:8px;width:16px;height:16px;z-index:5;cursor:pointer;}
 .aging-badge{font-size:9px;font-weight:600;color:var(--amber-dark);background:var(--amber-bg);border-radius:8px;padding:1px 5px;white-space:nowrap;display:inline-flex;align-items:center;gap:2px;vertical-align:middle;}
@@ -3705,8 +3706,13 @@ function cardHtml(l,isFirst,isLast){
   }
   const metaBadges=[];
   if(checkTotal)metaBadges.push(`<span class="chip-badge"><i class="ti ti-checklist" style="font-size:11px"></i>${checkDone}/${checkTotal}</span>`);
-  const openTasks=(l.tasks||[]).filter(t=>!t.done).length;
-  if(openTasks)metaBadges.push(`<span class="chip-badge chip-badge-task-open"><i class="ti ti-list-check" style="font-size:11px"></i>${openTasks} offen</span>`);
+  const openTaskList=(l.tasks||[]).filter(t=>!t.done);
+  const openTasks=openTaskList.length;
+  // Eine Aufgabe kann eine eigene Frist haben, die unabhaengig vom Lead-Follow-up
+  // ueberfaellig sein kann. Ist mindestens eine offene Aufgabe ueberfaellig, wird der
+  // Chip dringlicher (rot) statt im normalen Beige-Ton dargestellt.
+  const hasOverdueTask=openTaskList.some(t=>t.dueDate&&daysUntil(t.dueDate)<0);
+  if(openTasks)metaBadges.push(`<span class="chip-badge ${hasOverdueTask?'chip-badge-task-overdue':'chip-badge-task-open'}"><i class="ti ti-list-check" style="font-size:11px"></i>${openTasks} offen</span>`);
   if(l.forecast)metaBadges.push(`<span class="chip-badge chip-badge-money"><i class="ti ti-currency-euro" style="font-size:11px"></i>${fmtEur(l.forecast)}</span>`);
   const colColor=colById(l.status)?colById(l.status).color:'gray';
   const agingDays=l.statusSince?Math.abs(daysUntil(l.statusSince)):null;
