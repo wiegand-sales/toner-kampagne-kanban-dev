@@ -989,11 +989,34 @@ function mergeStateData(baseline,local,remote){
   };
 }
 // ===== Lead-Zeilen-Synchronisierung (jeder Lead = eigene Datenbank-Zeile) =====
+// KRITISCH: fetch() hat im Browser standardmaessig KEIN Zeitlimit. Haengt eine einzelne
+// Netzwerk-Anfrage (z.B. weil der Tab laenger im Hintergrund lief und vom Browser gedrosselt
+// wurde, oder eine Verbindung kurz aussetzt), wartet der Code sonst fuer immer auf eine
+// Antwort, die nie kommt - die umschliessende Sync-Funktion wird nie fertig, ihr finally-Block
+// (der die "laeuft gerade"-Sperre leadsSyncInProgress/syncInProgress wieder freigibt) laeuft
+// nie, und ab diesem Moment wird STILL, ganz ohne Fehlermeldung, gar nichts mehr synchronisiert
+// - bis zum naechsten kompletten Neuladen der Seite (Ursache eines echten Vorfalls am
+// 12.07.2026). Dieser Wrapper gibt jeder sync-relevanten Anfrage ein hartes Zeitlimit, damit
+// eine haengende Anfrage garantiert nach spaetestens 20 Sekunden als fehlgeschlagen gilt und
+// die Sperre sich von selbst wieder loest.
+async function fetchWithTimeout(url,options,timeoutMs){
+  timeoutMs=timeoutMs||20000;
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  try{
+    return await fetch(url,Object.assign({},options,{signal:controller.signal}));
+  }catch(e){
+    if(e.name==='AbortError')throw new Error('Zeitlimit ueberschritten (keine Antwort innerhalb von '+(timeoutMs/1000)+'s)');
+    throw e;
+  }finally{
+    clearTimeout(timer);
+  }
+}
 // Holt NUR id+updated_at ALLER Leads - eine sehr billige Abfrage, die zeigt, welche
 // Leads sich seit der letzten bekannten Baseline ueberhaupt veraendert haben, OHNE die
 // (potenziell grossen) Lead-Daten selbst zu uebertragen.
 async function peekLeadTimestamps(){
-  const res=await fetch(`${SUPABASE_URL}/rest/v1/sales_leads?select=id,updated_at`,{headers:getSbHeaders()});
+  const res=await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/sales_leads?select=id,updated_at`,{headers:getSbHeaders()});
   if(res.status===401||res.status===403){handleSbAuthExpired();throw new Error('Sitzung abgelaufen oder Zugriff verweigert');}
   if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
   const rows=await res.json();
@@ -1006,13 +1029,13 @@ async function peekLeadTimestamps(){
 // ALLE 1000 Leads komplett neu herunterzuladen, wenn nur einer sich geaendert hat.
 async function pullLeadRowsByIds(ids){
   if(!ids.length)return[];
-  const res=await fetch(`${SUPABASE_URL}/rest/v1/sales_leads?select=id,data,updated_at&id=in.(${ids.join(',')})`,{headers:getSbHeaders()});
+  const res=await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/sales_leads?select=id,data,updated_at&id=in.(${ids.join(',')})`,{headers:getSbHeaders()});
   if(res.status===401||res.status===403){handleSbAuthExpired();throw new Error('Sitzung abgelaufen oder Zugriff verweigert');}
   if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
   return await res.json();
 }
 async function pullAllLeadRows(){
-  const res=await fetch(`${SUPABASE_URL}/rest/v1/sales_leads?select=id,data,updated_at`,{headers:getSbHeaders()});
+  const res=await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/sales_leads?select=id,data,updated_at`,{headers:getSbHeaders()});
   if(res.status===401||res.status===403){handleSbAuthExpired();throw new Error('Sitzung abgelaufen oder Zugriff verweigert');}
   if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
   return await res.json();
@@ -1032,7 +1055,7 @@ async function pushLeadRow(leadData,expectedUpdatedAt){
     method='POST';
     body={id:leadData.id,data:leadData,updated_at:ts};
   }
-  const res=await fetch(url,{
+  const res=await fetchWithTimeout(url,{
     method,
     headers:Object.assign({},getSbHeaders(),{'Prefer':(method==='POST'?'resolution=merge-duplicates,':'')+'return=representation'}),
     body:JSON.stringify(body)
@@ -1049,7 +1072,7 @@ async function pushLeadRow(leadData,expectedUpdatedAt){
   return(rows&&rows[0]&&rows[0].updated_at)?rows[0].updated_at:ts;
 }
 async function deleteLeadRowRemote(id){
-  const res=await fetch(`${SUPABASE_URL}/rest/v1/sales_leads?id=eq.${id}`,{method:'DELETE',headers:getSbHeaders()});
+  const res=await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/sales_leads?id=eq.${id}`,{method:'DELETE',headers:getSbHeaders()});
   if(res.status===401||res.status===403){handleSbAuthExpired();return;}
   // Fehler beim Loeschen sind unkritisch (wird beim naechsten Abgleich einfach erneut
   // versucht) - kein throw, um den restlichen Sync-Vorgang nicht zu blockieren.
@@ -1314,7 +1337,7 @@ async function syncLeadsLayer(){
   }
 }
 async function sbPull(){
-  const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=data,updated_at`,{headers:getSbHeaders()});
+  const res=await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=data,updated_at`,{headers:getSbHeaders()});
   if(res.status===401||res.status===403){handleSbAuthExpired();throw new Error('Sitzung abgelaufen oder Zugriff verweigert');}
   if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
   const rows=await res.json();
@@ -1327,7 +1350,7 @@ async function sbPull(){
 // Datenabruf komplett entfallen - das spart die uebertragene Datenmenge (Egress) massiv,
 // da sich in der ueberwiegenden Mehrheit der Pruefungen ohnehin nichts geaendert hat.
 async function sbPeekUpdatedAt(){
-  const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=updated_at`,{headers:getSbHeaders()});
+  const res=await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/app_state?id=eq.main&select=updated_at`,{headers:getSbHeaders()});
   if(res.status===401||res.status===403){handleSbAuthExpired();throw new Error('Sitzung abgelaufen oder Zugriff verweigert');}
   if(!res.ok)throw new Error('HTTP '+res.status+' – '+(await res.text()).slice(0,200));
   const rows=await res.json();
@@ -1351,7 +1374,7 @@ async function pushState(payload,expectedUpdatedAt){
     method='POST';
     body={id:'main',data:payload,updated_at:ts};
   }
-  const res=await fetch(url,{
+  const res=await fetchWithTimeout(url,{
     method,
     headers:Object.assign({},getSbHeaders(),{'Prefer':(method==='POST'?'resolution=merge-duplicates,':'')+'return=representation'}),
     body:JSON.stringify(body)
