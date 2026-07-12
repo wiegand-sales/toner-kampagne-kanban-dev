@@ -774,7 +774,36 @@ async function sbLogin(email,password){
   persistSbSession();
   return sbSession;
 }
-function sbLogout(){
+// Wartet, falls gerade schon ein Sync-Zyklus laeuft (sonst wuerde unser eigener Versuch
+// durch die Wiedereintritts-Sperre von syncMerge()/syncLeadsLayer() einfach uebersprungen),
+// und stoesst danach noch EINEN letzten, sauberen Abgleich an - mit einem Zeitbudget, damit
+// ein haengender Versuch das Abmelden nicht ewig blockiert.
+async function flushPendingChangesBeforeLogout(maxWaitMs){
+  const deadline=Date.now()+maxWaitMs;
+  while((syncInProgress||leadsSyncInProgress)&&Date.now()<deadline){
+    await new Promise(r=>setTimeout(r,200));
+  }
+  const remaining=deadline-Date.now();
+  if(remaining<=0)return;
+  await Promise.race([
+    (async()=>{await syncMerge();await syncLeadsLayer();})(),
+    new Promise(r=>setTimeout(r,remaining))
+  ]);
+}
+async function sbLogout(){
+  // KRITISCH: Vor dem Abmelden wird jetzt versucht, noch ausstehende Aenderungen
+  // (Einstellungen UND Leads) fertig hochzuladen. Bisher fuehrte der Abmelden-Knopf
+  // sofort ein location.reload() aus, OHNE auf einen laufenden oder ausstehenden Sync zu
+  // warten - lokale, noch nicht synchronisierte Aenderungen (z.B. gerade erst eingetragene
+  // Lead-Aktivitaeten) gingen dadurch sofort verloren, selbst bei gueltiger Sitzung
+  // (Ursache eines echten Datenverlust-Vorfalls am 12.07.2026). Die bestehende
+  // "Tab wird geschlossen"-Absicherung (beforeunload) deckt nur Einstellungen ab, keine
+  // Leads - das manuelle Abmelden braucht daher eine eigene, vollstaendige Absicherung.
+  try{
+    await flushPendingChangesBeforeLogout(8000);
+  }catch(e){
+    console.warn('Letzter Sync-Versuch vor dem Abmelden fehlgeschlagen:',e);
+  }
   sbSession=null;
   persistSbSession();
   location.reload();
@@ -6300,6 +6329,40 @@ async function bootstrapApp(){
           headers:Object.assign({},getSbHeaders(),{'Prefer':'resolution=merge-duplicates'}),
           body:JSON.stringify({id:'main',data:buildSettingsPayload(),updated_at:new Date().toISOString()}),
           keepalive:true
+        });
+      }catch(e){}
+    }
+    // WICHTIG: Die obige Absicherung deckte bisher NUR die Einstellungen ab, nicht die
+    // Leads selbst (Aktivitaeten, Kommentare, Statusaenderungen etc.) - genau die Art von
+    // Aenderung, die beim Datenverlust-Vorfall am 12.07.2026 verloren ging. Hier werden
+    // zusaetzlich alle lokal geaenderten/neuen Leads per keepalive-Anfrage abgeschickt
+    // (bestmoeglicher Versuch - kann nicht auf eine Antwort warten, da die Seite gerade
+    // verlassen wird, verhindert aber, dass offensichtlich noch gar nicht versendete
+    // Aenderungen komplett unversucht bleiben).
+    if(sbSession&&leads&&leads.length){
+      try{
+        const changed=leads.filter(l=>{
+          const b=leadsBaseline[l.id];
+          return !b||!deepEqual(l,b.data);
+        });
+        changed.forEach(lead=>{
+          const b=leadsBaseline[lead.id];
+          const ts=new Date().toISOString();
+          if(b){
+            fetch(`${SUPABASE_URL}/rest/v1/sales_leads?id=eq.${lead.id}&updated_at=eq.${encodeURIComponent(b.updatedAt)}`,{
+              method:'PATCH',
+              headers:Object.assign({},getSbHeaders(),{'Prefer':'return=minimal'}),
+              body:JSON.stringify({data:lead,updated_at:ts}),
+              keepalive:true
+            });
+          }else{
+            fetch(`${SUPABASE_URL}/rest/v1/sales_leads`,{
+              method:'POST',
+              headers:Object.assign({},getSbHeaders(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),
+              body:JSON.stringify({id:lead.id,data:lead,updated_at:ts}),
+              keepalive:true
+            });
+          }
         });
       }catch(e){}
     }
