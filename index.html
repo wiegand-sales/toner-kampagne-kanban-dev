@@ -3340,6 +3340,12 @@ function renderSettings(){
         <p style="font-size:11px;color:var(--text3);margin-top:6px">Lädt zusätzlich zur stündlichen Cloud-Sicherung eine Backup-Datei direkt auf den Rechner herunter, solange der Tab geöffnet ist – als zusätzliche, lokale Kopie. Der Speicherort selbst wird vom Browser bestimmt (i.d.R. der Downloads-Ordner) und lässt sich hier aus Sicherheitsgründen nicht einstellen. <strong>Läuft nur bei den Mitarbeitern, die in der Mitarbeiter-Übersicht (Team-Tab) unter "Lokale Sicherung" markiert sind</strong> – nicht automatisch beim ganzen Team.</p>
       </div>
       <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Dev/Live-Versionsabgleich</div>
+        <p style="font-size:12px;color:var(--text2);line-height:1.6">Prüft direkt gegen GitHub, ob Dev und Live noch auseinandergelaufen sind – sowohl beim Code als auch bei der Datenbank-Verbindung. Wichtig vor jedem Deploy in eine der beiden Richtungen.</p>
+        <button class="btn btn-sm" onclick="checkDevLiveParity()"><i class="ti ti-git-compare"></i> Jetzt prüfen</button>
+        <div id="devLiveParityResult" style="margin-top:10px;font-size:12px;line-height:1.6"></div>
+      </div>
+      <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Änderungsprotokoll</div>
         <div class="info-callout" style="margin-bottom:14px">
           Jede Code-Änderung, die Claude an SalesOS Live vornimmt, wird hier festgehalten – mit einer kurzen Beschreibung, was geändert wurde, und einem Zahlenvergleich (Anzahl Leads und Aktivitäten/Kommentare insgesamt, jeweils direkt vor und direkt nach der Änderung). Stimmen die Zahlen überein (✓), ist nichts verlorengegangen. Weichen sie ab (✗), ist das ein sofortiges Warnsignal. Zusätzlich wird vor jeder Änderung automatisch ein vollständiger Datenschnappschuss gesichert ("Stand davor") – ein doppeltes Sicherheitsnetz: Du musst weder Claudes Angaben vertrauen noch dich auf ein einzelnes stündliches Backup verlassen, sondern kannst jederzeit selbst nachprüfen und im Zweifel sofort den exakten Stand von davor herunterladen.
@@ -4880,6 +4886,81 @@ async function migrateLegacyAttachmentsToStorage(){
   if(migratedCount>0)saveState();
   alert(`Migration abgeschlossen: ${migratedCount} Anhänge übertragen${failedCount?`, ${failedCount} fehlgeschlagen (bitte später erneut versuchen)`:''}.`);
   if(currentView==='settings')renderSettings();
+}
+
+// ── Dev/Live-Versionsabgleich ──
+// Vergleicht den tatsaechlich auf GitHub liegenden Dev- und Live-Code direkt aus dem
+// Browser heraus, damit sich eine Divergenz (wie am 12.07.2026, als Dev wichtige
+// Sicherheits-Fixes aus Live nicht hatte UND versehentlich kurzzeitig auf die Live-
+// Datenbank zeigte) nicht mehr unbemerkt einschleichen kann. Zwei getrennte Pruefungen:
+// 1) Zeigen Dev und Live wirklich auf unterschiedliche Supabase-Projekte?
+// 2) Ist der uebrige Code (Titel/Test-Banner/DB-Verbindung ausgenommen) identisch?
+const DEV_REPO_RAW_URL='https://raw.githubusercontent.com/wiegand-sales/toner-kampagne-kanban-dev/main/index.html';
+const LIVE_REPO_RAW_URL='https://raw.githubusercontent.com/wiegand-sales/SalesOS/main/index.html';
+function extractSupabaseUrl(code){
+  const m=code.match(/const SUPABASE_URL=['"]([^'"]+)['"]/);
+  return m?m[1]:null;
+}
+// Entfernt genau die Stellen, an denen sich Dev und Live ABSICHTLICH unterscheiden
+// (Titel, Test-Banner oben/unten, Datenbank-Verbindung) - alles Uebrige MUSS identisch
+// sein, sonst ist eine der beiden Umgebungen dem jeweils anderen Stand voraus.
+function normalizeForParityCheck(code){
+  return code
+    .replace(/<title>[^<]*<\/title>/,'<title></title>')
+    .replace(/<div class="staging-topbar"[\s\S]*?<\/div>\s*/,'')
+    .replace(/<div class="staging-bottombar"[\s\S]*?<\/div>\s*/,'')
+    .replace(/const SUPABASE_URL=['"][^'"]+['"];/,"const SUPABASE_URL='';")
+    .replace(/const SUPABASE_KEY=['"][^'"]+['"];/,"const SUPABASE_KEY='';")
+    .replace(/<!-- rebuild:[^>]*-->/g,'')
+    .trim();
+}
+async function checkDevLiveParity(){
+  if(!requireAdmin('Dev/Live-Versionsabgleich prüfen'))return;
+  const btn=document.getElementById('devLiveParityResult');
+  if(btn)btn.innerHTML='<span style="color:var(--text2)">Lädt aktuellen Stand von GitHub...</span>';
+  try{
+    const [devRes,liveRes]=await Promise.all([
+      fetch(DEV_REPO_RAW_URL+'?t='+Date.now()),
+      fetch(LIVE_REPO_RAW_URL+'?t='+Date.now())
+    ]);
+    if(!devRes.ok||!liveRes.ok)throw new Error(`HTTP ${devRes.status}/${liveRes.status}`);
+    const devCode=await devRes.text();
+    const liveCode=await liveRes.text();
+
+    const devDbUrl=extractSupabaseUrl(devCode);
+    const liveDbUrl=extractSupabaseUrl(liveCode);
+    const dbSeparate=devDbUrl&&liveDbUrl&&devDbUrl!==liveDbUrl;
+
+    const devNorm=normalizeForParityCheck(devCode);
+    const liveNorm=normalizeForParityCheck(liveCode);
+    const codeIdentical=devNorm===liveNorm;
+
+    // Grobe Abschaetzung, WIEVIEL sich unterscheidet (fuer eine erste Einordnung -
+    // ersetzt keinen echten Diff, dafuer bitte Claude fragen)
+    const devLines=new Set(devNorm.split('\n'));
+    const liveLines=new Set(liveNorm.split('\n'));
+    const onlyInDev=[...devLines].filter(l=>l.trim()&&!liveLines.has(l)).length;
+    const onlyInLive=[...liveLines].filter(l=>l.trim()&&!devLines.has(l)).length;
+
+    let html='';
+    html+=`<div style="margin-bottom:8px"><strong>${dbSeparate?'✅':'🚨'} Datenbank-Trennung:</strong> `;
+    if(dbSeparate){
+      html+='Dev und Live verwenden unterschiedliche Supabase-Projekte, wie es sein soll.';
+    }else{
+      html+='<span style="color:var(--red)">ACHTUNG - Dev und Live zeigen auf dieselbe (oder eine nicht erkennbare) Datenbank-Verbindung! Vor jedem weiteren Schritt sofort mit Claude prüfen.</span>';
+    }
+    html+='</div>';
+    html+=`<div><strong>${codeIdentical?'✅':'⚠️'} Code-Abgleich:</strong> `;
+    if(codeIdentical){
+      html+='Dev und Live sind (abgesehen von Titel, Test-Banner und Datenbank-Verbindung) inhaltlich identisch.';
+    }else{
+      html+=`Es gibt Unterschiede – ca. ${onlyInDev} Zeile(n) nur in Dev, ca. ${onlyInLive} Zeile(n) nur in Live. Das ist normal, wenn gerade an einem neuen Feature gearbeitet wird, aber <strong>vor einem Live-Deploy sollte Claude genau prüfen, worum es sich handelt</strong> (z.B. ob Live etwas hat, das Dev fehlt).`;
+    }
+    html+='</div>';
+    if(btn)btn.innerHTML=html;
+  }catch(e){
+    if(btn)btn.innerHTML=`<span style="color:var(--red)">Abgleich fehlgeschlagen: ${esc(e.message)}. Bitte erneut versuchen oder Claude direkt fragen.</span>`;
+  }
 }
 
 // Aufgaben
