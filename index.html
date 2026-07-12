@@ -1633,6 +1633,17 @@ async function syncMerge(retryCount){
 function markPendingPush(){try{localStorage.setItem(PENDING_PUSH_KEY,String(Date.now()));}catch(e){}}
 function clearPendingPush(){try{localStorage.removeItem(PENDING_PUSH_KEY);}catch(e){}}
 function hasPendingPush(){try{return localStorage.getItem(PENDING_PUSH_KEY)!==null;}catch(e){return false;}}
+// WICHTIG: hasPendingPush() prueft NUR die Einstellungen (Spalten/Labels/Mitarbeiter/Projekt),
+// nicht die Leads selbst - genau die Art von Aenderung, die beim automatischen "Neue Version
+// entdeckt"-Neustart bisher verloren gehen konnte, weil der Countdown nur auf hasPendingPush()
+// achtete. Diese Funktion schliesst die Luecke fuer Leads.
+function hasPendingLeadChanges(){
+  if(!leadsBaseline)return false;
+  return leads.some(l=>{
+    const b=leadsBaseline[l.id];
+    return !b||!deepEqual(l,b.data);
+  });
+}
 function scheduleSbPush(){
   markPendingPush();
   clearTimeout(sbPushTimer);
@@ -6261,22 +6272,30 @@ async function checkForNewVersion(){
     const html=await res.text();
     const match=html.match(/const BUILD_VERSION='([^']*)'/);
     if(match&&match[1]&&match[1]!==BUILD_VERSION){
+      // KRITISCH: Sobald newVersionDetected auf true steht, verweigern syncMerge() und
+      // syncLeadsLayer() JEDES weitere Schreiben (Sicherheitsmassnahme, damit nichts mit
+      // potenziell veralteter Logik in die Cloud geschrieben wird). Der Countdown wartete
+      // bisher WAEHREND dieser Sperre auf das Verschwinden ausstehender Aenderungen - ein
+      // Deadlock, der praktisch nie aufloesen konnte, da genau die Sperre, auf deren Ende
+      // gewartet wurde, das Schreiben permanent verhinderte. Der finale Abgleichsversuch
+      // muss deshalb VOR dem Setzen der Sperre passieren, nicht danach (Ursache eines
+      // echten Datenverlust-Vorfalls am 12.07.2026 bei einem automatischen Neustart).
+      if(hasPendingPush()||hasPendingLeadChanges()){
+        try{
+          await Promise.race([
+            (async()=>{await syncMerge();await syncLeadsLayer();})(),
+            new Promise(r=>setTimeout(r,10000))
+          ]);
+        }catch(e){
+          console.warn('Letzter Abgleich vor dem automatischen Neustart fehlgeschlagen:',e);
+        }
+      }
       newVersionDetected=true;
       const banner=document.getElementById('newVersionBanner');
       if(banner)banner.classList.remove('hidden');
       let secondsLeft=10;
-      let pendingWaitSeconds=0;
-      const MAX_PENDING_WAIT=60;
       const countdownEl=document.getElementById('reloadCountdown');
       const timer=setInterval(()=>{
-        // WICHTIG: Bevor tatsaechlich neu geladen wird, wird geprueft, ob gerade eine
-        // Aenderung noch auf den Upload wartet. Solange das der Fall ist, wird der
-        // Countdown angehalten statt stur runterzuzaehlen.
-        if(hasPendingPush()&&pendingWaitSeconds<MAX_PENDING_WAIT){
-          pendingWaitSeconds++;
-          if(countdownEl)countdownEl.textContent='wartet auf Speichern…';
-          return;
-        }
         secondsLeft--;
         if(countdownEl)countdownEl.textContent=secondsLeft;
         if(secondsLeft<=0){
