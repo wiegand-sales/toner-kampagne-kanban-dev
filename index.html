@@ -5315,6 +5315,17 @@ function formatPrinterDetails(printers){
     return `${p.model||'(ohne Modell)'}: ${skuParts||'keine SKUs'}`;
   }).join(' | ');
 }
+// Formatiert einen numerischen Wert fuer den CSV-Export im deutschen Zahlenformat
+// (Komma als Dezimaltrennzeichen, Punkt als Tausendertrennzeichen). Ohne diese Formatierung
+// schreibt JS Dezimalzahlen mit Punkt (z.B. "4.95") - deutsches Excel interpretiert den Punkt
+// beim Oeffnen dann faelschlich als Tausendertrennzeichen und entfernt ihn, aus "4.95" wird
+// so optisch "495". Nur fuer echte Zahlenfelder verwenden, nie fuer Text oder Datumswerte.
+function csvEur(v){
+  if(v===''||v===null||v===undefined)return '';
+  const n=typeof v==='number'?v:parseFloat(v);
+  if(isNaN(n))return '';
+  return n.toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:2});
+}
 // Register aller verfuegbaren Lead-Datenfelder. "importable:true" = kann per CSV befuellt werden
 // (einfache, direkt setzbare Werte). Berechnete/aggregierte Felder sind nur exportierbar.
 // aliases = zusaetzliche, alte Spaltennamen die beim Import weiterhin erkannt werden (Abwaertskompatibilitaet).
@@ -5324,7 +5335,7 @@ const FIELD_REGISTRY={
   art:{label:'Art',group:'Kundeninformationen',importable:true,aliases:['art','typ','type','kundentyp'],example:'B2B',get:l=>l.art,set:(l,v)=>{const u=(v||'').toUpperCase();if(u==='B2B'||u==='B2C')l.art=u;}},
   address:{label:'Adresse',group:'Kundeninformationen',importable:true,aliases:['adresse','address','anschrift'],example:'Musterstraße 1, 12345 Musterstadt',get:l=>l.address,set:(l,v)=>l.address=v},
   orderCount:{label:'Anzahl Bestellungen',group:'Kundeninformationen',importable:true,aliases:['anzahl bestellungen','bestellungen','anzahl'],example:'3',get:l=>l.orderCount,set:(l,v)=>l.orderCount=parseGermanNumber(v)},
-  revenue:{label:'Umsatz (EUR)',group:'Kundeninformationen',importable:true,aliases:['umsatz (eur)','umsatz','revenue'],example:'1500',get:l=>l.revenue,set:(l,v)=>l.revenue=parseGermanNumber(v)},
+  revenue:{label:'Umsatz (EUR)',group:'Kundeninformationen',importable:true,aliases:['umsatz (eur)','umsatz','revenue'],example:'1500',get:l=>csvEur(l.revenue),set:(l,v)=>l.revenue=parseGermanNumber(v)},
   contact:{label:'Ansprechpartner',group:'Kundeninformationen',importable:true,aliases:['ansprechpartner','kontakt','contact','ansprechperson'],example:'Max Mustermann',get:l=>l.contact,set:(l,v)=>l.contact=v},
   phone:{label:'Telefonnummer',group:'Kundeninformationen',importable:true,aliases:['telefonnummer','telefon','phone','tel','rufnummer'],example:'+49 89 1234567',get:l=>l.phone,set:(l,v)=>l.phone=v},
   email:{label:'E-Mail',group:'Kundeninformationen',importable:true,aliases:['e-mail','email','mail'],example:'max@musterfirma.de',get:l=>l.email,set:(l,v)=>l.email=v},
@@ -5332,8 +5343,8 @@ const FIELD_REGISTRY={
   notes:{label:'Notizen',group:'Kundeninformationen',importable:true,aliases:['notizen','notiz','notes','bemerkung','kommentar'],example:'Interessiert, ruft nächste Woche zurück',get:l=>l.notes,set:(l,v)=>l.notes=v},
   shipPrinterModel:{label:'Versand-Drucker',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.shipPrinter.model},
   shipSkus:{label:'Versand-SKUs (EK)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.shipPrinter.skus.filter(s=>s.sku).map(s=>`${s.sku}${s.priceEk?` (EK ${fmtEur(s.priceEk)||'0 €'})`:''}`).join(', ')},
-  investTotal:{label:'Investition gesamt EK + Versand (EUR)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>{const skuTotal=l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.priceEk)||0),0);const total=skuTotal+(l.tonerSent==='Ja'?SHIPPING_COST_PER_SEND:0);return total||'';}},
-  shippingCost:{label:'Versandkosten (EUR)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.tonerSent==='Ja'?SHIPPING_COST_PER_SEND:''},
+  investTotal:{label:'Investition gesamt EK + Versand (EUR)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>{const skuTotal=l.shipPrinter.skus.reduce((s,x)=>s+(parseFloat(x.priceEk)||0),0);const total=skuTotal+(l.tonerSent==='Ja'?SHIPPING_COST_PER_SEND:0);return total?csvEur(total):'';}},
+  shippingCost:{label:'Versandkosten (EUR)',group:'Drucker & Patronen (Versand)',importable:false,get:l=>l.tonerSent==='Ja'?csvEur(SHIPPING_COST_PER_SEND):''},
   tonerSent:{label:'Free Toner verschickt',group:'Drucker & Patronen (Versand)',importable:true,aliases:['free toner verschickt'],example:'Ja',get:l=>l.tonerSent,set:(l,v)=>{if(v)l.tonerSent=v;}},
   statusName:{label:'Status',group:'Lead-Status',importable:false,get:l=>colById(l.status).name},
   statusSince:{label:'Seit wann in dieser Liste',group:'Lead-Status',importable:false,get:l=>fmtDate(l.statusSince)||''},
@@ -5356,9 +5367,9 @@ const FIELD_REGISTRY={
   topSkuOem3:{label:'SKU OEM 3',group:'Top 3 Gekaufte Artikel',importable:true,aliases:['sku oem 3','top artikel 3 sku oem','artikel 3 sku oem'],example:'',get:l=>l.topArticles[2]?.skuOem||'',set:(l,v)=>l.topArticles[2].skuOem=v},
   topSkuKompa3:{label:'SKU Kompa 3',group:'Top 3 Gekaufte Artikel',importable:true,aliases:['sku kompa 3','top artikel 3 sku kompa','artikel 3 sku kompa'],example:'',get:l=>l.topArticles[2]?.skuKompa||'',set:(l,v)=>l.topArticles[2].skuKompa=v},
   topTitle3:{label:'Titel 3',group:'Top 3 Gekaufte Artikel',importable:true,aliases:['titel 3','top artikel 3 titel','artikel 3 titel'],example:'',get:l=>l.topArticles[2]?.title||'',set:(l,v)=>l.topArticles[2].title=v},
-  forecast:{label:'Forecast (EUR)',group:'Forecast',importable:true,aliases:['forecast (eur)','forecast'],example:'2000',get:l=>l.forecast,set:(l,v)=>l.forecast=v},
+  forecast:{label:'Forecast (EUR)',group:'Forecast',importable:true,aliases:['forecast (eur)','forecast'],example:'2000',get:l=>csvEur(l.forecast),set:(l,v)=>l.forecast=parseGermanNumber(v)},
   demandDetails:{label:'Drucker & SKU-Details (Menge, EK, VK, Marge)',group:'Forecast',importable:false,get:l=>formatPrinterDetails(l.demandPrinters)},
-  actual:{label:'Tatsächliches Ergebnis (EUR)',group:'Auftrag',importable:true,aliases:['tatsächliches ergebnis (eur)'],example:'1800',get:l=>l.actual||'',set:(l,v)=>l.actual=v},
+  actual:{label:'Tatsächliches Ergebnis (EUR)',group:'Auftrag',importable:true,aliases:['tatsächliches ergebnis (eur)'],example:'1800',get:l=>csvEur(l.actual),set:(l,v)=>l.actual=parseGermanNumber(v)},
   actualDetails:{label:'Drucker & SKU-Details (Menge, EK, VK, Marge)',group:'Auftrag',importable:false,get:l=>formatPrinterDetails(l.actualPrinters)},
 };
 const GROUP_ORDER=['Kundeninformationen','Drucker & Patronen (Versand)','Lead-Status','Top 3 Gekaufte Artikel','Forecast','Auftrag'];
