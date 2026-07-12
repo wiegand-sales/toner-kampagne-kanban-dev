@@ -40,6 +40,8 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .sidebar-user-row label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
 .sidebar-nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r-md);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;margin-bottom:2px;transition:background .15s,color .15s;}
 .sidebar-nav-item i{font-size:17px;flex-shrink:0;}
+.nav-icon-badge{width:36px;height:36px;border-radius:9px;background:linear-gradient(180deg,#27808a 0%,#206A72 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.nav-icon-badge i{color:#fff;font-size:19px;}
 .sidebar-nav-item:hover{background:var(--bg2);color:var(--text);}
 .sidebar-nav-item.active{background:linear-gradient(180deg,#eaf2f3,#e3eef0);color:var(--purple-dark);box-shadow:inset 0 0 0 1px rgba(32,106,114,.14),0 1px 3px rgba(32,106,114,.08);font-weight:600;}
 .sidebar-footer{margin-top:auto;padding:10px 8px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);}
@@ -54,7 +56,7 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .page-tab-btn:hover{color:var(--text2);}
 .page-tab-btn.active{color:var(--purple);border-bottom-color:var(--purple);}
 .page-hdr-left{display:flex;align-items:center;gap:12px;}
-.page-icon-badge{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;flex-shrink:0;}
+.page-icon-badge{width:36px;height:36px;border-radius:9px;background:linear-gradient(180deg,#27808a 0%,#206A72 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:19px;flex-shrink:0;}
 .page-hdr-title{font-size:18px;font-weight:700;}
 .page-hdr-sub{font-size:12px;color:var(--text2);margin-top:2px;}
 .dash-kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px;}
@@ -205,7 +207,11 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .tb-dot{width:9px;height:9px;border-radius:50%;background:var(--purple);display:inline-block;vertical-align:middle;}
 .tb-title{font-size:18px;font-weight:700;}
 .tb-sub{font-size:12px;color:var(--text2);margin-top:2px;}
-.tb-stats{display:flex;gap:18px;margin-left:14px;}
+.tb-stats{display:flex;gap:8px;margin-left:14px;flex-wrap:wrap;}
+.tb-stat-pill{display:flex;align-items:center;gap:6px;border-radius:20px;padding:6px 12px;white-space:nowrap;}
+.tb-stat-pill i{font-size:14px;}
+.tb-stat-pill b{font-size:13px;font-weight:700;}
+.tb-stat-pill span{font-size:11px;}
 .tb-stat{text-align:center;}
 .tb-stat-val{font-size:16px;font-weight:700;}
 .tb-stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;}
@@ -227,6 +233,8 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .btn-primary:hover{background:linear-gradient(180deg,#1f6d76 0%,#174C52 100%);}
 .btn-danger{background:var(--red-bg);color:var(--red);border-color:transparent;}
 .btn-sm{padding:5px 10px;font-size:12px;}
+.info-callout{background:var(--purple-bg);border-left:3px solid var(--purple);border-radius:var(--r-md);padding:12px 16px;font-size:12px;color:var(--purple-dark);line-height:1.6;width:100%;box-sizing:border-box;}
+.btn-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}
 .me-select{font-size:12px;padding:6px 9px;}
 
 /* FILTER BAR */
@@ -422,6 +430,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 <body>
 <div class="staging-topbar" style="background:#7c1fa0"><i class="ti ti-flask"></i> TESTDATENBANK – komplett getrennt von Live, nur Testdaten &nbsp;·&nbsp; <a href="https://wiegand-sales.github.io/SalesOS/" target="_blank">&rarr; Live ansehen</a></div>
 
+
 <div id="loginScreen" class="login-screen hidden">
   <div class="login-box">
     <svg width="40" height="40" viewBox="0 0 32 32" style="margin-bottom:10px">
@@ -461,11 +470,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 <div class="app-shell hidden">
   <div class="sidebar">
     <div class="sidebar-project">
-      <svg width="28" height="28" viewBox="0 0 32 32" style="flex-shrink:0">
-        <rect width="32" height="32" rx="8" fill="#206A72"/>
-        <circle cx="16" cy="16" r="10" fill="none" stroke="#E9F0F1" stroke-width="4" stroke-dasharray="5 5.9" stroke-linecap="round"/>
-        <circle cx="16" cy="16" r="10" fill="none" stroke="#D94109" stroke-width="4" stroke-dasharray="5 57.8" stroke-dashoffset="-18" stroke-linecap="round"/>
-      </svg>
+      <span class="nav-icon-badge"><i class="ti ti-target-arrow"></i></span>
       <div>
         <div class="sidebar-project-name">SalesOS</div>
         <div class="sidebar-project-sub">FlowBoard</div>
@@ -488,12 +493,12 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         <select id="currentUserSelect" class="me-select" onchange="currentUser=this.value;updateNavForRole()" style="width:100%"></select>
       </div>
     </div>
-    <div class="sidebar-nav-item" id="navDashboard" onclick="switchView('dashboard')"><i class="ti ti-layout-dashboard"></i> SFP: Toner</div>
-    <div class="sidebar-nav-item" id="navBoard" onclick="switchView('board')"><i class="ti ti-layout-kanban"></i> Board</div>
-    <div class="sidebar-nav-item" id="navCrrma" onclick="switchView('crrma')"><i class="ti ti-report-money"></i> CR RMA</div>
-    <div class="sidebar-nav-item" id="navTasks" onclick="switchView('tasks')"><i class="ti ti-list-check"></i> Aufgaben</div>
-    <div class="sidebar-nav-item" id="navActivities" onclick="switchView('activities')"><i class="ti ti-history"></i> Aktivitäten</div>
-    <div class="sidebar-nav-item" id="navSettings" onclick="switchView('settings')"><i class="ti ti-settings"></i> Einstellungen</div>
+    <div class="sidebar-nav-item" id="navDashboard" onclick="switchView('dashboard')"><span class="nav-icon-badge"><i class="ti ti-layout-dashboard"></i></span> SFP: Toner</div>
+    <div class="sidebar-nav-item" id="navBoard" onclick="switchView('board')"><span class="nav-icon-badge"><i class="ti ti-layout-kanban"></i></span> Board</div>
+    <div class="sidebar-nav-item" id="navCrrma" onclick="switchView('crrma')"><span class="nav-icon-badge"><i class="ti ti-report-money"></i></span> CR RMA</div>
+    <div class="sidebar-nav-item" id="navTasks" onclick="switchView('tasks')"><span class="nav-icon-badge"><i class="ti ti-list-check"></i></span> Aufgaben</div>
+    <div class="sidebar-nav-item" id="navActivities" onclick="switchView('activities')"><span class="nav-icon-badge"><i class="ti ti-history"></i></span> Aktivitäten</div>
+    <div class="sidebar-nav-item" id="navSettings" onclick="switchView('settings')"><span class="nav-icon-badge"><i class="ti ti-settings"></i></span> Einstellungen</div>
     <div class="sidebar-footer">Weitere Projekte folgen hier bald.<div id="buildVersionDisplay" style="margin-top:8px;font-size:10px;color:var(--text3);opacity:.7;user-select:all"></div></div>
   </div>
   <div class="main-area">
@@ -501,7 +506,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     <div class="view" id="viewDashboard">
       <div class="page-hdr">
         <div class="page-hdr-left">
-          <div class="page-icon-badge" style="background:var(--purple)"><i class="ti ti-layout-dashboard"></i></div>
+          <div class="page-icon-badge"><i class="ti ti-layout-dashboard"></i></div>
           <div>
             <div class="page-hdr-title">SFP: Toner</div>
             <div class="page-hdr-sub">Überblick über Projekt: Toner</div>
@@ -519,14 +524,12 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     <div class="view" id="viewBoard">
       <div class="topbar">
         <div class="tb-left">
-          <svg width="28" height="28" viewBox="0 0 32 32" style="flex-shrink:0">
-            <rect width="32" height="32" rx="8" fill="#D94109"/>
-            <circle cx="16" cy="16" r="9" fill="none" stroke="#FBECE6" stroke-width="3"/>
-            <path d="M11,16 L14,19.5 L21,12.5" fill="none" stroke="#FBECE6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+          <div style="width:36px;height:36px;border-radius:9px;background:linear-gradient(180deg,#27808a 0%,#206A72 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="ti ti-layout-kanban" style="color:#fff;font-size:19px"></i>
+          </div>
           <div>
             <div class="tb-title">Projekt: Toner</div>
-            <div class="tb-sub">Kostenloser Toner → Follow-up → Angebot</div>
+            <div class="tb-sub">Kanban Board</div>
           </div>
           <div class="tb-stats" id="statsBar"></div>
         </div>
@@ -559,7 +562,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     <div class="view" id="viewCrrma">
       <div class="page-hdr">
         <div class="page-hdr-left">
-          <div class="page-icon-badge" style="background:var(--green)"><i class="ti ti-report-money"></i></div>
+          <div class="page-icon-badge"><i class="ti ti-report-money"></i></div>
           <div>
             <div class="page-hdr-title">CR RMA</div>
             <div class="page-hdr-sub">Artikel-Stammdaten mit Reklamationsquoten (RMA/RGA) je SKU</div>
@@ -578,7 +581,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     <div class="view" id="viewTasks">
       <div class="page-hdr">
         <div class="page-hdr-left">
-          <div class="page-icon-badge" style="background:var(--amber)"><i class="ti ti-list-check"></i></div>
+          <div class="page-icon-badge"><i class="ti ti-list-check"></i></div>
           <div>
             <div class="page-hdr-title">Aufgaben</div>
             <div class="page-hdr-sub">Leads mit Follow-up-Datum, gruppiert nach Fälligkeit</div>
@@ -595,7 +598,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     <div class="view" id="viewActivities">
       <div class="page-hdr">
         <div class="page-hdr-left">
-          <div class="page-icon-badge" style="background:var(--teal)"><i class="ti ti-history"></i></div>
+          <div class="page-icon-badge"><i class="ti ti-history"></i></div>
           <div>
             <div class="page-hdr-title">Aktivitäten</div>
             <div class="page-hdr-sub">Vollständiges Protokoll aller Änderungen, durchsuchbar nach Kunde</div>
@@ -616,7 +619,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     <div class="view" id="viewSettings">
       <div class="page-hdr">
         <div class="page-hdr-left">
-          <div class="page-icon-badge" style="background:var(--gray)"><i class="ti ti-settings"></i></div>
+          <div class="page-icon-badge"><i class="ti ti-settings"></i></div>
           <div>
             <div class="page-hdr-title">Einstellungen</div>
             <div class="page-hdr-sub">Mitarbeiter, Labels und Listen für dieses Projekt verwalten</div>
@@ -731,9 +734,9 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-10T10:56:31.014Z';
-const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
-const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
+const BUILD_VERSION='2026-07-10T19:24:19.785Z';
+const SUPABASE_URL='https://emsxbpcufhqjcuzdobcu.supabase.co';
+const SUPABASE_KEY='sb_publishable_P_QdWfpxyk8pvJDPd1-h6w_-CWSOg7e';
 const SB_SESSION_KEY='sb_session_v1';
 let sbSession=null; // {access_token, refresh_token, expires_at, email}
 function getSbHeaders(){
@@ -865,6 +868,9 @@ let leadsBaseline=null; // {[id]: {data, updatedAt}} oder null = noch nie synchr
 // Stand direkt aus der Cloud.
 function loadLeadsBaseline(){
   leadsBaseline=null;
+  // Einmaliges Aufraeumen: der ALTE Eintrag (von vor diesem Fix) liegt bei Leuten, die
+  // ihn schon mal gefuellt hatten, noch als "Leiche" im Speicher und wird nie mehr
+  // beschrieben - aktiv entfernen, damit der dadurch belegte Platz sofort wieder frei ist.
   try{localStorage.removeItem(LEADS_BASELINE_KEY);}catch(e){}
 }
 function saveLeadsBaseline(newBaseline){
@@ -1050,6 +1056,25 @@ let leadsSyncQueued=false;
 // vorsichtshalber der komplette, aktuelle Stand von der Cloud geholt, statt sich auf den
 // (potenziell leicht veralteten) lokalen Vergleich zu verlassen.
 let isFirstLeadsSyncSinceLoad=true;
+// Fuehrt zwei Verlaufslisten (Kommentare/Aktivitaeten) verlustfrei zusammen, dedupliziert
+// nach eindeutiger ID. Wird immer dann genutzt, wenn eine eingehende Fassung eines Leads
+// WENIGER Eintraege haette als die bereits bekannte - so kann eine veraltete Fassung nie
+// mehr echte, bereits gespeicherte Eintraege loeschen, egal woher sie kommt.
+function getLatestActivityDate(lead){
+  const acts=(lead&&lead.activity)||[];
+  let max=0;
+  acts.forEach(a=>{
+    const t=new Date(a.date).getTime();
+    if(!isNaN(t)&&t>max)max=t;
+  });
+  return max;
+}
+function mergeActivityArrays(arrA,arrB){
+  const byId={};
+  (arrA||[]).forEach(a=>{byId[a.id]=a;});
+  (arrB||[]).forEach(a=>{if(!(a.id in byId))byId[a.id]=a;});
+  return Object.values(byId).sort((a,b)=>new Date(a.date)-new Date(b.date));
+}
 async function syncLeadsLayer(){
   if(!sbSession||!sbSession.access_token)return;
   // Genau wie beim Einstellungs-Abgleich: ist eine neuere Version erkannt worden, wird
@@ -1093,7 +1118,18 @@ async function syncLeadsLayer(){
       const newBaseline={};
       const newLeads=rows.map(r=>{
         newBaseline[r.id]={data:r.data,updatedAt:r.updated_at};
-        return localChangedMap[r.id]!==undefined?localChangedMap[r.id]:r.data;
+        if(localChangedMap[r.id]!==undefined)return localChangedMap[r.id];
+        const existingLocal=leads.find(l=>String(l.id)===String(r.id));
+        if(!existingLocal)return r.data;
+        const mergedActivity=mergeActivityArrays(existingLocal.activity||[],r.data.activity||[]);
+        if(deepEqual(existingLocal,r.data))return r.data;
+        const localLatest=getLatestActivityDate(existingLocal);
+        const remoteLatest=getLatestActivityDate(r.data);
+        if(localLatest>remoteLatest){
+          console.warn(`Lead ${r.id}: lokale Fassung ist anhand der Aktivitaet zeitlich juenger (${new Date(localLatest).toISOString()} > ${new Date(remoteLatest).toISOString()}) - wird bevorzugt und beim naechsten Abgleich hochgeladen.`);
+          return {...existingLocal,activity:mergedActivity};
+        }
+        return {...r.data,activity:mergedActivity};
       });
       // Ganz neue, noch nie synchronisierte eigene Leads (z.B. gerade erst angelegt, kurz
       // bevor dieser erste Abgleich abgeschlossen war) zusaetzlich mit aufnehmen.
@@ -1168,7 +1204,22 @@ async function syncLeadsLayer(){
       const fetchedRows=await pullLeadRowsByIds(idsToFetch);
       fetchedRows.forEach(r=>{
         const idx=leads.findIndex(l=>String(l.id)===String(r.id));
-        if(idx>=0)leads[idx]=r.data;else leads.push(r.data);
+        if(idx>=0){
+          const localActivity=leads[idx].activity||[];
+          const remoteActivity=r.data.activity||[];
+          // SICHERHEITSCHECK: haette die eingehende Fassung WENIGER Verlaufseintraege
+          // als das, was hier bereits bekannt ist, wird NICHT einfach ersetzt, sondern
+          // zusammengefuehrt - so kann ein veralteter Stand von woanders nie mehr echte,
+          // bereits gespeicherte Kommentare/Aktivitaeten verschwinden lassen.
+          if(remoteActivity.length<localActivity.length){
+            console.warn(`Lead ${r.id}: eingehende Fassung hatte weniger Verlaufseintraege (${remoteActivity.length} statt ${localActivity.length}) - wird zusammengefuehrt statt ersetzt.`);
+            leads[idx]={...r.data,activity:mergeActivityArrays(localActivity,remoteActivity)};
+          }else{
+            leads[idx]=r.data;
+          }
+        }else{
+          leads.push(r.data);
+        }
         leadsBaseline[r.id]={data:JSON.parse(JSON.stringify(r.data)),updatedAt:r.updated_at};
       });
       normalizeLeads();
@@ -1193,8 +1244,22 @@ async function syncLeadsLayer(){
         let confirmedAt=await pushLeadRow(lead,expected);
         if(confirmedAt===false){
           // Konflikt: ein anderes Geraet hat GENAU diesen Lead zwischenzeitlich auch
-          // geaendert. Etablierte, bereits dokumentierte Regel: lokale Version gewinnt
-          // fuer diesen einen Lead (kein Effekt auf alle anderen Leads).
+          // geaendert. Bevor die eigene Version einfach druebergeschrieben wird, wird
+          // jetzt zuerst der AKTUELLE Cloud-Stand dieses einen Leads geholt und die
+          // Verlaufseintraege verlustfrei zusammengefuehrt - keine Seite verliert dabei etwas.
+          try{
+            const currentRemoteRows=await pullLeadRowsByIds([lead.id]);
+            if(currentRemoteRows.length){
+              const remoteActivity=currentRemoteRows[0].data.activity||[];
+              const localActivity=lead.activity||[];
+              if(remoteActivity.length>localActivity.length){
+                lead.activity=mergeActivityArrays(localActivity,remoteActivity);
+              }
+            }
+          }catch(mergeErr){
+            // Falls das Nachladen selbst fehlschlaegt, wird trotzdem mit der bisherigen
+            // lokalen Fassung fortgefahren (besser als den ganzen Sync abzubrechen).
+          }
           confirmedAt=await pushLeadRow(lead,null);
         }
         leadsBaseline[lead.id]={data:JSON.parse(JSON.stringify(lead)),updatedAt:confirmedAt};
@@ -1306,10 +1371,14 @@ let syncQueued=false;
 // heutige Tag (Feierabend-Stand), davor gilt noch der VORHERIGE Tag - falls dessen
 // 19-Uhr-Backup nie gelaufen ist (weil um 19 Uhr niemand mehr online war), wird es beim
 // naechsten Öffnen der Seite automatisch nachgeholt, sobald jemand die App wieder oeffnet.
+// Liefert die aktuell faellige Sicherungs-Kennung im Format "YYYY-MM-DD_HH" (Berliner
+// Zeit) - eine eigene pro Stunde, damit mehrere Sicherungen desselben Tages sich nicht
+// mehr gegenseitig ueberschreiben wie zuvor bei der reinen Datums-Kennung.
 function getDueBackupDate(){
-  const hour=parseInt(new Date().toLocaleString('en-US',{timeZone:'Europe/Berlin',hour:'2-digit',hour12:false}),10);
-  if(hour>=19)return TODAY;
-  return new Date(Date.now()-24*60*60*1000).toLocaleDateString('en-CA',{timeZone:'Europe/Berlin'});
+  const now=new Date();
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hour12:false}).formatToParts(now);
+  const get=t=>parts.find(p=>p.type===t).value;
+  return `${get('year')}-${get('month')}-${get('day')}_${get('hour')}`;
 }
 async function maybeRunDailyBackup(){
   try{
@@ -1323,13 +1392,19 @@ async function maybeRunDailyBackup(){
     if(!res.ok)return;
     PROJECT.lastBackupDate=dueDate;
     saveState();
-    const cutoffDate='backup_'+new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10);
-    fetch(`${SUPABASE_URL}/rest/v1/app_state?id=lt.${cutoffDate}&id=like.backup_*`,{
+    // Rollierendes 48-Stunden-Fenster: aeltere stuendliche Sicherungen werden automatisch
+    // entfernt, damit sich nicht unbegrenzt Daten ansammeln - die letzten 2 Tage bleiben
+    // aber immer stundengenau verfuegbar.
+    const cutoff=new Date(Date.now()-48*60*60*1000);
+    const cutoffParts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hour12:false}).formatToParts(cutoff);
+    const cget=t=>cutoffParts.find(p=>p.type===t).value;
+    const cutoffId='backup_'+`${cget('year')}-${cget('month')}-${cget('day')}_${cget('hour')}`;
+    fetch(`${SUPABASE_URL}/rest/v1/app_state?id=lt.${cutoffId}&id=like.backup_*`,{
       method:'DELETE',
       headers:getSbHeaders()
     }).catch(()=>{});
   }catch(e){
-    console.warn('Taegliches Backup fehlgeschlagen (unkritisch, normale Arbeit ist nicht betroffen):',e);
+    console.warn('Stuendliches Backup fehlgeschlagen (unkritisch, normale Arbeit ist nicht betroffen):',e);
   }
 }
 async function syncMerge(retryCount){
@@ -1548,20 +1623,12 @@ function fmtDateTime(iso){
   return `${p(d.getDate())}.${p(d.getMonth()+1)}.${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-let leads=[
-  {id:1,company:'Musterfirma GmbH',customerNumber:'K-10001',art:'B2B',printerModel:'HP LaserJet Pro M404',sku:'TN-1001-BK',contact:'Max Mustermann',phone:'+49 89 1234567',email:'max@musterfirma.de',status:'open',tonerSent:'Nein',members:['a1'],labelIds:['l3'],firstContact:'',followup:'',forecast:'',notes:'Interessiert, ruft morgen zurück',checklist:[],activity:[{id:1,type:'activity',author:'a1',text:'Karte erstellt',date:'2026-06-20T09:00:00'}]},
-  {id:2,company:'Beispiel AG',customerNumber:'K-10002',art:'B2B',printerModel:'Brother HL-L2350DW',sku:'TN-1002-BK',contact:'Erika Beispiel',phone:'+49 89 7654321',email:'erika@beispiel.de',status:'fu_feedback',tonerSent:'Ja',members:['a2'],labelIds:[],firstContact:'2026-06-25',followup:'2026-07-09',forecast:'1200',notes:'',checklist:[{id:1,text:'Versandbestätigung erhalten',done:true},{id:2,text:'Tracking-Nummer notiert',done:false}],activity:[{id:1,type:'activity',author:'a2',text:'Status geändert: AM: Auftrag → FollowUp: Feedback',date:'2026-06-27T11:20:00'}]},
-  {id:3,company:'Test & Co KG',customerNumber:'K-10003',art:'B2B',printerModel:'Canon i-SENSYS MF445dw',sku:'TN-1003-BK',contact:'Peter Test',phone:'+49 89 1112233',email:'peter@testco.de',status:'fu_feedback',tonerSent:'Ja',members:['a3'],labelIds:['l1'],firstContact:'2026-06-20',followup:'2026-06-28',forecast:'800',notes:'Follow-up-Anruf steht an',checklist:[],activity:[{id:1,type:'comment',author:'a3',text:'Toner kam gut an, wartet auf Rückmeldung vom Einkauf.',date:'2026-06-29T15:40:00'}]},
-  {id:4,company:'Nordbau Systeme',customerNumber:'K-10004',art:'B2B',printerModel:'',sku:'',contact:'Anke Nord',phone:'+49 40 998877',email:'anke@nordbau.de',status:'open',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',forecast:'',notes:'',checklist:[],activity:[]},
-  {id:5,company:'Rheinland Druck GmbH',customerNumber:'K-10005',art:'B2B',printerModel:'Xerox VersaLink C405',sku:'TN-1005-CMYK',contact:'Tobias Rhein',phone:'+49 221 445566',email:'t.rhein@rheinland-druck.de',status:'fu_qual',tonerSent:'Nein',members:['a2'],labelIds:['l2'],firstContact:'2026-06-30',followup:'',forecast:'',notes:'Zweiter Versuch am Mittwoch',checklist:[],activity:[]},
-  {id:6,company:'Südwest Büroservice',customerNumber:'K-10006',art:'B2B',printerModel:'HP LaserJet Enterprise M507',sku:'TN-1006-BK',contact:'Nina Süd',phone:'+49 711 223344',email:'nina@suedwest-buero.de',status:'am_offer',tonerSent:'Ja',members:['a3','a1'],labelIds:['l3'],firstContact:'2026-06-15',followup:'',forecast:'3400',notes:'Sehr zufrieden mit Toner, will Preisliste',checklist:[{id:1,text:'Preisliste erstellen',done:true},{id:2,text:'Rabattstaffel abstimmen',done:false},{id:3,text:'Angebot an Einkauf senden',done:false}],activity:[{id:1,type:'comment',author:'a3',text:'Sehr angetan vom Testprodukt, Budget ist vorhanden.',date:'2026-06-24T10:05:00'}]},
-  {id:7,company:'Alpin Office Solutions',customerNumber:'K-10007',art:'B2C',printerModel:'Epson EcoTank ET-4850',sku:'TN-1007-CMYK',contact:'Felix Alpin',phone:'+49 89 5566778',email:'felix@alpin-office.de',status:'fu_offer',tonerSent:'Ja',members:['a1'],labelIds:[],firstContact:'2026-06-10',followup:'2026-07-05',forecast:'650',notes:'',checklist:[],activity:[]},
-  {id:8,company:'Berlin Print Partner',customerNumber:'K-10008',art:'B2B',printerModel:'Konica Minolta bizhub C258',sku:'TN-1008-CMYK',contact:'Julia Berg',phone:'+49 30 9988776',email:'julia@berlinprint.de',status:'won',tonerSent:'Ja',members:['a2'],labelIds:['l3'],firstContact:'2026-05-20',followup:'',forecast:'5200',notes:'Rahmenvertrag unterschrieben',closedFromStage:'fu_offer',activity:[{id:1,type:'activity',author:'a2',text:'Status geändert: FollowUp: Angebot → Gewonnen',date:'2026-06-18T09:30:00'}]},
-  {id:9,company:'Kontor Nord',customerNumber:'K-10009',art:'B2B',printerModel:'',sku:'',contact:'Simon Kontor',phone:'+49 40 3322110',email:'simon@kontor-nord.de',status:'lost',tonerSent:'Ja',members:['a3'],labelIds:['l4'],firstContact:'2026-05-18',followup:'',forecast:'',notes:'Bereits langfristiger Vertrag mit Wettbewerber',closedFromStage:'fu_offer',checklist:[],activity:[]},
-  {id:10,company:'Meier Bürobedarf',customerNumber:'K-10010',art:'B2C',printerModel:'Brother MFC-L3770CDW',sku:'TN-1010-CMYK',contact:'Claudia Meier',phone:'+49 221 887766',email:'c.meier@meier-buero.de',status:'am_order',tonerSent:'Nein',members:['a1'],labelIds:[],firstContact:'2026-06-29',followup:'',forecast:'',notes:'',checklist:[],activity:[]},
-  {id:11,company:'Franke Elektro GmbH',customerNumber:'K-10011',art:'B2B',printerModel:'HP Color LaserJet Pro M255',sku:'TN-1011-CMYK',contact:'Robert Franke',phone:'+49 69 556677',email:'r.franke@franke-elektro.de',status:'fu_feedback',tonerSent:'Ja',members:['a2'],labelIds:['l1'],firstContact:'2026-06-18',followup:'2026-06-30',forecast:'950',notes:'Toner kam gut an, wartet auf Rückruf',checklist:[],activity:[]},
-  {id:12,company:'Vogel Consulting',customerNumber:'K-10012',art:'B2C',printerModel:'',sku:'',contact:'Petra Vogel',phone:'+49 211 998811',email:'petra@vogel-consulting.de',status:'open',tonerSent:'Nein',members:[],labelIds:[],firstContact:'',followup:'',forecast:'',notes:'',checklist:[],activity:[]},
-];
+// WICHTIG: Frueher standen hier 12 fest einprogrammierte Demo-Leads (Musterfirma GmbH
+// usw.), die kurz aufblitzen konnten, bevor der erste Cloud-Abgleich die echten Daten
+// laedt. Auf einem produktiv genutzten System ist das verwirrend, deshalb startet
+// "leads" jetzt bewusst leer - der allererste Abgleich fuellt es umgehend mit den
+// echten Daten aus der Cloud.
+let leads=[];
 let nextId=13;
 // Kollisionssichere ID: verhindert, dass zwei Geraete beim gleichzeitigen Anlegen
 // (bevor synchronisiert wurde) versehentlich dieselbe ID vergeben und sich damit
@@ -1739,13 +1806,20 @@ async function previewAndRestoreBackup(dateStr){
     const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.backup_${dateStr}&select=data,updated_at`,{headers:getSbHeaders()});
     if(!res.ok){alert('Backup konnte nicht geladen werden.');return;}
     const rows=await res.json();
-    if(!rows.length){alert(`Kein Backup für "${dateStr}" gefunden. Bitte exaktes Format JJJJ-MM-TT verwenden (z.B. 2026-07-09).`);return;}
+    if(!rows.length){alert(`Kein Backup für "${dateStr}" gefunden. Bitte exaktes Format aus der Liste oben verwenden (z.B. 2026-07-09_14).`);return;}
     const backupData=rows[0].data;
     const leadCount=(backupData.leads||[]).length;
     if(!confirm(`Backup vom ${dateStr} enthält ${leadCount} Lead(s).\nAktuell im System: ${leads.length} Lead(s).\n\nWirklich diesen Stand wiederherstellen?\n\nACHTUNG: Das überschreibt den aktuellen Stand für ALLE im Team. Alles, was seit diesem Backup neu eingetragen wurde, geht dabei verloren. Nicht rückgängig zu machen (außer über ein anderes Backup).`))return;
     applyStateData(JSON.parse(JSON.stringify(backupData)));
+    // WICHTIG: applyStateData() kuemmert sich seit dem Umbau bewusst NICHT mehr um
+    // Leads (die leben jetzt in eigenen Datenbank-Zeilen). Die Leads aus dem Backup
+    // muessen daher hier explizit gesetzt werden - der anschliessende Lead-Abgleich
+    // erkennt den Unterschied zur bisherigen Baseline und schreibt sie einzeln zurueck.
+    leads=JSON.parse(JSON.stringify(backupData.leads||[]));
+    normalizeLeads();
     saveState();
     await syncMerge();
+    await syncLeadsLayer();
     renderBoard();
     alert(`Backup vom ${dateStr} wurde wiederherstellt und in die Cloud hochgeladen (${leads.length} Leads).`);
   }catch(e){
@@ -2079,15 +2153,19 @@ function getFilteredLeads(){
 function renderStats(){
   const fl=getFilteredLeads();
   const total=fl.length;
+  const totalActivities=fl.reduce((s,l)=>s+((l.activity||[]).length),0);
   const won=fl.filter(l=>isWon(l)).length;
   const overdue=fl.filter(l=>l.followup&&daysUntil(l.followup)<0).length;
   const rate=total?Math.round(won/total*100):0;
   const forecastSum=fl.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
+  const overdueBg=overdue>0?'var(--red-bg)':'var(--purple-bg)';
+  const overdueColor=overdue>0?'var(--red-dark)':'var(--purple-dark)';
   document.getElementById('statsBar').innerHTML=`
-    <div class="tb-stat"><div class="tb-stat-val">${total}</div><div class="tb-stat-label">Leads</div></div>
-    <div class="tb-stat"><div class="tb-stat-val" style="color:${overdue>0?'var(--red)':'var(--text)'}">${overdue}</div><div class="tb-stat-label">Follow-up überfällig</div></div>
-    <div class="tb-stat"><div class="tb-stat-val" style="color:var(--green)">${rate}%</div><div class="tb-stat-label">Gewonnen</div></div>
-    <div class="tb-stat"><div class="tb-stat-val" style="color:var(--purple)">${fmtEur(forecastSum)}</div><div class="tb-stat-label">Forecast gesamt</div></div>`;
+    <div class="tb-stat-pill" style="background:var(--purple-bg)"><i class="ti ti-users" style="color:var(--purple-dark)"></i><b style="color:var(--purple-dark)">${total}</b><span style="color:var(--purple-dark)">Leads</span></div>
+    <div class="tb-stat-pill" style="background:var(--purple-bg)"><i class="ti ti-message-2" style="color:var(--purple-dark)"></i><b style="color:var(--purple-dark)">${totalActivities}</b><span style="color:var(--purple-dark)">Aktivitäten</span></div>
+    <div class="tb-stat-pill" style="background:${overdueBg}"><i class="ti ti-alert-triangle" style="color:${overdueColor}"></i><b style="color:${overdueColor}">${overdue}</b><span style="color:${overdueColor}">überfällig</span></div>
+    <div class="tb-stat-pill" style="background:var(--green-bg)"><i class="ti ti-trophy" style="color:var(--green-dark)"></i><b style="color:var(--green-dark)">${rate}%</b><span style="color:var(--green-dark)">gewonnen</span></div>
+    <div class="tb-stat-pill" style="background:var(--purple-bg)"><i class="ti ti-chart-line" style="color:var(--purple-dark)"></i><b style="color:var(--purple-dark)">${fmtEur(forecastSum)}</b><span style="color:var(--purple-dark)">Forecast</span></div>`;
 }
 
 // ── RENDER: AGENT FILTER + USER SELECT ──
@@ -3197,6 +3275,11 @@ function renderSettings(){
           ${labelsHtml}
           <p style="font-size:11px;color:var(--text3);margin-top:10px">Neue Labels legst du direkt in einer Lead-Karte an (Bereich "Labels").</p>
         </div>
+      </div>
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">"Nicht erreicht"-Verhalten</div>
+        <div class="field"><label>Follow-up automatisch verschieben um (Tage)</label><input type="number" min="1" max="90" step="1" value="${PROJECT.notReachedFollowupDays!==undefined?PROJECT.notReachedFollowupDays:6}" onchange="setProjectField('notReachedFollowupDays',Math.max(1,parseInt(this.value)||6))" style="width:100%;max-width:200px"></div>
+        <p style="font-size:11px;color:var(--text3);margin-top:6px">Klickt jemand im Lead auf "Nicht erreicht", wird das Follow-up-Datum automatisch um diese Anzahl Tage ab heute gesetzt.</p>
       </div>`,
     project:`
       <div class="dash-row-1-1">
@@ -3208,11 +3291,6 @@ function renderSettings(){
           </div>
           <div class="field"><label>Gesamtbudget (EUR)</label><input type="number" min="0" step="100" value="${PROJECT.budget}" onchange="setProjectField('budget',parseFloat(this.value)||0)" style="width:100%"></div>
           <p style="font-size:11px;color:var(--text3);margin-top:6px">Budget-Auslastung (Toner-Investition gesamt) siehst du im Dashboard.</p>
-        </div>
-        <div class="info-section">
-          <div class="section-hdr" style="margin-top:0">"Nicht erreicht"-Verhalten</div>
-          <div class="field"><label>Follow-up automatisch verschieben um (Tage)</label><input type="number" min="1" max="90" step="1" value="${PROJECT.notReachedFollowupDays!==undefined?PROJECT.notReachedFollowupDays:6}" onchange="setProjectField('notReachedFollowupDays',Math.max(1,parseInt(this.value)||6))" style="width:100%"></div>
-          <p style="font-size:11px;color:var(--text3);margin-top:6px">Klickt jemand im Lead auf "Nicht erreicht", wird das Follow-up-Datum automatisch um diese Anzahl Tage ab heute gesetzt.</p>
         </div>
         <div class="info-section">
           <div class="section-hdr" style="margin-top:0">Meilensteine</div>
@@ -3241,10 +3319,12 @@ function renderSettings(){
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Datenspeicherung</div>
         <p style="font-size:12px;color:var(--text2);line-height:1.6">Alle Daten liegen in einer gemeinsamen Cloud-Datenbank (Supabase) – alle Mitarbeiter sehen denselben Stand, egal an welchem Gerät. Der Status oben links in der Seitenleiste zeigt, ob die Verbindung gerade aktiv ist. Bei fehlender Internetverbindung wird lokal weitergearbeitet und automatisch synchronisiert, sobald die Verbindung zurück ist.</p>
-        <button class="btn btn-sm" style="margin-top:8px" onclick="exportFullBackup()"><i class="ti ti-database-export"></i> Alle Daten als Backup exportieren (JSON)</button>
-        <button class="btn btn-sm" style="margin-top:8px;margin-left:8px" onclick="runDataIntegrityCheck()"><i class="ti ti-stethoscope"></i> Datenintegrität jetzt prüfen</button>
-        <button class="btn btn-sm" style="margin-top:8px;margin-left:8px" onclick="listAvailableBackups()"><i class="ti ti-history"></i> Backups anzeigen / wiederherstellen</button>
-        <button class="btn btn-sm" style="margin-top:8px;margin-left:8px" onclick="migrateLegacyAttachmentsToStorage()"><i class="ti ti-file-upload"></i> Alte Anhänge in den Dateispeicher übertragen</button>
+        <div class="btn-row">
+          <button class="btn" onclick="exportFullBackup()"><i class="ti ti-database-export"></i> Alle Daten als Backup exportieren (JSON)</button>
+          <button class="btn" onclick="runDataIntegrityCheck()"><i class="ti ti-stethoscope"></i> Datenintegrität jetzt prüfen</button>
+          <button class="btn" onclick="listAvailableBackups()"><i class="ti ti-history"></i> Backups anzeigen / wiederherstellen</button>
+          <button class="btn" onclick="migrateLegacyAttachmentsToStorage()"><i class="ti ti-file-upload"></i> Alte Anhänge in den Dateispeicher übertragen</button>
+        </div>
       </div>
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Automatische lokale Sicherung</div>
@@ -3259,10 +3339,17 @@ function renderSettings(){
         </div>
         <p style="font-size:11px;color:var(--text3);margin-top:6px">Lädt zusätzlich zur stündlichen Cloud-Sicherung eine Backup-Datei direkt auf den Rechner herunter, solange der Tab geöffnet ist – als zusätzliche, lokale Kopie. Der Speicherort selbst wird vom Browser bestimmt (i.d.R. der Downloads-Ordner) und lässt sich hier aus Sicherheitsgründen nicht einstellen. <strong>Läuft nur bei den Mitarbeitern, die in der Mitarbeiter-Übersicht (Team-Tab) unter "Lokale Sicherung" markiert sind</strong> – nicht automatisch beim ganzen Team.</p>
       </div>
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Änderungsprotokoll</div>
+        <div class="info-callout" style="margin-bottom:14px">
+          Jede Code-Änderung, die Claude an SalesOS Live vornimmt, wird hier festgehalten – mit einer kurzen Beschreibung, was geändert wurde, und einem Zahlenvergleich (Anzahl Leads und Aktivitäten/Kommentare insgesamt, jeweils direkt vor und direkt nach der Änderung). Stimmen die Zahlen überein (✓), ist nichts verlorengegangen. Weichen sie ab (✗), ist das ein sofortiges Warnsignal. Zusätzlich wird vor jeder Änderung automatisch ein vollständiger Datenschnappschuss gesichert ("Stand davor") – ein doppeltes Sicherheitsnetz: Du musst weder Claudes Angaben vertrauen noch dich auf ein einzelnes stündliches Backup verlassen, sondern kannst jederzeit selbst nachprüfen und im Zweifel sofort den exakten Stand von davor herunterladen.
+        </div>
+        ${deployLogHtml()}
+      </div>
       <div class="info-section" style="border-color:var(--red)">
         <div class="section-hdr" style="margin-top:0;color:var(--red)"><i class="ti ti-alert-triangle"></i> Gefahrenzone</div>
         <p style="font-size:12px;color:var(--text2);line-height:1.6">Löscht <strong>alle Leads</strong> unwiderruflich. Die Board-Struktur (Listen/Spalten, Labels, Mitarbeiter, Projekt-Einstellungen) bleibt vollständig erhalten – nur die Kundendaten selbst werden entfernt. Nur für Admins verfügbar.</p>
-        <button class="btn btn-sm" style="margin-top:8px;background:var(--red-bg);color:var(--red-dark);border-color:var(--red)" onclick="deleteAllLeads()"><i class="ti ti-trash"></i> Alle Leads löschen</button>
+        <button class="btn" style="margin-top:8px;background:var(--red-bg);color:var(--red-dark);border-color:var(--red)" onclick="deleteAllLeads()"><i class="ti ti-trash"></i> Alle Leads löschen</button>
       </div>`,
     csv:`
       <div class="info-section">
@@ -3282,9 +3369,9 @@ function renderSettings(){
           ${csvFieldsHtml}
         </table>
         <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn btn-sm" onclick="addCsvField()"><i class="ti ti-plus"></i> Feld hinzufügen</button>
-          <button class="btn btn-sm" onclick="resetCsvFields()"><i class="ti ti-refresh"></i> Auf Standard zurücksetzen</button>
-          <button class="btn btn-sm btn-primary" onclick="downloadImportTemplate()"><i class="ti ti-download"></i> Import-Vorlage herunterladen (mit Beispieldatensatz)</button>
+          <button class="btn" onclick="addCsvField()"><i class="ti ti-plus"></i> Feld hinzufügen</button>
+          <button class="btn" onclick="resetCsvFields()"><i class="ti ti-refresh"></i> Auf Standard zurücksetzen</button>
+          <button class="btn btn-primary" onclick="downloadImportTemplate()"><i class="ti ti-download"></i> Import-Vorlage herunterladen (mit Beispieldatensatz)</button>
         </div>
       </div>`,
     notify:`
@@ -3304,7 +3391,7 @@ function renderSettings(){
             ${COLUMNS.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('')}
           </select>
           <input type="email" id="newNotifyEmail" placeholder="empfaenger@wiegand-gmbh.de" style="flex:1;min-width:200px">
-          <button class="btn btn-sm btn-primary" onclick="createNotifyRule()"><i class="ti ti-plus"></i> Regel hinzufügen</button>
+          <button class="btn btn-primary" onclick="createNotifyRule()"><i class="ti ti-plus"></i> Regel hinzufügen</button>
         </div>
       </div>`,
   };
@@ -4863,6 +4950,7 @@ function addTask(){
   }
   clearTaskFormError();
   draftLead.tasks.push({id:genId(),text,dueDate:dueEl.value,done:false,createdBy:currentUser,createdAt:nowISO(),assigneeId:pendingTaskAssigneeId||null});
+  draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Aufgabe hinzugefügt: ${text}`,date:nowISO()});
   textEl.value='';
   dueEl.value='';
   pendingTaskAssigneeId=null;
@@ -4873,19 +4961,26 @@ function addTask(){
 }
 function toggleTask(id){
   const t=draftLead.tasks.find(x=>x.id===id);
-  if(t)t.done=!t.done;
+  if(t){
+    t.done=!t.done;
+    draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Aufgabe ${t.done?'erledigt':'wieder geöffnet'}: ${t.text}`,date:nowISO()});
+  }
   autoPersistIfEditing();
   renderLeadModal();
 }
 function deleteTask(id){
+  const t=draftLead.tasks.find(x=>x.id===id);
   draftLead.tasks=draftLead.tasks.filter(x=>x.id!==id);
+  if(t)draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Aufgabe entfernt: ${t.text}`,date:nowISO()});
   autoPersistIfEditing();
   renderLeadModal();
 }
 
 // Checkliste
 function deleteChecklist(){
+  const count=(draftLead.checklist||[]).length;
   draftLead.checklist=[];
+  if(count>0)draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Checkliste komplett gelöscht (${count} Punkte)`,date:nowISO()});
   autoPersistIfEditing();
   renderLeadModal();
 }
@@ -4969,17 +5064,23 @@ function addChecklistItem(){
   const text=inp.value.trim();
   if(!text)return;
   draftLead.checklist.push({id:Date.now(),text,done:false});
+  draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Checklisten-Punkt hinzugefügt: ${text}`,date:nowISO()});
   autoPersistIfEditing();
   renderLeadModal();
 }
 function toggleCheckItem(id){
   const item=draftLead.checklist.find(c=>c.id===id);
-  if(item)item.done=!item.done;
+  if(item){
+    item.done=!item.done;
+    draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Checklisten-Punkt ${item.done?'erledigt':'wieder geöffnet'}: ${item.text}`,date:nowISO()});
+  }
   autoPersistIfEditing();
   renderLeadModal();
 }
 function deleteCheckItem(id){
+  const item=draftLead.checklist.find(c=>c.id===id);
   draftLead.checklist=draftLead.checklist.filter(c=>c.id!==id);
+  if(item)draftLead.activity.unshift({id:Date.now()+Math.random(),type:'activity',author:currentUser,text:`Checklisten-Punkt entfernt: ${item.text}`,date:nowISO()});
   autoPersistIfEditing();
   renderLeadModal();
 }
@@ -5111,6 +5212,15 @@ function logFieldChanges(original,draft){
   }
   if(JSON.stringify(original.actualPrinters||[])!==JSON.stringify(draft.actualPrinters||[])){
     entries.push('Tatsächlicher Bedarf aktualisiert');
+  }
+  if(JSON.stringify(original.tasks||[])!==JSON.stringify(draft.tasks||[])){
+    const oldCount=(original.tasks||[]).length,newCount=(draft.tasks||[]).length;
+    if(newCount>oldCount)entries.push(`Aufgabe hinzugefügt (jetzt ${newCount})`);
+    else if(newCount<oldCount)entries.push(`Aufgabe entfernt (jetzt ${newCount})`);
+    else entries.push('Aufgaben aktualisiert');
+  }
+  if(JSON.stringify(original.checklist||[])!==JSON.stringify(draft.checklist||[])){
+    entries.push('Checkliste aktualisiert');
   }
   return entries;
 }
@@ -5328,13 +5438,12 @@ function exportFullBackup(isAutomatic){
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-// Fuehrt den automatischen lokalen Backup-Download aus, falls das Intervall abgelaufen ist -
-// aber NUR wenn die aktuell angemeldete Person in der Mitarbeiter-Uebersicht dafuer markiert
-// wurde (a.localBackupResponsible). Sonst wuerde JEDES Teammitglied, das den Tab offen hat,
-// die Datei parallel herunterladen, statt nur die dafuer zustaendige(n) Person(en).
 function maybeRunClientAutoBackup(){
   const intervalMinutes=PROJECT.autoBackupIntervalMinutes;
   if(!intervalMinutes||intervalMinutes<=0)return;
+  // NEU: laeuft nur noch bei Mitarbeitern, die in der Mitarbeiter-Uebersicht dafuer
+  // markiert wurden (a.localBackupResponsible). Sonst wuerde JEDES Teammitglied mit
+  // offenem Tab die Datei parallel herunterladen, statt nur die zustaendige(n) Person(en).
   const me=currentAgent();
   if(!me||!me.localBackupResponsible)return;
   const last=PROJECT.lastAutoBackupAt?new Date(PROJECT.lastAutoBackupAt):null;
@@ -5343,6 +5452,84 @@ function maybeRunClientAutoBackup(){
   exportFullBackup(true);
   PROJECT.lastAutoBackupAt=now.toISOString();
   saveState();
+}
+// ===== Aenderungsprotokoll (Einstellungen) =====
+let deployLogEntries=null;
+let deployLogLoading=false;
+async function loadDeployLog(){
+  if(deployLogLoading)return;
+  deployLogLoading=true;
+  try{
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/deploy_log?select=*&order=deployed_at.desc&limit=30`,{headers:getSbHeaders()});
+    if(res.ok){
+      deployLogEntries=await res.json();
+      if(currentView==='settings')renderSettings();
+    }
+  }catch(e){
+    console.warn('Aenderungsprotokoll konnte nicht geladen werden:',e);
+  }finally{
+    deployLogLoading=false;
+  }
+}
+function deployLogHtml(){
+  if(deployLogEntries===null){
+    loadDeployLog();
+    return `<div class="activity-item" style="padding-left:0">Lade Protokoll…</div>`;
+  }
+  if(!deployLogEntries.length){
+    return `<div class="activity-item" style="padding-left:0">Noch keine Einträge vorhanden.</div>`;
+  }
+  const rows=deployLogEntries.map(e=>{
+    const match=e.counts_match;
+    const badge=match
+      ?`<span style="color:var(--green,#1a7f37);font-weight:600">✓ stimmt überein</span>`
+      :`<span style="color:var(--red);font-weight:600">✗ Abweichung!</span>`;
+    const snapshotBtn=e.snapshot_id
+      ?`<button class="btn btn-sm" onclick="downloadPredeploySnapshot('${esc(e.snapshot_id)}')" title="Vollständigen Datenstand von direkt vor dieser Änderung herunterladen"><i class="ti ti-download"></i> Stand davor</button>`
+      :`<span style="color:var(--text3);font-size:11px">–</span>`;
+    return `<tr style="border-bottom:1px solid var(--border,#f0f0f0)">
+      <td style="white-space:nowrap;padding:8px 10px">${fmtDateTime(e.deployed_at)}</td>
+      <td style="padding:8px 10px">${esc(e.description)}</td>
+      <td style="white-space:nowrap;text-align:center;padding:8px 10px">${e.leads_count_before} → ${e.leads_count_after}</td>
+      <td style="white-space:nowrap;text-align:center;padding:8px 10px">${e.activities_count_before} → ${e.activities_count_after}</td>
+      <td style="white-space:nowrap;padding:8px 10px">${badge}</td>
+      <td style="white-space:nowrap;padding:8px 10px">${snapshotBtn}</td>
+    </tr>`;
+  }).join('');
+  return `<div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border,#e5e7eb);text-align:left">
+          <th style="padding:8px 10px">Zeitpunkt</th>
+          <th style="padding:8px 10px">Beschreibung</th>
+          <th style="padding:8px 10px;text-align:center">Leads (vorher→nachher)</th>
+          <th style="padding:8px 10px;text-align:center">Aktivitäten (vorher→nachher)</th>
+          <th style="padding:8px 10px">Status</th>
+          <th style="padding:8px 10px">Datensicherung</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+async function downloadPredeploySnapshot(snapshotId){
+  try{
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.${encodeURIComponent(snapshotId)}&select=data`,{headers:getSbHeaders()});
+    if(!res.ok){alert('Datenschnappschuss konnte nicht geladen werden.');return;}
+    const rows=await res.json();
+    if(!rows.length){alert('Kein Datenschnappschuss mit dieser Kennung gefunden.');return;}
+    const blob=new Blob([JSON.stringify(rows[0].data,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=`${snapshotId}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }catch(e){
+    alert('Fehler beim Herunterladen: '+e.message);
+  }
 }
 // ── CSV-FELDKONFIGURATION (Einstellungen → Import/Export) ──
 // Baut je Drucker eine Detailzeile mit jeder einzelnen SKU inkl. Menge, EK, VK und Margen-Zeilensumme
@@ -5355,6 +5542,9 @@ function formatPrinterDetails(printers){
     return `${p.model||'(ohne Modell)'}: ${skuParts||'keine SKUs'}`;
   }).join(' | ');
 }
+// Register aller verfuegbaren Lead-Datenfelder. "importable:true" = kann per CSV befuellt werden
+// (einfache, direkt setzbare Werte). Berechnete/aggregierte Felder sind nur exportierbar.
+// aliases = zusaetzliche, alte Spaltennamen die beim Import weiterhin erkannt werden (Abwaertskompatibilitaet).
 // Formatiert einen numerischen Wert fuer den CSV-Export im deutschen Zahlenformat
 // (Komma als Dezimaltrennzeichen, Punkt als Tausendertrennzeichen). Ohne diese Formatierung
 // schreibt JS Dezimalzahlen mit Punkt (z.B. "4.95") - deutsches Excel interpretiert den Punkt
@@ -5366,9 +5556,6 @@ function csvEur(v){
   if(isNaN(n))return '';
   return n.toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:2});
 }
-// Register aller verfuegbaren Lead-Datenfelder. "importable:true" = kann per CSV befuellt werden
-// (einfache, direkt setzbare Werte). Berechnete/aggregierte Felder sind nur exportierbar.
-// aliases = zusaetzliche, alte Spaltennamen die beim Import weiterhin erkannt werden (Abwaertskompatibilitaet).
 const FIELD_REGISTRY={
   company:{label:'Firmenname',group:'Kundeninformationen',importable:true,aliases:['firmenname','firma','company','unternehmen','name','kundenname'],example:'Musterfirma GmbH',get:l=>l.company,set:(l,v)=>l.company=v},
   customerNumber:{label:'Kundennummer',group:'Kundeninformationen',importable:true,aliases:['kundennummer','kd-nr','kdnr','kundennr','customer number'],example:'10099',get:l=>l.customerNumber,set:(l,v)=>{if(isValidCustomerNumber(v))l.customerNumber=v.trim();}},
@@ -5891,6 +6078,9 @@ let newVersionDetected=false;
 // ein Banner bemerkt und manuell klickt. Waehrend des Countdowns ist das Hochladen (siehe
 // syncMerge) bereits vorsorglich gesperrt, damit in der kurzen Restzeit nichts mehr mit
 // potenziell veraltetem Code gespeichert wird.
+// Duenner Wrapper um location.reload() - rein zur besseren Testbarkeit, aendert am
+// eigentlichen Verhalten nichts.
+function performReload(){ location.reload(); }
 async function checkForNewVersion(){
   if(newVersionDetected)return; // Reload ist schon angestossen, nicht erneut pruefen noetig
   try{
@@ -5903,13 +6093,23 @@ async function checkForNewVersion(){
       const banner=document.getElementById('newVersionBanner');
       if(banner)banner.classList.remove('hidden');
       let secondsLeft=10;
+      let pendingWaitSeconds=0;
+      const MAX_PENDING_WAIT=60;
       const countdownEl=document.getElementById('reloadCountdown');
       const timer=setInterval(()=>{
+        // WICHTIG: Bevor tatsaechlich neu geladen wird, wird geprueft, ob gerade eine
+        // Aenderung noch auf den Upload wartet. Solange das der Fall ist, wird der
+        // Countdown angehalten statt stur runterzuzaehlen.
+        if(hasPendingPush()&&pendingWaitSeconds<MAX_PENDING_WAIT){
+          pendingWaitSeconds++;
+          if(countdownEl)countdownEl.textContent='wartet auf Speichern…';
+          return;
+        }
         secondsLeft--;
         if(countdownEl)countdownEl.textContent=secondsLeft;
         if(secondsLeft<=0){
           clearInterval(timer);
-          location.reload();
+          performReload();
         }
       },1000);
     }
