@@ -1827,6 +1827,7 @@ function normalizeAgents(arr){
     if(a.quota===undefined)a.quota=0;
     if(a.email===undefined)a.email='';
     if(a.active===undefined)a.active=true;
+    if(a.localBackupResponsible===undefined)a.localBackupResponsible=false;
   });
 }
 normalizeAgents();
@@ -3040,6 +3041,9 @@ function renderSettings(){
       <td>${leadCount}</td>
       <td>${fmtEur(a.quota||0)}</td>
       <td>${inactive?'<span class="status-badge status-inactive">Inaktiv</span>':'<span class="status-badge status-active">Aktiv</span>'}</td>
+      <td style="text-align:center">
+        <input type="checkbox" ${a.localBackupResponsible?'checked':''} onchange="setAgentLocalBackup('${a.id}',this.checked)" title="Bei dieser Person laeuft die automatische lokale Sicherung (Backup-Download), wenn sie im Board eingeloggt ist">
+      </td>
       <td>
         <div class="agent-table-actions">
           <button class="icon-btn" onclick="openAgentModal('${a.id}')" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
@@ -3170,10 +3174,11 @@ function renderSettings(){
       </div>
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Mitarbeiter-Übersicht</div>
+        <p style="font-size:11px;color:var(--text3);margin:-4px 0 8px">Häkchen bei "Lokale Sicherung" = bei dieser Person läuft der automatische Backup-Download (siehe Einstellungen → System). Nur die hier markierten Personen laden die Datei herunter, nicht das ganze Team.</p>
         <div style="overflow-x:auto">
           <table class="agent-table">
             <thead><tr>
-              <th>Name</th><th>Rolle</th><th>Leads</th><th>Ziel/Monat</th><th>Status</th><th></th>
+              <th>Name</th><th>Rolle</th><th>Leads</th><th>Ziel/Monat</th><th>Status</th><th>Lokale Sicherung</th><th></th>
             </tr></thead>
             <tbody>${agentRowsHtml}</tbody>
           </table>
@@ -3240,6 +3245,19 @@ function renderSettings(){
         <button class="btn btn-sm" style="margin-top:8px;margin-left:8px" onclick="runDataIntegrityCheck()"><i class="ti ti-stethoscope"></i> Datenintegrität jetzt prüfen</button>
         <button class="btn btn-sm" style="margin-top:8px;margin-left:8px" onclick="listAvailableBackups()"><i class="ti ti-history"></i> Backups anzeigen / wiederherstellen</button>
         <button class="btn btn-sm" style="margin-top:8px;margin-left:8px" onclick="migrateLegacyAttachmentsToStorage()"><i class="ti ti-file-upload"></i> Alte Anhänge in den Dateispeicher übertragen</button>
+      </div>
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0">Automatische lokale Sicherung</div>
+        <div class="field"><label>Backup-Datei automatisch herunterladen alle (Minuten)</label>
+          <select onchange="setProjectField('autoBackupIntervalMinutes',parseInt(this.value)||0)" style="width:100%;max-width:250px">
+            <option value="0" ${!PROJECT.autoBackupIntervalMinutes?'selected':''}>Aus</option>
+            <option value="15" ${PROJECT.autoBackupIntervalMinutes===15?'selected':''}>Alle 15 Minuten</option>
+            <option value="30" ${PROJECT.autoBackupIntervalMinutes===30?'selected':''}>Alle 30 Minuten</option>
+            <option value="60" ${PROJECT.autoBackupIntervalMinutes===60?'selected':''}>Jede Stunde</option>
+            <option value="120" ${PROJECT.autoBackupIntervalMinutes===120?'selected':''}>Alle 2 Stunden</option>
+          </select>
+        </div>
+        <p style="font-size:11px;color:var(--text3);margin-top:6px">Lädt zusätzlich zur stündlichen Cloud-Sicherung eine Backup-Datei direkt auf den Rechner herunter, solange der Tab geöffnet ist – als zusätzliche, lokale Kopie. Der Speicherort selbst wird vom Browser bestimmt (i.d.R. der Downloads-Ordner) und lässt sich hier aus Sicherheitsgründen nicht einstellen. <strong>Läuft nur bei den Mitarbeitern, die in der Mitarbeiter-Übersicht (Team-Tab) unter "Lokale Sicherung" markiert sind</strong> – nicht automatisch beim ganzen Team.</p>
       </div>
       <div class="info-section" style="border-color:var(--red)">
         <div class="section-hdr" style="margin-top:0;color:var(--red)"><i class="ti ti-alert-triangle"></i> Gefahrenzone</div>
@@ -3389,6 +3407,11 @@ function setAgentEmail(id,email){
   const a=agentById(id);
   if(a)a.email=email.trim();
   saveState();
+}
+function setAgentLocalBackup(id,val){
+  const a=agentById(id);
+  if(a)a.localBackupResponsible=!!val;
+  saveState();renderSettings();
 }
 // ── Admin-Nutzerverwaltung ueber die Edge Function (sicheres Passwort-Setzen/Anlegen) ──
 const ADMIN_USERS_FUNCTION_URL=`${SUPABASE_URL}/functions/v1/admin-manage-users`;
@@ -5288,7 +5311,7 @@ function deleteAllLeads(){
   renderSettings();
   alert('Alle Leads wurden gelöscht. Ein Backup der vorherigen Daten wurde als JSON-Datei heruntergeladen.');
 }
-function exportFullBackup(){
+function exportFullBackup(isAutomatic){
   const backup={
     exportedAt:nowISO(),
     leads,COLUMNS,LABELS,AGENTS,ARTICLES,PROJECT,
@@ -5298,11 +5321,28 @@ function exportFullBackup(){
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;
-  a.download=`salesos_backup_${TODAY}.json`;
+  const timeSuffix=isAutomatic?'_'+new Date().toTimeString().slice(0,5).replace(':','-'):'';
+  a.download=`salesos_backup_${TODAY}${timeSuffix}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+// Fuehrt den automatischen lokalen Backup-Download aus, falls das Intervall abgelaufen ist -
+// aber NUR wenn die aktuell angemeldete Person in der Mitarbeiter-Uebersicht dafuer markiert
+// wurde (a.localBackupResponsible). Sonst wuerde JEDES Teammitglied, das den Tab offen hat,
+// die Datei parallel herunterladen, statt nur die dafuer zustaendige(n) Person(en).
+function maybeRunClientAutoBackup(){
+  const intervalMinutes=PROJECT.autoBackupIntervalMinutes;
+  if(!intervalMinutes||intervalMinutes<=0)return;
+  const me=currentAgent();
+  if(!me||!me.localBackupResponsible)return;
+  const last=PROJECT.lastAutoBackupAt?new Date(PROJECT.lastAutoBackupAt):null;
+  const now=new Date();
+  if(last&&(now-last)<intervalMinutes*60*1000)return;
+  exportFullBackup(true);
+  PROJECT.lastAutoBackupAt=now.toISOString();
+  saveState();
 }
 // ── CSV-FELDKONFIGURATION (Einstellungen → Import/Export) ──
 // Baut je Drucker eine Detailzeile mit jeder einzelnen SKU inkl. Menge, EK, VK und Margen-Zeilensumme
@@ -5900,6 +5940,7 @@ async function bootstrapApp(){
   await sbInitialSync();
   setTimeout(()=>{sbPoll();setInterval(sbPoll,5000);},Math.random()*5000);
   setInterval(checkForNewVersion,60000);
+  setInterval(maybeRunClientAutoBackup,60000);
   // Ein Tab, der lange im Hintergrund lag (z.B. eine Nacht offen), soll beim Zurueckkehren
   // sofort geprueft werden - genau die Situation, in der veralteter Code am ehesten
   // unbemerkt weiterlaeuft und Daten anderer, aktuellerer Sitzungen ueberschreiben koennte.
