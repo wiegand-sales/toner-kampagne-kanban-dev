@@ -5421,6 +5421,19 @@ function getCsvFields(){
       cleaned.push({key,csvName:`${r.group} – ${r.label}`,importActive:!!r.importable,exportActive:true,overwriteActive:false});
     });
   }
+  // Selbstheilung: sortiert die Liste stabil nach der Gruppen-/Deklarationsreihenfolge
+  // (FIELD_ORDER). Das verhindert, dass neu ergaenzte Felder (siehe oben) als verwaiste
+  // Gruppe ganz unten landen statt bei den uebrigen Feldern ihrer Gruppe, und repariert
+  // gleichzeitig bereits bestehende, falsch einsortierte Eintraege aus aelteren Speicherstaenden.
+  // Unbekannte Keys (z.B. entfernte Legacy-Felder) bleiben ans Ende sortiert; die Reihenfolge
+  // gleicher Keys (z.B. per addCsvField manuell doppelt hinzugefuegte Felder) bleibt erhalten.
+  const keyOrderBefore=cleaned.map(f=>f.key).join('|');
+  cleaned=cleaned.map((f,i)=>({f,i})).sort((a,b)=>{
+    const ia=FIELD_ORDER.indexOf(a.f.key),ib=FIELD_ORDER.indexOf(b.f.key);
+    const oa=ia===-1?Infinity:ia,ob=ib===-1?Infinity:ib;
+    return oa!==ob?oa-ob:a.i-b.i;
+  }).map(x=>x.f);
+  if(cleaned.map(f=>f.key).join('|')!==keyOrderBefore)changed=true;
   if(changed){
     PROJECT.csvFields=cleaned;
     saveState();
