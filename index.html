@@ -692,14 +692,14 @@ let currentView='board';
 
 // ── ARTIKEL-STAMMDATEN (CR RMA) ──
 let ARTICLES=[
-  {id:1,sku:'TN-1001-BK',title:'HP LaserJet Toner Schwarz',ek:12.50,vk:29.90,crRma:2.1,crRga:0.8},
-  {id:2,sku:'TN-1002-BK',title:'Brother Toner Schwarz',ek:9.80,vk:24.90,crRma:3.4,crRga:1.2},
-  {id:3,sku:'TN-1003-BK',title:'Canon Toner Schwarz',ek:14.20,vk:32.90,crRma:1.5,crRga:0.5},
-  {id:4,sku:'TN-1005-CMYK',title:'Xerox Toner Farbset (CMYK)',ek:38.00,vk:79.90,crRma:4.9,crRga:2.0},
-  {id:5,sku:'TN-1006-BK',title:'HP Enterprise Toner Schwarz',ek:22.00,vk:49.90,crRma:1.2,crRga:0.4},
-  {id:6,sku:'TN-1007-CMYK',title:'Epson Tinte Farbset (CMYK)',ek:16.50,vk:34.90,crRma:6.7,crRga:3.1},
-  {id:7,sku:'TN-1008-CMYK',title:'Konica Minolta Toner Farbset',ek:45.00,vk:94.90,crRma:2.8,crRga:1.0},
-  {id:8,sku:'TN-1011-CMYK',title:'HP Color Toner Farbset',ek:19.90,vk:42.90,crRma:3.9,crRga:1.6},
+  {id:1,sku:'TN-1001-BK',title:'HP LaserJet Toner Schwarz',ek:12.50,vk:29.90,crRma:2.1,verkaufteStk:0},
+  {id:2,sku:'TN-1002-BK',title:'Brother Toner Schwarz',ek:9.80,vk:24.90,crRma:3.4,verkaufteStk:0},
+  {id:3,sku:'TN-1003-BK',title:'Canon Toner Schwarz',ek:14.20,vk:32.90,crRma:1.5,verkaufteStk:0},
+  {id:4,sku:'TN-1005-CMYK',title:'Xerox Toner Farbset (CMYK)',ek:38.00,vk:79.90,crRma:4.9,verkaufteStk:0},
+  {id:5,sku:'TN-1006-BK',title:'HP Enterprise Toner Schwarz',ek:22.00,vk:49.90,crRma:1.2,verkaufteStk:0},
+  {id:6,sku:'TN-1007-CMYK',title:'Epson Tinte Farbset (CMYK)',ek:16.50,vk:34.90,crRma:6.7,verkaufteStk:0},
+  {id:7,sku:'TN-1008-CMYK',title:'Konica Minolta Toner Farbset',ek:45.00,vk:94.90,crRma:2.8,verkaufteStk:0},
+  {id:8,sku:'TN-1011-CMYK',title:'HP Color Toner Farbset',ek:19.90,vk:42.90,crRma:3.9,verkaufteStk:0},
 ];
 
 // ── PROJEKT-RAHMEN: Zeitrahmen, Budget, Meilensteine, Risiken ──
@@ -2960,11 +2960,19 @@ function deleteArticle(id){
   renderCrRma();
 }
 function addArticle(){
-  ARTICLES.push({id:genId(),sku:'',title:'',ek:'',vk:'',crRma:'',crRga:''});
+  ARTICLES.push({id:genId(),sku:'',title:'',ek:'',vk:'',crRma:'',verkaufteStk:''});
   saveState();
   renderCrRma();
   const rows=document.querySelectorAll('.crrma-row input');
   if(rows.length)rows[rows.length-6].focus();
+}
+function deleteAllArticles(){
+  if(ARTICLES.length===0){alert('Es sind keine Artikel vorhanden.');return;}
+  if(!confirm(`Wirklich ALLE ${ARTICLES.length} Artikel unwiderruflich löschen? Das kann nicht rückgängig gemacht werden.`))return;
+  if(!confirm('Bist du dir sicher? Dies löscht die komplette CR-RMA-Artikelliste.'))return;
+  ARTICLES=[];
+  saveState();
+  renderCrRma();
 }
 function crRmaCellClass(v){
   if(v===''||v===null||v===undefined||isNaN(v))return'';
@@ -2984,7 +2992,7 @@ function renderCrRma(){
   filtered=[...filtered].sort((a,b)=>{
     let va,vb;
     if(crrmaSortKey==='margin'){va=(parseFloat(a.vk)||0)-(parseFloat(a.ek)||0);vb=(parseFloat(b.vk)||0)-(parseFloat(b.ek)||0);}
-    else if(['ek','vk','crRma','crRga'].includes(crrmaSortKey)){va=parseFloat(a[crrmaSortKey])||0;vb=parseFloat(b[crrmaSortKey])||0;}
+    else if(['ek','vk','crRma','verkaufteStk'].includes(crrmaSortKey)){va=parseFloat(a[crrmaSortKey])||0;vb=parseFloat(b[crrmaSortKey])||0;}
     else{va=(a[crrmaSortKey]||'').toLowerCase();vb=(b[crrmaSortKey]||'').toLowerCase();}
     if(va<vb)return -1*crrmaSortDir;
     if(va>vb)return 1*crrmaSortDir;
@@ -3001,8 +3009,8 @@ function renderCrRma(){
       <input type="number" step="0.01" value="${fmt2(a.ek)}" placeholder="0.00" onchange="updateArticleField(${a.id},'ek',this.value);saveState();renderCrRma()">
       <input type="number" step="0.01" value="${fmt2(a.vk)}" placeholder="0.00" onchange="updateArticleField(${a.id},'vk',this.value);saveState();renderCrRma()">
       <input type="number" step="0.01" class="crrma-margin-input" style="color:${margin>=0?'var(--green-dark)':'var(--red)'}" value="${margin.toFixed(2)}" title="Marge ändern → VK wird automatisch neu berechnet (EK bleibt fix)" onchange="updateArticleMargin(${a.id},this.value)">
+      <input type="number" step="1" min="0" value="${a.verkaufteStk===''||a.verkaufteStk===null||a.verkaufteStk===undefined?'':a.verkaufteStk}" placeholder="0" oninput="updateArticleField(${a.id},'verkaufteStk',this.value);saveState()">
       <input type="number" step="0.01" class="${crRmaCellClass(a.crRma)}" value="${fmt2(a.crRma)}" placeholder="0.00" oninput="updateArticleField(${a.id},'crRma',this.value);saveState();this.className=crRmaCellClass(parseFloat(this.value))">
-      <input type="number" step="0.01" class="${crRmaCellClass(a.crRga)}" value="${fmt2(a.crRga)}" placeholder="0.00" oninput="updateArticleField(${a.id},'crRga',this.value);saveState();this.className=crRmaCellClass(parseFloat(this.value))">
       <button class="check-item-del" onclick="deleteArticle(${a.id})" title="Löschen"><i class="ti ti-trash"></i></button>
     </div>`;
   }).join('');
@@ -3021,13 +3029,16 @@ function renderCrRma(){
           <div class="crrma-sortable" onclick="setCrrmaSort('ek')">EK (€)${sortArrow('ek')}</div>
           <div class="crrma-sortable" onclick="setCrrmaSort('vk')">VK (€)${sortArrow('vk')}</div>
           <div class="crrma-sortable" onclick="setCrrmaSort('margin')">Marge${sortArrow('margin')}</div>
+          <div class="crrma-sortable" onclick="setCrrmaSort('verkaufteStk')">Verkaufte Stk.${sortArrow('verkaufteStk')}</div>
           <div class="crrma-sortable" onclick="setCrrmaSort('crRma')">CR RMA (%)${sortArrow('crRma')}</div>
-          <div class="crrma-sortable" onclick="setCrrmaSort('crRga')">CR RGA (%)${sortArrow('crRga')}</div>
           <div></div>
         </div>
         ${rowsHtml||'<p style="font-size:12px;color:var(--text3);padding:10px 0">Keine Artikel gefunden.</p>'}
       </div>
-      <button class="pill-btn" style="margin-top:10px" onclick="addArticle()"><i class="ti ti-plus"></i> Artikel hinzufügen</button>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="pill-btn" onclick="addArticle()"><i class="ti ti-plus"></i> Artikel hinzufügen</button>
+        <button class="pill-btn" style="color:var(--red);border-color:var(--red)" onclick="deleteAllArticles()"><i class="ti ti-trash"></i> Alle löschen</button>
+      </div>
     </div>`;
 }
 
@@ -6147,14 +6158,14 @@ const ARTICLE_CSV_FIELD_ALIASES={
   ek:['ek','ek (eur)','einkaufspreis','einkauf'],
   vk:['vk','vk (eur)','verkaufspreis','verkauf'],
   crRma:['cr rma','cr rma (%)','cr-rma','rma','rma-quote'],
-  crRga:['cr rga','cr rga (%)','cr-rga','rga','rga-quote'],
+  verkaufteStk:['verkaufte stk.','verkaufte stk','verkaufte stück','verkaufte stueck','stk.','stk','stückzahl','anzahl verkauft','verkaufsmenge'],
 };
 function triggerArticleCSVImport(){
   document.getElementById('articleCsvImportInput').click();
 }
 function exportArticleCSV(){
-  const headers=['SKU','Titel','EK (EUR)','VK (EUR)','CR RMA (%)','CR RGA (%)'];
-  const rows=ARTICLES.map(a=>[a.sku,a.title,a.ek,a.vk,a.crRma,a.crRga]);
+  const headers=['SKU','Titel','EK (EUR)','VK (EUR)','Verkaufte Stk.','CR RMA (%)'];
+  const rows=ARTICLES.map(a=>[a.sku,a.title,a.ek,a.vk,a.verkaufteStk,a.crRma]);
   const csvEscape=v=>{
     v=(v===undefined||v===null)?'':String(v);
     return /[;,"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;
@@ -6210,7 +6221,7 @@ function importArticleCSVFile(file){
           ek:parseFloat(get('ek'))||0,
           vk:parseFloat(get('vk'))||0,
           crRma:parseFloat(get('crRma'))||0,
-          crRga:parseFloat(get('crRga'))||0,
+          verkaufteStk:parseFloat(get('verkaufteStk'))||0,
         });
         added++;
       });
