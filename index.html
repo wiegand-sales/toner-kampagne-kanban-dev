@@ -920,7 +920,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T19:30:35.000Z';
+const BUILD_VERSION='2026-07-22T19:33:35.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -7361,8 +7361,28 @@ function wizardAssignedTasks(){
   items.sort((a,b)=>(a.task.dueDate||'9999').localeCompare(b.task.dueDate||'9999'));
   return items.slice(0,5);
 }
+function wizardRecentWins(){
+  const cutoff=new Date(TODAY);cutoff.setDate(cutoff.getDate()-7);
+  return wizardLeadScope().filter(l=>isWon(l)&&l.closedAt&&new Date(l.closedAt)>=cutoff)
+    .sort((a,b)=>new Date(b.closedAt)-new Date(a.closedAt)).slice(0,5);
+}
+function wizardOpenForecastSum(){
+  return wizardLeadScope().filter(l=>!isClosedLead(l)).reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
+}
+// Ermittelt den Lead, der gerade am meisten Aufmerksamkeit verdient: zuerst der am
+// laengsten ueberfaellige Follow-up, sonst (falls keiner ueberfaellig ist) der offene
+// Lead mit dem hoechsten Forecast-Wert.
+function wizardTopPriorityLead(){
+  const scope=wizardLeadScope().filter(l=>!isClosedLead(l));
+  if(!scope.length)return null;
+  const overdue=scope.filter(l=>l.followup&&daysUntil(l.followup)<0).sort((a,b)=>daysUntil(a.followup)-daysUntil(b.followup));
+  if(overdue.length)return{lead:overdue[0],reason:'overdue'};
+  const byForecast=[...scope].sort((a,b)=>(parseFloat(b.forecast)||0)-(parseFloat(a.forecast)||0));
+  if(byForecast.length&&parseFloat(byForecast[0].forecast)>0)return{lead:byForecast[0],reason:'forecast'};
+  return null;
+}
 let wizardPage=0;
-const WIZARD_PAGE_COUNT=4;
+const WIZARD_PAGE_COUNT=7;
 function openLoginWizard(){
   const me=agentById(currentUser);
   if(!me||me.role!=='am')return; // Wizard ist nur fuer Account Manager gedacht, Admins ueberspringen ihn
@@ -7409,6 +7429,25 @@ function renderWizardPage(){
     body.innerHTML=`
       <div class="wizard-title" style="margin-bottom:10px">Dir zugewiesene Aufgaben</div>
       ${items.length?items.map(x=>`<div class="wizard-taskrow"><i class="ti ti-checkbox"></i><div style="flex:1;min-width:0;text-align:left"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.task.text)}</div><div style="font-size:10.5px;color:rgba(255,255,255,.6)">${esc(x.lead.company)}${x.task.dueDate?' · '+fmtDate(x.task.dueDate):''}</div></div></div>`).join(''):'<div class="wizard-sub">Aktuell sind dir keine offenen Aufgaben zugewiesen.</div>'}`;
+  }else if(wizardPage===3){
+    const wins=wizardRecentWins();
+    body.innerHTML=`
+      <div class="wizard-icon"><i class="ti ti-trophy"></i></div>
+      <div class="wizard-title" style="margin-bottom:${wins.length?'10px':'0'}">Kürzlich gewonnene Leads</div>
+      ${wins.length?wins.map(l=>`<div class="wizard-taskrow"><i class="ti ti-confetti"></i><div style="flex:1;min-width:0;text-align:left"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.company)}</div><div style="font-size:10.5px;color:rgba(255,255,255,.6)">${l.forecast?fmtEur(l.forecast)+' · ':''}${fmtDate(l.closedAt)}</div></div></div>`).join(''):'<div class="wizard-sub">Diese Woche noch kein Abschluss verbucht – die nächste Chance wartet schon.</div>'}`;
+  }else if(wizardPage===4){
+    const sum=wizardOpenForecastSum();
+    body.innerHTML=`
+      <div class="wizard-icon"><i class="ti ti-coin"></i></div>
+      <div class="wizard-stat">${fmtEur(sum)||'0 €'}</div>
+      <div class="wizard-title">Offener Forecast-Wert</div>
+      <div class="wizard-sub">So viel potenzieller Umsatz steckt gerade in deiner aktiven Pipeline.</div>`;
+  }else if(wizardPage===5){
+    const top=wizardTopPriorityLead();
+    body.innerHTML=`
+      <div class="wizard-icon"><i class="ti ti-flag-3"></i></div>
+      <div class="wizard-title" style="margin-bottom:${top?'6px':'0'}">Top-Priorität heute</div>
+      ${top?`<div class="wizard-taskrow" style="cursor:pointer" onclick="closeLoginWizard();openLeadModal(${top.lead.id})"><i class="ti ti-arrow-right"></i><div style="flex:1;min-width:0;text-align:left"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(top.lead.company)}</div><div style="font-size:10.5px;color:rgba(255,255,255,.6)">${top.reason==='overdue'?`Follow-up seit ${Math.abs(daysUntil(top.lead.followup))} Tag${Math.abs(daysUntil(top.lead.followup))===1?'':'en'} überfällig`:`Höchster offener Forecast: ${fmtEur(top.lead.forecast)}`}</div></div></div><div class="wizard-sub" style="margin-top:10px">Klicke darauf, um direkt hineinzuspringen.</div>`:'<div class="wizard-sub">Aktuell nichts Dringendes – ein guter Moment für neue Kontakte.</div>'}`;
   }else{
     const quote=pickNextMotivationQuote();
     body.innerHTML=`
