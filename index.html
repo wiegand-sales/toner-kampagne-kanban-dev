@@ -860,7 +860,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T12:50:28.000Z';
+const BUILD_VERSION='2026-07-22T12:54:37.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2774,7 +2774,7 @@ function renderDashboard(){
   const overdueMilestones=PROJECT.milestones.filter(m=>!m.done&&daysUntil(m.targetDate)<0);
   const doneMilestones=PROJECT.milestones.filter(m=>m.done).length;
   const milestoneProgress=PROJECT.milestones.length?Math.round(doneMilestones/PROJECT.milestones.length*100):null;
-  let projStatus={color:'var(--green)',bg:'var(--green-bg)',label:'Im Plan'};
+  let projStatus={color:'linear-gradient(160deg,#0c3b40 0%,#164e54 45%,#1d6169 100%)',bg:'var(--green-bg)',label:'Im Plan'};
   if(today>projEnd){projStatus={color:'var(--red)',bg:'var(--red-bg)',label:'Zeitrahmen überschritten'};}
   else if(overdueMilestones.length){projStatus={color:'var(--red)',bg:'var(--red-bg)',label:overdueMilestones.length+' Meilenstein(e) überfällig'};}
   else if(milestoneProgress!==null&&timeProgress>75&&milestoneProgress<60){projStatus={color:'var(--amber)',bg:'var(--amber-bg)',label:'Hinter Zeitplan'};}
