@@ -875,7 +875,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T13:34:47.000Z';
+const BUILD_VERSION='2026-07-22T13:37:55.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3059,16 +3059,8 @@ function renderDashboard(){
     const r=l.lossReason||'Kein Grund erfasst';
     reasonCounts[r]=(reasonCounts[r]||0)+1;
   });
-  const reasonEntries=Object.entries(reasonCounts).sort((a,b)=>b[1]-a[1]);
-  const reasonMax=Math.max(1,...reasonEntries.map(x=>x[1]));
-  const reasonHtml=reasonEntries.length?reasonEntries.map(([label,count])=>{
-    const pct=Math.max(8,Math.round(count/reasonMax*100));
-    const ofLostPct=lostLeads.length?Math.round(count/lostLeads.length*100):0;
-    return `<div class="funnel-row">
-      <div class="funnel-label">${label}</div>
-      <div class="funnel-track"><div class="funnel-bar" style="width:${pct}%;background:var(--amber)">${count} · ${ofLostPct}%</div></div>
-    </div>`;
-  }).join(''):'<p style="font-size:12px;color:var(--text3)">Noch keine verlorenen Leads.</p>';
+  const reasonEntries=Object.entries(reasonCounts).sort((a,b)=>b[1]-a[1]).map(([label,count])=>({label,count}));
+  const reasonHtml=donutChartHtml(reasonEntries,lostLeads.length,'verloren');
 
   const movements=getRecentMovements(dl,movementDays);
   const movementsRowsHtml=movements.rows.length?movements.rows.slice(0,8).map(r=>`
@@ -3107,6 +3099,16 @@ function renderDashboard(){
       </details>
     </div>
     <div class="dash-row-1-1">
+      <div class="info-section" style="border-color:${lostLeads.length?'var(--red)':'var(--border)'}">
+        <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-trending-down" style="color:var(--red)"></i> Wo wir Kunden verlieren</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(Phase vor "Verloren")</span></div>
+        <div class="funnel-wrap">${lossHtml}</div>
+      </div>
+      <div class="info-section" style="border-color:${lostLeads.length?'var(--amber)':'var(--border)'}">
+        <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-message-circle-question" style="color:var(--amber-dark)"></i> Warum wir Kunden verlieren</span></div>
+        <div class="funnel-wrap">${reasonHtml}</div>
+      </div>
+    </div>
+    <div class="dash-row-1-1">
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-coin" style="color:var(--purple)"></i> Finanzielle Auswirkung</span></div>
         <div class="impact-row"><span>Forecast gewonnen</span><strong style="color:var(--green-dark)">${fmtEur(forecastWon)||'0 €'}</strong></div>
@@ -3114,16 +3116,6 @@ function renderDashboard(){
         <div class="impact-row"><span>Investition in verlorene Leads</span><strong style="color:var(--amber-dark)">${fmtEur(investLost)||'0 €'}</strong></div>
         <div class="impact-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:12px"><span>Netto-Effekt (gewonnen − verlorene Investition)</span><strong style="color:${netEffect>=0?'var(--green-dark)':'var(--red)'}">${fmtEur(netEffect)||'0 €'}</strong></div>
         <p style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">Toner-Investition in Leads, die am Ende trotzdem abgesprungen sind, gegen den Forecast-Wert der gewonnenen Leads gerechnet.</p>
-      </div>
-      <div class="info-section" style="border-color:${lostLeads.length?'var(--red)':'var(--border)'}">
-        <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-trending-down" style="color:var(--red)"></i> Wo wir Kunden verlieren</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(Phase vor "Verloren")</span></div>
-        <div class="funnel-wrap">${lossHtml}</div>
-      </div>
-    </div>
-    <div class="dash-row-1-1">
-      <div class="info-section" style="border-color:${lostLeads.length?'var(--amber)':'var(--border)'}">
-        <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-message-circle-question" style="color:var(--amber-dark)"></i> Warum wir Kunden verlieren</span></div>
-        <div class="funnel-wrap">${reasonHtml}</div>
       </div>
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-building-store" style="color:var(--purple)"></i> B2B vs. B2C</span></div>
