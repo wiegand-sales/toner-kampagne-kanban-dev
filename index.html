@@ -60,7 +60,7 @@ body{font-family:'Inter',sans-serif;background:#f6f8f8;color:var(--text);font-si
 .page-hdr-title{font-size:18px;font-weight:700;}
 .page-hdr-sub{font-size:12px;color:var(--text2);margin-top:2px;}
 .dash-kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px;}
-.dash-kpi{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px 16px;position:relative;box-shadow:0 1px 2px rgba(15,61,66,.04),0 3px 10px rgba(15,61,66,.04);transition:box-shadow .18s,transform .18s;}
+.dash-kpi{background:var(--bg);border:none;border-radius:12px;padding:14px 16px;position:relative;box-shadow:0 1px 2px rgba(15,61,66,.04),0 3px 10px rgba(15,61,66,.04);transition:box-shadow .18s,transform .18s;}
 .dash-kpi:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(15,61,66,.09);}
 .dash-kpi-icon{position:absolute;top:12px;right:12px;font-size:16px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:var(--purple-bg);color:var(--purple-dark);opacity:1;}
 .dash-kpi-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;}
@@ -100,7 +100,7 @@ body{font-family:'Inter',sans-serif;background:#f6f8f8;color:var(--text);font-si
 .winrate-val{font-size:28px;font-weight:700;color:var(--green-dark);}
 .winrate-label{font-size:11px;color:var(--text2);margin-top:2px;line-height:1.5;}
 .impact-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;}
-.compare-strip{display:flex;justify-content:space-between;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:12px;}
+.compare-strip{display:flex;justify-content:space-between;background:var(--bg2);border:none;border-radius:8px;padding:10px 14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(15,61,66,.04),0 3px 10px rgba(15,61,66,.04);}
 .compare-item{display:flex;flex-direction:column;align-items:center;gap:2px;}
 .compare-col{display:flex;flex-direction:column;align-items:flex-start;gap:1px;}
 .compare-col-title{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px;}
@@ -379,7 +379,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .modal-overlay.hidden{display:none;}
 .hidden{display:none !important;}
 .login-screen{position:fixed;inset:0;background:var(--bg2);display:flex;align-items:center;justify-content:center;z-index:500;}
-.login-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg);padding:32px 30px;width:340px;box-shadow:0 8px 32px rgba(0,0,0,.08);display:flex;flex-direction:column;align-items:center;text-align:center;}
+.login-box{background:var(--bg);border:none;border-radius:var(--r-lg);padding:32px 30px;width:340px;box-shadow:0 8px 32px rgba(0,0,0,.08);display:flex;flex-direction:column;align-items:center;text-align:center;}
 .login-box .field{width:100%;text-align:left;}
 .login-title{font-size:17px;font-weight:700;color:var(--text);}
 .login-sub{font-size:12px;color:var(--text3);margin-top:2px;margin-bottom:4px;}
@@ -404,7 +404,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .field-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
 .field{margin-bottom:10px;}
 .section-block{margin-top:18px;}
-.info-section{border:1px solid var(--border2);border-radius:10px;padding:15px 16px;margin-bottom:14px;background:var(--bg);box-shadow:0 1px 2px rgba(0,0,0,.03);}
+.info-section{border:none;border-radius:10px;padding:15px 16px;margin-bottom:14px;background:var(--bg);box-shadow:0 1px 2px rgba(15,61,66,.04),0 3px 10px rgba(15,61,66,.04);}
 .info-section:last-child{margin-bottom:0;}
 .info-section .section-hdr{margin-top:0;}
 .info-section input[type=text],.info-section input[type=date],.info-section input[type=datetime-local],.info-section input[type=tel],.info-section input[type=email],.info-section input[type=number],.info-section select,.info-section textarea{background:var(--bg3);}
@@ -793,7 +793,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T10:23:45.000Z';
+const BUILD_VERSION='2026-07-22T10:28:50.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
