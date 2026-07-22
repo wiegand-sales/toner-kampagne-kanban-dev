@@ -626,6 +626,8 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
           <button class="omnibar-btn" onclick="triggerArticleCSVImport()" title="Artikel aus CSV-Datei importieren (Spalte 'SKU' erforderlich)"><i class="ti ti-upload"></i> Import CSV</button>
           <input type="file" id="articleCsvImportInput" accept=".csv,text/csv" style="display:none" onchange="if(this.files[0]){importArticleCSVFile(this.files[0]);this.value='';}">
           <button class="omnibar-btn" onclick="exportArticleCSV()"><i class="ti ti-download"></i> Export CSV</button>
+          <button class="omnibar-btn" style="color:var(--red);border-color:var(--red)" onclick="deleteAllArticles()"><i class="ti ti-trash"></i> Alle löschen</button>
+          <button class="omnibar-btn primary" onclick="addArticle()"><i class="ti ti-plus"></i> Artikel hinzufügen</button>
         </div>
       </div>
       <div class="view-scroll" id="crrmaContent"></div>
@@ -787,7 +789,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T09:20:58.000Z';
+const BUILD_VERSION='2026-07-22T09:24:31.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3151,10 +3153,6 @@ function renderCrRma(){
           <div></div>
         </div>
         ${rowsHtml||'<p style="font-size:12px;color:var(--text3);padding:10px 0">Keine Artikel gefunden.</p>'}
-      </div>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="pill-btn" onclick="addArticle()"><i class="ti ti-plus"></i> Artikel hinzufügen</button>
-        <button class="pill-btn" style="color:var(--red);border-color:var(--red)" onclick="deleteAllArticles()"><i class="ti ti-trash"></i> Alle löschen</button>
       </div>
     </div>`;
 }
