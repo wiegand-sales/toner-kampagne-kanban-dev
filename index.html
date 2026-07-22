@@ -875,7 +875,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T18:17:54.000Z';
+const BUILD_VERSION='2026-07-22T18:19:55.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2999,7 +2999,7 @@ function overdueTrendChartHtml(dl){
     const h=Math.max(4,(v/max)*90);
     return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">
       <div style="font-size:9px;font-weight:700;color:var(--text2);margin-bottom:2px">${v}</div>
-      <div style="width:100%;height:${h}px;background:var(--red);border-radius:3px 3px 0 0;"></div>
+      <div style="width:100%;height:${h}px;background:var(--purple);border-radius:3px 3px 0 0;"></div>
       <div style="font-size:8px;color:var(--text3);margin-top:3px;white-space:nowrap">${labels[i]}</div>
     </div>`;
   }).join('');
