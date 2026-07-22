@@ -424,6 +424,28 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 
 /* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(20,20,18,.42);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;animation:overlayIn .18s ease;}
+.wizard-overlay{position:fixed;inset:0;background:rgba(15,40,44,.4);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;animation:overlayIn .2s ease;}
+.wizard-card{width:420px;max-width:100%;min-height:460px;border-radius:20px;overflow:hidden;background:linear-gradient(160deg,#0c3b40 0%,#164e54 45%,#1d6169 100%);color:#fff;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.4);position:relative;}
+.wizard-skip{position:absolute;top:16px;right:18px;color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;background:none;border:none;font-family:inherit;z-index:2;}
+.wizard-skip:hover{color:#fff;}
+.wizard-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 34px 24px;gap:12px;}
+.wizard-icon{width:60px;height:60px;border-radius:16px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:4px;}
+.wizard-title{font-size:19px;font-weight:800;}
+.wizard-sub{font-size:13px;color:rgba(255,255,255,.7);max-width:290px;line-height:1.5;}
+.wizard-stat{font-size:42px;font-weight:800;line-height:1;}
+.wizard-stagerow{display:flex;gap:12px;margin-top:6px;}
+.wizard-stagebox{background:rgba(255,255,255,.12);border-radius:12px;padding:14px 14px;min-width:78px;}
+.wizard-stagebox strong{display:block;font-size:24px;font-weight:800;}
+.wizard-stagebox span{font-size:9.5px;color:rgba(255,255,255,.65);}
+.wizard-taskrow{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.1);border-radius:10px;padding:9px 12px;width:100%;font-size:12.5px;margin-bottom:7px;}
+.wizard-taskrow i{flex-shrink:0;color:rgba(255,255,255,.7);}
+.wizard-quote{font-size:18px;font-weight:700;line-height:1.55;font-style:italic;max-width:320px;}
+.wizard-footer{padding:18px 26px 22px;display:flex;align-items:center;justify-content:space-between;}
+.wizard-dots{display:flex;gap:6px;}
+.wizard-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.3);transition:all .2s;}
+.wizard-dot.active{background:#fff;width:18px;border-radius:4px;}
+.wizard-next-btn{background:#fff;color:var(--purple-dark);border:none;border-radius:8px;padding:9px 18px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;}
+.wizard-next-btn:hover{background:#f0f0f0;}
 @keyframes overlayIn{from{opacity:0}to{opacity:1}}
 @keyframes modalIn{from{opacity:0;transform:scale(.97) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
 @media (prefers-reduced-motion:reduce){.modal-overlay,.modal-lg,.card,.btn,.chip{animation:none!important;transition:none!important}}
@@ -801,6 +823,17 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
   <div class="modal-sm" id="agentModalInner"></div>
 </div>
 
+<div class="wizard-overlay hidden" id="loginWizardOverlay">
+  <div class="wizard-card">
+    <button class="wizard-skip" onclick="closeLoginWizard()">Überspringen</button>
+    <div class="wizard-body" id="wizardBody"></div>
+    <div class="wizard-footer">
+      <div class="wizard-dots" id="wizardDots"></div>
+      <button class="wizard-next-btn" id="wizardNextBtn" onclick="wizardNext()">Weiter <i class="ti ti-arrow-right"></i></button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── CONFIG ──
 let AGENTS=[
@@ -887,7 +920,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T19:12:59.000Z';
+const BUILD_VERSION='2026-07-22T19:24:46.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -7112,6 +7145,10 @@ async function bootstrapApp(){
   }catch(e){
     console.warn('Initialer Sync beim Start fehlgeschlagen (wird automatisch per Hintergrund-Abgleich erneut versucht):',e);
   }
+  if(pendingLoginWizard){
+    pendingLoginWizard=false;
+    openLoginWizard();
+  }
   setTimeout(()=>{sbPoll();setInterval(sbPoll,5000);},Math.random()*5000);
   setInterval(checkForNewVersion,60000);
   setInterval(maybeRunClientAutoBackup,60000);
@@ -7170,15 +7207,229 @@ async function bootstrapApp(){
     }
   });
 }
+// ── LOGIN-WIZARD: 100 eigene Motivationssprueche fuer Vertriebsmitarbeiter ──
+// Themen gemischt: Mindset, Umgang mit Ablehnung, Handeln statt Zoegern, Kundenfokus,
+// Disziplin/Gewohnheiten, Ausdauer, Wachstum, Selbstvertrauen.
+const MOTIVATION_QUOTES=[
+"Erfolg im Vertrieb beginnt mit dem naechsten Anruf, nicht mit dem perfekten Moment.",
+"Ein Nein ist keine Ablehnung deiner Person, sondern eine Information ueber diesen einen Moment.",
+"Die beste Zeit fuer den Follow-up war gestern. Die zweitbeste ist jetzt.",
+"Kunden kaufen keine Produkte, sie kaufen Vertrauen. Baue es zuerst auf.",
+"Wer zuerst zuhoert, verkauft am Ende leichter.",
+"Kleine, konstante Schritte schlagen grosse, einmalige Anstrengungen.",
+"Jeder Profi im Vertrieb hat mal beim ersten Anruf gezittert.",
+"Dein Umsatz von morgen entsteht aus der Aktivitaet von heute.",
+"Ablehnung sortiert nur aus, wer heute kein Kunde ist - nicht, wer du bist.",
+"Ein volles Terminbuch beginnt mit einem einzigen mutigen Anruf.",
+"Vertrieb ist kein Sprint, sondern ein Marathon mit vielen kurzen Etappen.",
+"Die Kunden, die am haertesten wirken, sind oft die treuesten, sobald sie ueberzeugt sind.",
+"Disziplin schlaegt Motivation an den Tagen, an denen keine Lust da ist.",
+"Wer fragt, fuehrt das Gespraech - wer erzaehlt, hofft nur.",
+"Dein naechster grosser Abschluss beginnt mit dem Mut, unbequem zu telefonieren.",
+"Gute Verkaeufer loesen Probleme. Grossartige Verkaeufer verhindern sie im Voraus.",
+"Ein Kalender voller Follow-ups ist ein Kalender voller Chancen.",
+"Verkaufen heisst nicht ueberreden, sondern die richtige Loesung sichtbar machen.",
+"Die Konkurrenz schlaeft nicht - aber du kannst schneller aufstehen.",
+"Wer aufgibt, kurz bevor der Erfolg kommt, hat am laengsten dafuer gearbeitet.",
+"Ein ehrliches 'Das passt gerade nicht' ist wertvoller als ein falsches Ja.",
+"Dein Mindset entscheidet, ob ein Montag eine Last oder eine Chance ist.",
+"Preise verteidigt man mit Wert, nicht mit Nachlass.",
+"Der Unterschied zwischen gut und grossartig ist oft nur ein weiterer Anruf am Nachmittag.",
+"Kunden merken, ob du an dein Produkt glaubst - glaub daran zuerst selbst.",
+"Fortschritt schlaegt Perfektion, besonders im ersten Kundengespraech.",
+"Wer sich vor dem 'Nein' fuerchtet, verliert schon vor dem ersten Wort.",
+"Die stillen Monate im Vertrieb sind die Monate, in denen die Saat fuer spaeter gelegt wird.",
+"Ein Lead, der heute liegen bleibt, ruft morgen bei jemand anderem an.",
+"Selbstvertrauen ist keine Stimmung, sondern eine Entscheidung vor dem Telefonhoerer.",
+"Die besten Abschluesse entstehen oft aus dem hartnaeckigsten dritten Anruf.",
+"Verkaufszahlen sind das Ergebnis, Aktivitaet ist die Ursache - kuemmere dich um die Ursache.",
+"Ein guter Verkaeufer verkauft ein Produkt. Ein grossartiger loest ein Problem.",
+"Wachstum passiert ausserhalb der Komfortzone - auch am Telefon.",
+"Wer den Kunden versteht, muss ihn kaum noch ueberzeugen.",
+"Jede Absage bringt dich statistisch naeher an das naechste Ja.",
+"Vertrauen wird in kleinen, gehaltenen Versprechen aufgebaut.",
+"Die Energie, mit der du in ein Gespraech gehst, hoert man durchs Telefon.",
+"Erfolgreiche Vertriebler planen ihren Tag - andere lassen ihn geschehen.",
+"Der Preis wird vergessen, das Gefuehl beim Kauf bleibt.",
+"Wer heute die unbequemen Anrufe macht, macht morgen die bequemen Abschluesse.",
+"Ein 'vielleicht' ist eine Einladung, es besser zu erklaeren - kein Nein.",
+"Konsequenz im Nachfassen unterscheidet Durchschnitt von Spitze.",
+"Kunden erinnern sich nicht an den Pitch, sondern an das Gefuehl danach.",
+"Jeder Experte war einmal ein Anfaenger mit zittriger Stimme am Telefon.",
+"Der erste Satz entscheidet, ob der Kunde weiterhoert oder abschaltet - wähle ihn bewusst.",
+"Beharrlichkeit ist der leise Vorteil, den niemand auf der Visitenkarte sieht.",
+"Ein Ziel ohne Termin ist nur ein Wunsch.",
+"Wer die Einwaende des Kunden kennt, bevor sie kommen, hat schon halb gewonnen.",
+"Motivation bringt dich in Schwung, Routine haelt dich am Laufen.",
+"Die Zahl der Kontakte heute entscheidet ueber die Zahl der Abschluesse in vier Wochen.",
+"Ein zufriedener Kunde ist die beste Referenz, die kein Geld kostet.",
+"Wer laecheln kann, waehrend er telefoniert, klingt auch so.",
+"Souveraenitaet kommt aus Vorbereitung, nicht aus Talent allein.",
+"Manchmal ist die groesste Leistung, es trotz schlechter Laune einfach zu tun.",
+"Ein Kunde kauft selten beim ersten Kontakt - aber fast nie ohne ihn.",
+"Verkaufst du eine Loesung oder nur ein Produkt? Der Kunde spuert den Unterschied.",
+"Die Angst vor dem Telefonhoerer ist immer groesser als das Gespraech selbst.",
+"Wer klare Fragen stellt, bekommt klare Antworten - und klare Abschluesse.",
+"Erfolgreiche Wochen bestehen aus durchschnittlichen Tagen, die konsequent durchgezogen wurden.",
+"Ein Follow-up-Termin, der eingehalten wird, sagt mehr als jedes Werbeversprechen.",
+"Der Kunde kauft am Ende von dem, dem er am meisten vertraut - nicht vom Billigsten.",
+"Zweifel verschwinden nicht durch Warten, sondern durch den naechsten Schritt.",
+"Die Basis jedes Verkaufs ist ein echtes Interesse am Gegenueber.",
+"Wer aufhoert zu lernen, hoert auf zu wachsen - auch im Vertrieb.",
+"Jeder Kalendereintrag 'Follow-up' ist ein kleines Versprechen an dich selbst.",
+"Ein ruhiger Kopf verkauft besser als ein hektischer.",
+"Die Wahrheit sagen kostet manchmal einen Abschluss, aber bringt zehn Weiterempfehlungen.",
+"Wer den Wert klar zeigt, muss ueber den Preis kaum noch verhandeln.",
+"Kleine Siege zaehlen: jeder erreichte Ansprechpartner ist ein Erfolg fuer sich.",
+"Die beste Verkaufstechnik ist noch immer, ehrlich zuzuhoeren.",
+"Wer sich auf den Kunden vorbereitet, zeigt Respekt, bevor ein Wort gefallen ist.",
+"Ein Tag ohne neuen Kontakt ist ein Tag, an dem die Pipeline schrumpft.",
+"Zufriedenheit im Job entsteht oft genau dort, wo es zuerst unbequem war.",
+"Beharrlichkeit gewinnt gegen Talent, wenn Talent nicht beharrlich ist.",
+"Der Unterschied zwischen Traum und Ziel ist ein Datum im Kalender.",
+"Wer den Kunden ernst nimmt, muss ihn nicht ueberreden.",
+"Manchmal ist 'noch nicht' das ehrlichste Ja, das man bekommen kann.",
+"Die Energie eines guten Montagmorgens traegt oft die ganze Woche.",
+"Ein Verkaufsgespraech gewinnt man selten am Anfang - aber oft verliert man es dort.",
+"Wer sich selbst motiviert, braucht keinen guten Tag, um gute Arbeit zu leisten.",
+"Vertrauen ist waehrungsstabiler als jeder Rabatt.",
+"Ein klein wenig mehr Vorbereitung schlaegt viel improvisiertes Talent.",
+"Kunden spueren Druck sofort - und Ehrlichkeit genauso.",
+"Der naechste Erfolg beginnt oft direkt nach dem letzten Misserfolg.",
+"Wer nicht fragt, wie es weitergeht, ueberlaesst die Antwort dem Zufall.",
+"Ein voller Terminkalender ist meist das Ergebnis vieler kleiner mutiger Momente.",
+"Verkaufen heisst, dem Kunden zu helfen, sich selbst zu entscheiden.",
+"Die Stimme am Telefon transportiert mehr Ueberzeugung als jedes Argument.",
+"Konstanz schlaegt Kreativitaet, wenn es um taegliche Ergebnisse geht.",
+"Ein guter Tag im Vertrieb beginnt mit einer klaren Prioritaetenliste.",
+"Wer Verantwortung fuer das Ergebnis uebernimmt, findet immer einen naechsten Weg.",
+"Die Zahlen luegen nicht, aber sie erzaehlen auch nicht die ganze Geschichte - handle trotzdem danach.",
+"Kunden erinnern sich an das Gefuehl von Wertschaetzung laenger als an jedes Detail.",
+"Ein 'Ich melde mich' ist eine Einladung - nutze sie zuverlaessig.",
+"Wer laecheln uebt, bevor er anruft, klingt automatisch anders.",
+"Selbst die erfahrensten Vertriebler ueben ihre Gespraeche im Kopf durch.",
+"Ein offenes Ohr oeffnet mehr Tueren als das beste Verkaufsargument.",
+"Der Erfolg von morgen dankt dir fuer die Disziplin von heute.",
+"Wer den Kunden versteht, bevor er verkauft, verkauft am Ende leichter.",
+"Ein ruhiger, klarer Ton ueberzeugt mehr als jede Dringlichkeit.",
+"Grosse Ziele werden durch kleine, wiederholte Handlungen erreicht - nicht durch einen Geistesblitz.",
+"Jeder Kontakt heute ist eine Investition in das Vertrauen von morgen."
+];
+// Shuffle-Bag: mischt einmal alle 100 Sprueche, arbeitet sie der Reihe nach ab und mischt
+// erst neu, wenn wirklich alle einmal dran waren - so wiederholt sich nichts zu frueh.
+function pickNextMotivationQuote(){
+  let bag=[];
+  try{bag=JSON.parse(localStorage.getItem('motivationBag')||'[]');}catch(e){bag=[];}
+  if(!Array.isArray(bag)||!bag.length){
+    bag=MOTIVATION_QUOTES.map((_,i)=>i);
+    for(let i=bag.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [bag[i],bag[j]]=[bag[j],bag[i]];
+    }
+  }
+  const idx=bag.pop();
+  localStorage.setItem('motivationBag',JSON.stringify(bag));
+  return MOTIVATION_QUOTES[idx];
+}
+
+// ── LOGIN-WIZARD: Datenermittlung je Seite ──
+// Account Manager sehen nur ihre eigenen Leads, Admins sehen alles (gleiche Logik wie
+// beim automatischen Mitarbeiter-Filter beim Login).
+function wizardLeadScope(){
+  const me=agentById(currentUser);
+  if(me&&me.role==='am')return leads.filter(l=>(l.members||[]).includes(currentUser));
+  return leads;
+}
+function wizardOverdueCount(){
+  return wizardLeadScope().filter(l=>l.followup&&daysUntil(l.followup)<0&&!isClosedLead(l)).length;
+}
+function wizardStageCounts(){
+  const scope=wizardLeadScope();
+  return{
+    qual:scope.filter(l=>l.status==='fu_qual').length,
+    feedback:scope.filter(l=>l.status==='fu_feedback').length,
+    offer:scope.filter(l=>l.status==='fu_offer').length
+  };
+}
+function wizardAssignedTasks(){
+  const items=[];
+  leads.forEach(l=>{
+    (l.tasks||[]).forEach(t=>{
+      if(t.assigneeId===currentUser&&!t.done)items.push({task:t,lead:l});
+    });
+  });
+  items.sort((a,b)=>(a.task.dueDate||'9999').localeCompare(b.task.dueDate||'9999'));
+  return items.slice(0,5);
+}
+let wizardPage=0;
+const WIZARD_PAGE_COUNT=4;
+function openLoginWizard(){
+  wizardPage=0;
+  renderWizardPage();
+  document.getElementById('loginWizardOverlay').classList.remove('hidden');
+}
+function closeLoginWizard(){
+  document.getElementById('loginWizardOverlay').classList.add('hidden');
+}
+function wizardNext(){
+  if(wizardPage>=WIZARD_PAGE_COUNT-1){closeLoginWizard();return;}
+  wizardPage++;
+  renderWizardPage();
+}
+function renderWizardPage(){
+  const dotsEl=document.getElementById('wizardDots');
+  if(dotsEl){
+    dotsEl.innerHTML=Array.from({length:WIZARD_PAGE_COUNT},(_,i)=>`<span class="wizard-dot ${i===wizardPage?'active':''}"></span>`).join('');
+  }
+  const btn=document.getElementById('wizardNextBtn');
+  if(btn)btn.innerHTML=wizardPage===WIZARD_PAGE_COUNT-1?'Los geht\'s <i class="ti ti-check"></i>':'Weiter <i class="ti ti-arrow-right"></i>';
+  const body=document.getElementById('wizardBody');
+  if(!body)return;
+  if(wizardPage===0){
+    const n=wizardOverdueCount();
+    body.innerHTML=`
+      <div class="wizard-icon"><i class="ti ti-alert-triangle"></i></div>
+      <div class="wizard-stat" style="color:#ffb4a8">${n}</div>
+      <div class="wizard-title">${n===1?'Überfällige Aufgabe':'Überfällige Aufgaben'}</div>
+      <div class="wizard-sub">${n?`Du hast ${n} Follow-up${n===1?'':'s'}, deren Frist bereits verstrichen ${n===1?'ist':'sind'}. Am besten zuerst erledigen.`:'Alles im grünen Bereich – aktuell keine überfälligen Follow-ups.'}</div>`;
+  }else if(wizardPage===1){
+    const c=wizardStageCounts();
+    body.innerHTML=`
+      <div class="wizard-title" style="margin-bottom:4px">Deine Follow-up-Pipeline</div>
+      <div class="wizard-sub" style="margin-bottom:6px">Leads, die gerade auf eine Rückmeldung warten</div>
+      <div class="wizard-stagerow">
+        <div class="wizard-stagebox"><strong>${c.qual}</strong><span>Qualifizierung</span></div>
+        <div class="wizard-stagebox"><strong>${c.feedback}</strong><span>Feedback</span></div>
+        <div class="wizard-stagebox"><strong>${c.offer}</strong><span>Angebot</span></div>
+      </div>`;
+  }else if(wizardPage===2){
+    const items=wizardAssignedTasks();
+    body.innerHTML=`
+      <div class="wizard-title" style="margin-bottom:10px">Dir zugewiesene Aufgaben</div>
+      ${items.length?items.map(x=>`<div class="wizard-taskrow"><i class="ti ti-checkbox"></i><div style="flex:1;min-width:0;text-align:left"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.task.text)}</div><div style="font-size:10.5px;color:rgba(255,255,255,.6)">${esc(x.lead.company)}${x.task.dueDate?' · '+fmtDate(x.task.dueDate):''}</div></div></div>`).join(''):'<div class="wizard-sub">Aktuell sind dir keine offenen Aufgaben zugewiesen.</div>'}`;
+  }else{
+    const quote=pickNextMotivationQuote();
+    body.innerHTML=`
+      <div class="wizard-icon"><i class="ti ti-bulb"></i></div>
+      <div class="wizard-quote">"${esc(quote)}"</div>`;
+  }
+}
 let workingOfflineIntentionally=false;
 function continueOffline(){
   workingOfflineIntentionally=true;
-  showApp();
+  showApp(true);
 }
-function showApp(){
+let pendingLoginWizard=false;
+function showApp(isFreshLogin){
   document.getElementById('loginScreen').classList.add('hidden');
   document.querySelector('.app-shell').classList.remove('hidden');
-  if(!window.__appBootstrapped){window.__appBootstrapped=true;bootstrapApp();}
+  if(!window.__appBootstrapped){
+    window.__appBootstrapped=true;
+    if(isFreshLogin)pendingLoginWizard=true;
+    bootstrapApp();
+  }else if(isFreshLogin){
+    openLoginWizard();
+  }
 }
 function openLoginPanel(){
   const tag=document.getElementById('loginHeroTag');
@@ -7232,7 +7483,7 @@ async function attemptLogin(){
   try{
     await sbLogin(email,password);
     workingOfflineIntentionally=false;
-    showApp();
+    showApp(true);
   }catch(e){
     msgEl.className='login-message login-message-error';
     msgEl.textContent=e.message.indexOf('Invalid login credentials')>-1?'E-Mail oder Passwort falsch.':e.message;
