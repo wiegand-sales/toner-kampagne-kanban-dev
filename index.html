@@ -609,9 +609,9 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
       </div>
     </div>
     <div class="sidebar-nav-item" id="navDashboard" onclick="switchView('dashboard')"><span class="nav-icon-badge"><i class="ti ti-layout-dashboard"></i></span> Dashboard</div>
+    <div class="sidebar-nav-item" id="navTasks" onclick="switchView('tasks')"><span class="nav-icon-badge"><i class="ti ti-list-check"></i></span> Meine Aufgaben</div>
     <div class="sidebar-nav-item" id="navBoard" onclick="switchView('board')"><span class="nav-icon-badge"><i class="ti ti-layout-kanban"></i></span> Mein Board</div>
     <div class="sidebar-nav-item" id="navCrrma" onclick="switchView('crrma')"><span class="nav-icon-badge"><i class="ti ti-report-money"></i></span> Artikel</div>
-    <div class="sidebar-nav-item" id="navTasks" onclick="switchView('tasks')"><span class="nav-icon-badge"><i class="ti ti-list-check"></i></span> Meine Aufgaben</div>
     <div class="sidebar-nav-item" id="navActivities" onclick="switchView('activities')"><span class="nav-icon-badge"><i class="ti ti-history"></i></span> Aktivitäten</div>
     <div class="sidebar-nav-item" id="navSettings" onclick="toggleSettingsNav()"><span class="nav-icon-badge"><i class="ti ti-settings"></i></span> Einstellungen <i class="ti ti-chevron-down" id="settingsNavChevron" style="margin-left:auto;font-size:13px;color:var(--text3)"></i></div>
     <div id="settingsSubNav" class="settings-subnav hidden">
@@ -875,7 +875,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T18:30:04.000Z';
+const BUILD_VERSION='2026-07-22T18:32:04.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
