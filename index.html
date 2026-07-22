@@ -887,7 +887,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T19:04:56.000Z';
+const BUILD_VERSION='2026-07-22T19:09:20.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2510,6 +2510,7 @@ function toggleLabelFilter(id){
   }
   renderLabelChips();renderBoard();
 }
+let defaultAgentFilterApplied=false;
 function renderUserSelect(){
   const avail=activeAgents();
   // Automatische Erkennung: passt die angemeldete E-Mail zu einem Mitarbeiter,
@@ -2527,6 +2528,18 @@ function renderUserSelect(){
     document.getElementById('currentUserRole').textContent=roleLabel(matched.role);
     confirmedEl.classList.remove('hidden');
     manualEl.classList.add('hidden');
+    // Nur einmal pro Sitzung: Account Manager sehen standardmaessig ueberall nur ihre
+    // eigenen Leads (Board/Aufgaben/Dashboard/Aktivitaeten). Admins bleiben unbefiltert,
+    // wie bisher - sie muessen den vollen Ueberblick behalten.
+    if(!defaultAgentFilterApplied){
+      defaultAgentFilterApplied=true;
+      if(matched.role==='am'){
+        activeAgentFilters=[matched.id];
+        activeDashboardAgentFilters=[matched.id];
+        activeTasksAgentFilter=matched.id;
+        activityAgentFilter=matched.id;
+      }
+    }
   }else{
     if(!avail.some(a=>a.id===currentUser)&&avail.length){currentUser=avail[0].id;}
     confirmedEl.classList.add('hidden');
@@ -3192,7 +3205,7 @@ function renderDashboard(){
   const riskLeadsSorted=[...riskLeads].sort((a,b)=>b.article.crRma-a.article.crRma);
   const riskLeadsShown=riskLeadsSorted.slice(0,RISK_LIST_LIMIT);
   const riskHtml=riskLeadsShown.length?riskLeadsShown.map(x=>`
-    <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${x.lead.id})},50)">
+    <div class="dash-lead-row" onclick="openLeadModal(${x.lead.id})">
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.lead.company)}</div>
         <div style="font-size:11px;color:var(--text2)">SKU ${esc(x.article.sku)} · ${esc(colById(x.lead.status).name)}</div>
@@ -3221,7 +3234,7 @@ function renderDashboard(){
   const topForecast=[...dl].filter(l=>!isClosedLead(l)&&l.forecast)
     .sort((a,b)=>(parseFloat(b.forecast)||0)-(parseFloat(a.forecast)||0)).slice(0,5);
   const topForecastHtml=topForecast.length?topForecast.map(l=>`
-    <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${l.id})},50)">
+    <div class="dash-lead-row" onclick="openLeadModal(${l.id})">
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.company)}</div>
         <div style="font-size:11px;color:var(--text2)">${esc(colById(l.status).name)}</div>
@@ -3231,7 +3244,7 @@ function renderDashboard(){
 
   const overdueLeads=dl.filter(l=>l.followup&&daysUntil(l.followup)<0).sort((a,b)=>daysUntil(a.followup)-daysUntil(b.followup));
   const overdueHtml=overdueLeads.length?overdueLeads.map(l=>`
-    <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${l.id})},50)">
+    <div class="dash-lead-row" onclick="openLeadModal(${l.id})">
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.company)}</div>
         <div style="font-size:11px;color:var(--text2)">${esc(colById(l.status).name)}</div>
@@ -3282,7 +3295,7 @@ function renderDashboard(){
 
   const movements=getRecentMovements(dl,movementDays);
   const movementsRowsHtml=movements.rows.length?movements.rows.slice(0,8).map(r=>`
-    <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${r.lead.id})},50)">
+    <div class="dash-lead-row" onclick="openLeadModal(${r.lead.id})">
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.lead.company)}</div>
         <div style="font-size:11px;color:var(--text2)">${esc(r.text.replace('Status geändert: ',''))}</div>
@@ -3427,7 +3440,7 @@ function followupRowHtml(l){
   const cls=d<0?'due-overdue':(d<=2?'due-soon':'due-ok');
   const label=d<0?`${Math.abs(d)}T überfällig`:(d===0?'heute':fmtDate(l.followup));
   const membersHtml=(l.members||[]).slice(0,3).map(id=>{const a=agentById(id);return a?`<div class="member-av" style="position:static;margin-left:-6px;background:${COLOR_BG[a.color]};color:${COLOR_TEXT[a.color]}" title="${esc(a.name)}">${ini(a.name)}</div>`:'';}).join('');
-  return `<div class="task-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${l.id})},50)">
+  return `<div class="task-row" onclick="openLeadModal(${l.id})">
     <span class="task-group-dot" style="background:${COLOR_HEX[colById(l.status).color]};flex-shrink:0"></span>
     <div style="flex:1;min-width:0">
       <div class="task-row-text">${esc(l.company)}</div>
@@ -3528,7 +3541,7 @@ function assignedTasksHtml(q){
       const dlabel=d<0?`${Math.abs(d)}T überfällig`:(d===0?'heute':fmtDate(t.dueDate));
       dueBadge=`<span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${dlabel}</span>`;
     }
-    return `<div class="task-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${t.lead.id})},50)">
+    return `<div class="task-row" onclick="openLeadModal(${t.lead.id})">
       <input type="checkbox" ${t.done?'checked':''} onclick="event.stopPropagation();toggleAssignedTask(${t.lead.id},${t.id})" style="flex-shrink:0">
       <div class="member-av" style="position:static;margin:0;background:${COLOR_BG[a?a.color:'gray']};color:${COLOR_TEXT[a?a.color:'gray']}" title="${a?esc(a.name):''}">${a?ini(a.name):'?'}</div>
       <div style="flex:1;min-width:0">
@@ -3841,7 +3854,7 @@ function renderActivities(){
       leadCardsHtml=matchingLeads.map(l=>{
         const fuChanges=(l.followupHistory||[]).length;
         const statusChanges=(l.activity||[]).filter(a=>a.type==='activity'&&a.text.indexOf('Status geändert:')===0).length;
-        return `<div class="info-section" style="cursor:pointer" onclick="switchView('board');setTimeout(function(){openLeadModal(${l.id})},50)">
+        return `<div class="info-section" style="cursor:pointer" onclick="openLeadModal(${l.id})">
           <div class="section-hdr" style="margin-top:0">${esc(l.company)} <span style="font-weight:400;color:var(--text3);font-size:11px">${esc(l.customerNumber||'')}</span></div>
           <div class="impact-row"><span>Follow-up-Datum geändert</span><strong style="color:var(--purple)">${fuChanges}×</strong></div>
           <div class="impact-row"><span>Statuswechsel</span><strong style="color:var(--teal-dark)">${statusChanges}×</strong></div>
@@ -3876,7 +3889,7 @@ function renderActivities(){
   const protocolHtml=entries.length?entries.map(e=>{
     const ag=agentById(e.author);
     const typeLabel=e.type==='comment'?'Kommentar':'Aktivität';
-    return `<div class="activity-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${e.lead.id})},50)">
+    return `<div class="activity-row" onclick="openLeadModal(${e.lead.id})">
       <div class="activity-row-date"><span>${fmtWeekday(e.date)},</span><span>${fmtDate(e.date)}</span></div>
       <div class="activity-row-avatar" style="background:${ag?COLOR_BG[ag.color]:COLOR_BG.gray};color:${ag?COLOR_TEXT[ag.color]:COLOR_TEXT.gray}">${ag?ini(ag.name):'?'}</div>
       <div class="activity-row-body">
@@ -6222,7 +6235,7 @@ function saveLead(keepOpen){
   saveState();
   if(keepOpen){
     renderLeadModal();
-    renderBoard();
+    refreshCurrentView();
     const flash=document.getElementById('saveFlashMsg');
     if(flash){
       flash.style.display='inline-flex';
@@ -6230,7 +6243,7 @@ function saveLead(keepOpen){
       window._saveFlashTimer=setTimeout(()=>{if(flash)flash.style.display='none';},1800);
     }
   }else{
-    closeModal('leadModal');renderBoard();
+    closeModal('leadModal');refreshCurrentView();
   }
 }
 function deleteLead(){
@@ -6239,7 +6252,7 @@ function deleteLead(){
   if(!confirm(`Lead "${l?l.company:''}" wirklich unwiderruflich löschen?`))return;
   leads=leads.filter(x=>x.id!==editingLeadId);
   saveState();
-  closeModal('leadModal');renderBoard();
+  closeModal('leadModal');refreshCurrentView();
 }
 
 // ── CSV EXPORT ──
