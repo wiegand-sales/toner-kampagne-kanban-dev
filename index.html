@@ -84,6 +84,13 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .funnel-row{cursor:pointer;display:flex;align-items:center;gap:10px;}
 .funnel-label{font-size:11px;font-weight:500;display:flex;align-items:center;gap:6px;width:172px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .funnel-track{background:var(--bg3);border-radius:5px;height:20px;overflow:hidden;flex:1;}
+.hfunnel-wrap{display:flex;height:150px;align-items:stretch;margin-bottom:44px;}
+.hfunnel-seg{position:relative;flex:1;cursor:pointer;transition:filter .15s;}
+.hfunnel-seg:hover{filter:brightness(1.08);}
+.hfunnel-seg svg{width:100%;height:100%;display:block;}
+.hfunnel-seg-val{position:absolute;top:8px;left:0;right:0;text-align:center;font-size:15px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.25);pointer-events:none;}
+.hfunnel-seg-pct{position:absolute;top:28px;left:0;right:0;text-align:center;font-size:10px;color:rgba(255,255,255,.85);pointer-events:none;}
+.hfunnel-seg-label{position:absolute;bottom:-38px;left:0;right:0;text-align:center;font-size:11px;color:var(--text2);font-weight:600;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px;pointer-events:none;}
 .funnel-bar{height:100%;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;color:#fff;font-size:11px;font-weight:700;transition:width .2s;min-width:22px;}
 .funnel-conv{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:2px;width:46px;flex-shrink:0;justify-content:flex-end;}
 .movements-strip{display:flex;flex-wrap:wrap;gap:18px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);}
@@ -862,7 +869,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T13:13:35.000Z';
+const BUILD_VERSION='2026-07-22T13:18:03.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2774,6 +2781,38 @@ function dashboardKpiCard(label,key,colorVar,currVal,formatFn){
     <div class="dash-kpi-compare">Vortag: ${formatFn(prevVal)}</div>
   </div>`;
 }
+// Petrol-Farbverlauf ueber die Trichterstufen: dunkel (Start) -> helles Teal (Ende)
+function stageGradientColor(i,n){
+  const from=[23,76,82],to=[126,210,219];
+  const t=n>1?i/(n-1):0;
+  const c=from.map((v,idx)=>Math.round(v+(to[idx]-v)*t));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+// Horizontaler Trapez-Trichter: Hoehe pro Stufe verjuengt sich proportional zur Leadanzahl
+function horizontalFunnelHtml(funnelCounts,total){
+  const active=funnelCounts.filter(x=>x.c.outcome!=='lost');
+  if(!active.length||!active.some(x=>x.count>0))return '<p style="font-size:12px;color:var(--text3)">Keine Leads im gewählten Zeitraum/Filter.</p>';
+  const maxCount=Math.max(1,...active.map(x=>x.count));
+  const h=150;
+  let html='<div class="hfunnel-wrap">';
+  active.forEach((x,i)=>{
+    const hNow=20+(x.count/maxCount)*(h-20);
+    const next=active[i+1];
+    const hNext=next?20+(next.count/maxCount)*(h-20):hNow*0.6;
+    const color=stageGradientColor(i,active.length);
+    const pct=total?Math.round(x.count/total*100):0;
+    html+=`<div class="hfunnel-seg" onclick="switchView('board')" title="${esc(x.c.name)}">
+      <svg viewBox="0 0 100 ${h}" preserveAspectRatio="none">
+        <polygon points="0,${(h-hNow)/2} 100,${(h-hNext)/2} 100,${h-(h-hNext)/2} 0,${h-(h-hNow)/2}" fill="${color}"/>
+      </svg>
+      <div class="hfunnel-seg-val">${x.count}</div>
+      <div class="hfunnel-seg-pct">${pct}%</div>
+      <div class="hfunnel-seg-label">${esc(x.c.name)}</div>
+    </div>`;
+  });
+  html+='</div>';
+  return html;
+}
 function renderDashboard(){
   let dl=activeDashboardAgentFilters.length?leads.filter(l=>(l.members||[]).some(m=>activeDashboardAgentFilters.includes(m))):leads;
   const periodStart=periodStartDate(activeDashboardPeriod);
@@ -2884,29 +2923,10 @@ function renderDashboard(){
       ${dashboardKpiCard('Ø Vertriebszyklus','avgCycle','var(--teal-dark)',dashMetrics.avgCycle,v=>v?v+' Tage':'–')}
     </div>`;
 
-  // Funnel mit Prozentwerten und Konversionsrate zwischen den Stufen
+  // Horizontaler Trapez-Trichter (Variante A): "Verloren" wird bewusst ausgeklammert,
+  // da ein Trichter die Vorwaerts-Progression durch die Pipeline zeigt.
   const funnelCounts=COLUMNS.map(c=>({c,count:dl.filter(l=>l.status===c.id).length}));
-  const funnelMax=Math.max(1,...funnelCounts.map(x=>x.count));
-  let funnelHtml='';
-  funnelCounts.forEach((x,i)=>{
-    if(x.count===0)return; // Stufen ohne Leads werden nicht angezeigt, um das Dashboard nicht zu ueberladen
-    const barPct=Math.max(8,Math.round(x.count/funnelMax*100));
-    const ofTotalPct=total?Math.round(x.count/total*100):0;
-    let convHtml='<div class="funnel-conv"></div>';
-    if(i<funnelCounts.length-1){
-      const next=funnelCounts[i+1];
-      const convPct=x.count?Math.round(next.count/x.count*100):0;
-      convHtml=`<div class="funnel-conv" title="Konversion zur nächsten Stufe"><i class="ti ti-arrow-right" style="font-size:11px"></i>${convPct}%</div>`;
-    }
-    funnelHtml+=`<div class="funnel-row" onclick="switchView('board')" title="${esc(x.c.name)}">
-      <div class="funnel-label"><span class="col-dot" style="background:${COLOR_HEX[x.c.color]}"></span>${esc(x.c.name)}</div>
-      <div class="funnel-track">
-        <div class="funnel-bar" style="width:${barPct}%;background:${COLOR_HEX[x.c.color]}">${x.count} · ${ofTotalPct}%</div>
-      </div>
-      ${convHtml}
-    </div>`;
-  });
-  if(!funnelHtml)funnelHtml='<p style="font-size:12px;color:var(--text3)">Keine Leads im gewählten Zeitraum/Filter.</p>';
+  const funnelHtml=horizontalFunnelHtml(funnelCounts,total);
 
   // Forecast je Mitarbeiter (Balken)
   // (Mitarbeiter ganz ohne Leads im aktuellen Zeitraum/Filter werden nicht angezeigt, um das Dashboard nicht zu ueberladen)
@@ -3046,7 +3066,7 @@ function renderDashboard(){
     ${excludedNoDate>0?`<div class="no-date-warning"><i class="ti ti-alert-triangle"></i> ${excludedNoDate} Lead${excludedNoDate===1?'':'s'} ohne Erstkontakt-Datum ${excludedNoDate===1?'wird':'werden'} bei "${activeDashboardPeriod==='week'?'Diese Woche':activeDashboardPeriod==='month'?'Dieser Monat':'Dieses Quartal'}" nicht mitgezählt, da der Zeitraum-Filter sich auf dieses Datum bezieht. <a onclick="switchView('board')">→ Im Board nachtragen</a></div>`:''}
     ${kpiHtml}
     <div class="info-section">
-      <div class="section-hdr" style="margin-top:0">Pipeline-Trichter <span style="font-weight:400;color:var(--text3);font-size:11px">(Anzahl · Anteil an allen Leads, Pfeil = Konversion zur nächsten Stufe)</span></div>
+      <div class="section-hdr" style="margin-top:0">Pipeline-Trichter <span style="font-weight:400;color:var(--text3);font-size:11px">(Anzahl · Anteil an allen Leads)</span></div>
       <div class="funnel-wrap">${funnelHtml}</div>
       <div class="movements-strip">
         <div class="movements-item"><i class="ti ti-arrows-shuffle" style="color:var(--purple)"></i><strong>${movements.total}</strong> Bewegungen (${movementDays} Tage)</div>
