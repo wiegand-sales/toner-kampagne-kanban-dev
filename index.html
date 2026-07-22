@@ -633,6 +633,8 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     <div class="view" id="viewTasks">
       <div class="topbar-unified">
         <div class="omnibar-flex">
+          <i class="ti ti-search omni-search-icon"></i>
+          <input type="text" class="omni-input" id="tasksSearch" placeholder="Firma, Kd-Nr. suchen…" oninput="renderTasksView()">
           <div class="omni-addfilter-wrap">
             <button class="omnibar-btn" onclick="toggleTasksFilterMenu(event)"><i class="ti ti-plus" style="font-size:12px"></i> Filter</button>
             <div class="filtermenu" id="tasksFilterMenu">
@@ -786,7 +788,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T09:56:29.000Z';
+const BUILD_VERSION='2026-07-22T10:03:09.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2952,7 +2954,7 @@ function followupRowHtml(l){
     <span class="task-group-dot" style="background:${COLOR_HEX[colById(l.status).color]};flex-shrink:0"></span>
     <div style="flex:1;min-width:0">
       <div class="task-row-text">${esc(l.company)}</div>
-      <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.contact)} · ${esc(colById(l.status).name)}</div>
+      <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.contact)}${l.customerNumber?' · '+esc(l.customerNumber):''} · ${esc(colById(l.status).name)}</div>
     </div>
     <div class="member-stack">${membersHtml}</div>
     <span class="due-badge ${cls}"><i class="ti ti-clock" style="font-size:11px"></i>${label}</span>
@@ -3009,7 +3011,7 @@ function setTasksAgentFilter(id){
   renderTasksAgentChips();
   renderTasksView();
 }
-function assignedTasksHtml(){
+function assignedTasksHtml(q){
   let items=[];
   leads.forEach(l=>{
     (l.tasks||[]).forEach(t=>{
@@ -3017,6 +3019,7 @@ function assignedTasksHtml(){
     });
   });
   if(activeTasksAgentFilter!=='all')items=items.filter(t=>t.assigneeId===activeTasksAgentFilter);
+  if(q)items=items.filter(t=>t.lead.company.toLowerCase().includes(q)||(t.lead.customerNumber||'').toLowerCase().includes(q));
   items.sort((a,b)=>{
     if(a.done!==b.done)return a.done?1:-1;
     return (a.dueDate||'9999-99-99').localeCompare(b.dueDate||'9999-99-99');
@@ -3054,24 +3057,28 @@ function toggleAssignedTask(leadId,taskId){
   renderTasksView();
 }
 function renderTasksView(){
+  const q=(document.getElementById('tasksSearch').value||'').toLowerCase().trim();
   let withFollowup=leads.filter(l=>l.followup);
   if(activeTasksAgentFilter!=='all')withFollowup=withFollowup.filter(l=>(l.members||[]).includes(activeTasksAgentFilter));
+  if(q)withFollowup=withFollowup.filter(l=>l.company.toLowerCase().includes(q)||(l.customerNumber||'').toLowerCase().includes(q));
   const buckets={overdue:[],today:[],week:[],nextweek:[]};
   withFollowup.forEach(l=>{const b=followupBucket(l);if(b)buckets[b].push(l);});
   ['overdue','today','week','nextweek'].forEach(k=>buckets[k].sort((a,b)=>a.followup.localeCompare(b.followup)));
+  const total=withFollowup.length;
 
   const html=`
-    <div class="dash-kpi-row" style="grid-template-columns:repeat(4,1fr)">
+    <div class="dash-kpi-row" style="grid-template-columns:repeat(5,1fr)">
       <div class="dash-kpi followup-kpi-overdue"><i class="ti ti-alert-triangle dash-kpi-icon" style="color:var(--red)"></i><div class="dash-kpi-label">Überfällig</div><div class="dash-kpi-val" style="color:var(--red)">${buckets.overdue.length}</div></div>
       <div class="dash-kpi followup-kpi-today"><i class="ti ti-sun dash-kpi-icon" style="color:var(--amber-dark)"></i><div class="dash-kpi-label">Heute</div><div class="dash-kpi-val" style="color:var(--amber-dark)">${buckets.today.length}</div></div>
       <div class="dash-kpi followup-kpi-week"><i class="ti ti-calendar-week dash-kpi-icon" style="color:var(--green-dark)"></i><div class="dash-kpi-label">Diese Woche</div><div class="dash-kpi-val" style="color:var(--green-dark)">${buckets.week.length}</div></div>
       <div class="dash-kpi followup-kpi-nextweek"><i class="ti ti-calendar-plus dash-kpi-icon" style="color:var(--purple)"></i><div class="dash-kpi-label">Nächste Woche</div><div class="dash-kpi-val" style="color:var(--purple)">${buckets.nextweek.length}</div></div>
+      <div class="dash-kpi followup-kpi-total"><i class="ti ti-list-check dash-kpi-icon" style="color:var(--text2)"></i><div class="dash-kpi-label">Gesamt</div><div class="dash-kpi-val">${total}</div></div>
     </div>
     ${followupGroupHtml('Überfällig',buckets.overdue,'var(--red)','alert-triangle','followup-kpi-overdue')}
     ${followupGroupHtml('Heute',buckets.today,'var(--amber-dark)','sun','followup-kpi-today')}
     ${followupGroupHtml('Diese Woche',buckets.week,'var(--green-dark)','calendar-week','followup-kpi-week')}
     ${followupGroupHtml('Nächste Woche',buckets.nextweek,'var(--purple)','calendar-plus','followup-kpi-nextweek')}
-    ${assignedTasksHtml()}`;
+    ${assignedTasksHtml(q)}`;
   document.getElementById('tasksViewContent').innerHTML=html;
 }
 // ── CR RMA: Artikel-Stammdaten ──
