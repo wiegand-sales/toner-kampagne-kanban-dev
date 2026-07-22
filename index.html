@@ -51,7 +51,7 @@ body{font-family:'Inter',sans-serif;background:#f6f8f8;color:var(--text);font-si
 .view.active{display:flex;}
 .view-scroll{flex:1;overflow-y:auto;padding:22px;}
 .page-hdr{padding:18px 22px;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:26px;}
-.page-tabs{display:flex;gap:4px;padding:0 22px;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0;height:44px;align-items:stretch;}
+.page-tabs{display:flex;gap:4px;padding:0 22px;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0;height:34px;align-items:stretch;}
 .page-tab-btn{background:transparent;border:none;border-bottom:2px solid transparent;font-size:13px;font-weight:600;color:var(--text3);padding:0 14px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;transition:color .12s,border-color .12s;height:100%;}
 .page-tab-btn:hover{color:var(--text2);}
 .page-tab-btn.active{color:var(--purple);border-bottom-color:var(--purple);}
@@ -142,7 +142,7 @@ body{font-family:'Inter',sans-serif;background:#f6f8f8;color:var(--text);font-si
 .role-badge.role-admin{background:var(--purple-bg);color:var(--purple-dark);}
 .role-badge.role-sales{background:var(--teal-bg);color:var(--teal-dark);}
 .role-badge.role-am{background:var(--amber-bg);color:var(--amber-dark);}
-.icon-btn{width:26px;height:26px;border:none;background:transparent;color:var(--text3);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;}
+.icon-btn{width:34px;height:34px;border:none;background:transparent;color:var(--text3);border-radius:var(--r-md);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
 .icon-btn:hover{background:var(--bg3);color:var(--text);}
 .icon-btn-danger:hover{background:var(--red-bg);color:var(--red);}
 .status-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:12px;white-space:nowrap;}
@@ -454,7 +454,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .modal-actions{display:flex;justify-content:space-between;gap:8px;padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0;}
 .right-hdr{font-size:12px;font-weight:600;color:var(--text2);flex-shrink:0;display:flex;align-items:center;gap:6px;}
 .tab-bar{display:flex;gap:3px;background:var(--bg3);border-radius:9px;padding:4px;flex-shrink:0;margin-bottom:14px;}
-.tab-btn{flex:1;background:transparent;border:none;border-radius:6px;font-size:12px;font-weight:600;color:var(--text2);padding:9px 8px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s;}
+.tab-btn{flex:1;height:34px;box-sizing:border-box;background:transparent;border:none;border-radius:6px;font-size:12px;font-weight:600;color:var(--text2);padding:0 8px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s;}
 .tab-btn:hover:not(.active){color:var(--text);}
 .tab-btn.active{background:var(--bg);color:var(--purple);box-shadow:0 1px 3px rgba(0,0,0,.1);}
 .printer-card{border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:var(--bg2);}
@@ -789,7 +789,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T09:07:37.000Z';
+const BUILD_VERSION='2026-07-22T09:12:05.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
