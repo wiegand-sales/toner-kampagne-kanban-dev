@@ -612,19 +612,21 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
   <div class="main-area">
 
     <div class="view" id="viewDashboard">
-      <div class="page-hdr">
-        <div class="page-hdr-left">
-          <div class="page-icon-badge"><i class="ti ti-layout-dashboard"></i></div>
-          <div>
-            <div class="page-hdr-title">SFP: Toner</div>
-            <div class="page-hdr-sub">Überblick über Projekt: Toner</div>
+      <div class="topbar-unified">
+        <div class="omnibar-flex">
+          <div class="omni-addfilter-wrap">
+            <button class="omnibar-btn" onclick="toggleDashboardFilterMenu(event)"><i class="ti ti-plus" style="font-size:12px"></i> Filter</button>
+            <div class="filtermenu" id="dashboardFilterMenu">
+              <h4>Mitarbeiter</h4>
+              <div id="dashboardFilterMenuAgents"></div>
+              <hr>
+              <h4>Zeitraum</h4>
+              <div id="dashboardFilterMenuPeriod"></div>
+            </div>
           </div>
+          <div id="dashboardOmniTokens" style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap;overflow-x:auto;max-width:320px;flex-shrink:1;"></div>
+          <div class="omni-spacer"></div>
         </div>
-      </div>
-      <div class="filterbar">
-        <div class="filter-group"><span class="filterbar-label">Mitarbeiter</span><div id="dashAgentChips"></div></div>
-        <div class="filter-divider"></div>
-        <div class="filter-group"><span class="filterbar-label">Zeitraum</span><div id="dashPeriodChips"></div></div>
       </div>
       <div class="view-scroll" id="dashboardContent"></div>
     </div>
@@ -838,7 +840,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T12:40:59.000Z';
+const BUILD_VERSION='2026-07-22T12:44:00.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2610,12 +2612,15 @@ function getRecentMovements(dl,days){
 }
 
 function renderDashboardAgentChips(){
-  const el=document.getElementById('dashAgentChips');
-  let html=`<span class="chip ${activeDashboardAgentFilter==='all'?'active':''}" onclick="setDashboardAgentFilter('all')">Alle</span>`;
+  const el=document.getElementById('dashboardFilterMenuAgents');
+  if(!el)return;
+  let html=`<div class="filtermenu-item ${activeDashboardAgentFilter==='all'?'active':''}" onclick="setDashboardAgentFilter('all')"><span>Alle</span>${activeDashboardAgentFilter==='all'?'<i class="ti ti-check"></i>':''}</div>`;
   AGENTS.forEach(a=>{
-    html+=`<span class="chip ${activeDashboardAgentFilter===a.id?'active':''}" onclick="setDashboardAgentFilter('${a.id}')">${esc(a.name)}</span>`;
+    const active=activeDashboardAgentFilter===a.id;
+    html+=`<div class="filtermenu-item ${active?'active':''}" onclick="setDashboardAgentFilter('${a.id}')"><span>${esc(a.name)}</span>${active?'<i class="ti ti-check"></i>':''}</div>`;
   });
   el.innerHTML=html;
+  renderDashboardOmniTokens();
 }
 function setDashboardAgentFilter(id){
   activeDashboardAgentFilter=id;
@@ -2623,11 +2628,35 @@ function setDashboardAgentFilter(id){
   renderDashboard();
 }
 let activeDashboardPeriod='all';
+const DASHBOARD_PERIOD_OPTIONS=[['all','Gesamt'],['week','Diese Woche'],['month','Dieser Monat'],['quarter','Dieses Quartal']];
 function renderDashboardPeriodChips(){
-  const el=document.getElementById('dashPeriodChips');
+  const el=document.getElementById('dashboardFilterMenuPeriod');
   if(!el)return;
-  const opts=[['all','Gesamt'],['week','Diese Woche'],['month','Dieser Monat'],['quarter','Dieses Quartal']];
-  el.innerHTML=opts.map(([k,label])=>`<span class="chip ${activeDashboardPeriod===k?'active':''}" onclick="setDashboardPeriod('${k}')">${label}</span>`).join('');
+  el.innerHTML=DASHBOARD_PERIOD_OPTIONS.map(([k,label])=>{
+    const active=activeDashboardPeriod===k;
+    return `<div class="filtermenu-item ${active?'active':''}" onclick="setDashboardPeriod('${k}')"><span>${label}</span>${active?'<i class="ti ti-check"></i>':''}</div>`;
+  }).join('');
+  renderDashboardOmniTokens();
+}
+function renderDashboardOmniTokens(){
+  const el=document.getElementById('dashboardOmniTokens');
+  if(!el)return;
+  let html='';
+  if(activeDashboardAgentFilter!=='all'){
+    const a=AGENTS.find(a=>a.id===activeDashboardAgentFilter);
+    if(a)html+=`<div class="omni-token"><i class="ti ti-user" style="font-size:12px"></i>${esc(a.name)}<i class="ti ti-x" onclick="setDashboardAgentFilter('all')"></i></div>`;
+  }
+  if(activeDashboardPeriod!=='all'){
+    const p=DASHBOARD_PERIOD_OPTIONS.find(([k])=>k===activeDashboardPeriod);
+    if(p)html+=`<div class="omni-token"><i class="ti ti-calendar" style="font-size:12px"></i>${esc(p[1])}<i class="ti ti-x" onclick="setDashboardPeriod('all')"></i></div>`;
+  }
+  el.innerHTML=html;
+}
+let dashboardFilterMenuOpen=false;
+function toggleDashboardFilterMenu(e){
+  if(e)e.stopPropagation();
+  dashboardFilterMenuOpen=!dashboardFilterMenuOpen;
+  document.getElementById('dashboardFilterMenu').classList.toggle('show',dashboardFilterMenuOpen);
 }
 function setDashboardPeriod(p){
   activeDashboardPeriod=p;
@@ -6621,6 +6650,7 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('.crrma-menu-wrap')&&crrmaMenuOpen){crrmaMenuOpen=false;document.getElementById('crrmaOverflowMenu').classList.remove('show');}
   if(!e.target.closest('.omni-addfilter-wrap')&&tasksFilterMenuOpen){tasksFilterMenuOpen=false;const m=document.getElementById('tasksFilterMenu');if(m)m.classList.remove('show');}
   if(!e.target.closest('.omni-addfilter-wrap')&&activityFilterMenuOpen){activityFilterMenuOpen=false;const m2=document.getElementById('activityFilterMenu');if(m2)m2.classList.remove('show');}
+  if(!e.target.closest('.omni-addfilter-wrap')&&dashboardFilterMenuOpen){dashboardFilterMenuOpen=false;const m3=document.getElementById('dashboardFilterMenu');if(m3)m3.classList.remove('show');}
 });
 
 function showSyncFailureBanner(msg){
