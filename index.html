@@ -226,7 +226,7 @@ body{font-family:'Inter',sans-serif;background:#f6f8f8;color:var(--text);font-si
 .omnibar .search-box{border:none;padding:0;}
 .omnibar i.omni-search-icon{color:var(--text3);font-size:15px;flex-shrink:0;}
 .omni-input{border:none;outline:none;font-family:inherit;font-size:13px;flex:1 1 120px;min-width:120px;background:transparent;height:34px;}
-.omni-token{background:var(--bg2);border-radius:16px;padding:0 6px 0 10px;height:28px;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--text2);white-space:nowrap;}
+.omni-token{background:var(--bg2);border-radius:var(--r-md);padding:0 6px 0 10px;height:28px;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--text2);white-space:nowrap;}
 .omni-token i{cursor:pointer;font-size:13px;color:var(--text3);}
 .omni-token i:hover{color:var(--red-dark);}
 .omni-addfilter-wrap{position:relative;flex-shrink:0;}
@@ -244,15 +244,15 @@ body{font-family:'Inter',sans-serif;background:#f6f8f8;color:var(--text);font-si
 .topbar-unified{padding:14px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
 .tbu-left{display:flex;align-items:center;gap:12px;flex-shrink:0;}
 .tbu-left .tb-title{margin:0;line-height:1;}
-.omnibar-flex{flex:1 1 260px;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border2);border-radius:24px;padding:5px 6px 5px 16px;min-width:200px;}
+.omnibar-flex{flex:1 1 260px;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border2);border-radius:var(--r-md);padding:5px 6px 5px 16px;min-width:200px;}
 .omnibar-flex .omni-input{background:transparent;height:34px;border:none;box-shadow:none;padding-left:4px;flex:0 0 190px;min-width:0;}
-.omnibar-btn{height:34px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:500;cursor:pointer;
+.omnibar-btn{height:34px;padding:0 14px;border-radius:var(--r-md);font-size:13px;font-weight:500;cursor:pointer;
   border:1px solid var(--border2);background:#fff;color:var(--text);display:inline-flex;align-items:center;gap:6px;
   font-family:inherit;white-space:nowrap;flex-shrink:0;}
 .omnibar-btn:hover{background:var(--bg2);}
 .omnibar-btn.primary{background:var(--purple);color:#fff;border-color:var(--purple);box-shadow:0 1px 2px rgba(0,0,0,.1);}
 .omnibar-btn.primary:hover{background:var(--purple-dark);}
-.omnibar-btn.icon{width:34px;padding:0;justify-content:center;border-radius:50%;}
+.omnibar-btn.icon{width:34px;padding:0;justify-content:center;border-radius:var(--r-md);}
 .tbu-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .tb-stat{text-align:center;}
 .tb-stat-val{font-size:16px;font-weight:700;}
@@ -789,7 +789,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T09:02:06.000Z';
+const BUILD_VERSION='2026-07-22T09:04:31.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
