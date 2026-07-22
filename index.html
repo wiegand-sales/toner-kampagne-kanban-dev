@@ -860,7 +860,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T12:48:31.000Z';
+const BUILD_VERSION='2026-07-22T12:50:28.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2605,7 +2605,7 @@ function renderBoard(){
 }
 
 // ── DASHBOARD ──
-let activeDashboardAgentFilter='all';
+let activeDashboardAgentFilters=[];
 // Erfasst echte Bewegungen (Statuswechsel) aus dem Aktivitaets-Protokoll der letzten X Tage
 function getRecentMovements(dl,days){
   const cutoff=new Date(TODAY);
@@ -2659,16 +2659,21 @@ function clearDashboardDateRange(){
 function renderDashboardAgentChips(){
   const el=document.getElementById('dashboardFilterMenuAgents');
   if(!el)return;
-  let html=`<div class="filtermenu-item ${activeDashboardAgentFilter==='all'?'active':''}" onclick="setDashboardAgentFilter('all')"><span>Alle</span>${activeDashboardAgentFilter==='all'?'<i class="ti ti-check"></i>':''}</div>`;
+  const noneSel=activeDashboardAgentFilters.length===0;
+  let html=`<div class="filtermenu-item ${noneSel?'active':''}" onclick="toggleDashboardAgentFilter('all')"><span>Alle</span>${noneSel?'<i class="ti ti-check"></i>':''}</div>`;
   AGENTS.forEach(a=>{
-    const active=activeDashboardAgentFilter===a.id;
-    html+=`<div class="filtermenu-item ${active?'active':''}" onclick="setDashboardAgentFilter('${a.id}')"><span>${esc(a.name)}</span>${active?'<i class="ti ti-check"></i>':''}</div>`;
+    const active=activeDashboardAgentFilters.includes(a.id);
+    html+=`<div class="filtermenu-item ${active?'active':''}" onclick="toggleDashboardAgentFilter('${a.id}')"><span>${esc(a.name)}</span>${active?'<i class="ti ti-check"></i>':''}</div>`;
   });
   el.innerHTML=html;
   renderDashboardOmniTokens();
 }
-function setDashboardAgentFilter(id){
-  activeDashboardAgentFilter=id;
+function toggleDashboardAgentFilter(id){
+  if(id==='all'){activeDashboardAgentFilters=[];}
+  else{
+    const idx=activeDashboardAgentFilters.indexOf(id);
+    if(idx>-1)activeDashboardAgentFilters.splice(idx,1);else activeDashboardAgentFilters.push(id);
+  }
   renderDashboardAgentChips();
   renderDashboard();
 }
@@ -2687,10 +2692,10 @@ function renderDashboardOmniTokens(){
   const el=document.getElementById('dashboardOmniTokens');
   if(!el)return;
   let html='';
-  if(activeDashboardAgentFilter!=='all'){
-    const a=AGENTS.find(a=>a.id===activeDashboardAgentFilter);
-    if(a)html+=`<div class="omni-token"><i class="ti ti-user" style="font-size:12px"></i>${esc(a.name)}<i class="ti ti-x" onclick="setDashboardAgentFilter('all')"></i></div>`;
-  }
+  activeDashboardAgentFilters.forEach(id=>{
+    const a=AGENTS.find(a=>a.id===id);
+    if(a)html+=`<div class="omni-token"><i class="ti ti-user" style="font-size:12px"></i>${esc(a.name)}<i class="ti ti-x" onclick="toggleDashboardAgentFilter('${id}')"></i></div>`;
+  });
   if(dashboardDateStart||dashboardDateEnd){
     const label=(dashboardDateStart?fmtDate(dashboardDateStart):'…')+' – '+(dashboardDateEnd?fmtDate(dashboardDateEnd):'…');
     html+=`<div class="omni-token"><i class="ti ti-calendar" style="font-size:12px"></i>${esc(label)}<i class="ti ti-x" onclick="clearDashboardDateRange()"></i></div>`;
@@ -2723,7 +2728,7 @@ function periodStartDate(p){
   return d;
 }
 function renderDashboard(){
-  let dl=activeDashboardAgentFilter==='all'?leads:leads.filter(l=>(l.members||[]).includes(activeDashboardAgentFilter));
+  let dl=activeDashboardAgentFilters.length?leads.filter(l=>(l.members||[]).some(m=>activeDashboardAgentFilters.includes(m))):leads;
   const periodStart=periodStartDate(activeDashboardPeriod);
   let excludedNoDate=0;
   if(dashboardDateStart||dashboardDateEnd){
@@ -2856,7 +2861,7 @@ function renderDashboard(){
 
   // Forecast je Mitarbeiter (Balken)
   // (Mitarbeiter ganz ohne Leads im aktuellen Zeitraum/Filter werden nicht angezeigt, um das Dashboard nicht zu ueberladen)
-  const agentPool=activeDashboardAgentFilter==='all'?AGENTS:AGENTS.filter(a=>a.id===activeDashboardAgentFilter);
+  const agentPool=activeDashboardAgentFilters.length?AGENTS.filter(a=>activeDashboardAgentFilters.includes(a.id)):AGENTS;
   const agentData=agentPool.map(a=>{
     const agentLeads=dl.filter(l=>(l.members||[]).includes(a.id));
     const agentOverdue=agentLeads.filter(l=>l.followup&&daysUntil(l.followup)<0).length;
