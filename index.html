@@ -90,6 +90,13 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .hfunnel-seg svg{width:100%;height:100%;display:block;}
 .hfunnel-seg-label{position:absolute;bottom:-48px;left:0;right:0;text-align:center;font-size:11px;color:var(--text2);font-weight:600;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px;pointer-events:none;}
 .hfunnel-seg-label strong{display:block;font-size:13px;font-weight:800;color:var(--text);margin-top:2px;}
+.donut-wrap{display:flex;gap:24px;align-items:center;flex-wrap:wrap;}
+.donut-legend{display:flex;flex-direction:column;gap:9px;flex:1;min-width:180px;}
+.donut-legend-item{display:flex;align-items:center;gap:9px;font-size:12.5px;}
+.donut-legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+.donut-legend-name{flex:1;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.donut-legend-val{font-weight:700;color:var(--text);}
+.donut-legend-pct{font-size:11px;color:var(--text3);width:34px;text-align:right;}
 .funnel-bar{height:100%;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;color:#fff;font-size:11px;font-weight:700;transition:width .2s;min-width:22px;}
 .funnel-conv{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:2px;width:46px;flex-shrink:0;justify-content:flex-end;}
 .movements-strip{display:flex;flex-wrap:wrap;gap:18px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);}
@@ -868,7 +875,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T13:27:50.000Z';
+const BUILD_VERSION='2026-07-22T13:34:47.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2810,6 +2817,37 @@ function horizontalFunnelHtml(funnelCounts,total){
   html+='</div>';
   return html;
 }
+function polarPoint(cx,cy,r,angleDeg){
+  const a=(angleDeg-90)*Math.PI/180;
+  return [cx+r*Math.cos(a),cy+r*Math.sin(a)];
+}
+// Donut-Diagramm mit Gesamtzahl in der Mitte (Variante B), Petrol-Farbverlauf ueber die Segmente
+function donutChartHtml(entries,totalCount,centerLabel){
+  if(!entries.length||!totalCount)return '<p style="font-size:12px;color:var(--text3)">Noch keine verlorenen Leads.</p>';
+  const size=180,r=78,rInner=48,cx=90,cy=90;
+  let angle=0;
+  const colors=entries.map((_,i)=>stageGradientColor(i,entries.length));
+  let paths='';
+  entries.forEach((d,i)=>{
+    const sweep=totalCount?d.count/totalCount*360:0;
+    const [x1,y1]=polarPoint(cx,cy,r,angle);
+    const [x2,y2]=polarPoint(cx,cy,r,angle+sweep);
+    const [xi1,yi1]=polarPoint(cx,cy,rInner,angle+sweep);
+    const [xi2,yi2]=polarPoint(cx,cy,rInner,angle);
+    const large=sweep>180?1:0;
+    paths+=`<path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${large} 1 ${x2.toFixed(1)},${y2.toFixed(1)} L${xi1.toFixed(1)},${yi1.toFixed(1)} A${rInner},${rInner} 0 ${large} 0 ${xi2.toFixed(1)},${yi2.toFixed(1)} Z" fill="${colors[i]}" stroke="#fff" stroke-width="2"/>`;
+    angle+=sweep;
+  });
+  const legend=entries.map((d,i)=>`<div class="donut-legend-item"><span class="donut-legend-dot" style="background:${colors[i]}"></span><span class="donut-legend-name">${esc(d.label)}</span><span class="donut-legend-val">${d.count}</span><span class="donut-legend-pct">${totalCount?Math.round(d.count/totalCount*100):0}%</span></div>`).join('');
+  return `<div class="donut-wrap">
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex-shrink:0">
+      ${paths}
+      <text x="${cx}" y="${cy-4}" text-anchor="middle" font-size="24" font-weight="800" fill="var(--text)" font-family="Inter,sans-serif">${totalCount}</text>
+      <text x="${cx}" y="${cy+15}" text-anchor="middle" font-size="10" fill="var(--text3)" font-family="Inter,sans-serif">${esc(centerLabel)}</text>
+    </svg>
+    <div class="donut-legend">${legend}</div>
+  </div>`;
+}
 function renderDashboard(){
   let dl=activeDashboardAgentFilters.length?leads.filter(l=>(l.members||[]).some(m=>activeDashboardAgentFilters.includes(m))):leads;
   const periodStart=periodStartDate(activeDashboardPeriod);
@@ -2996,15 +3034,7 @@ function renderDashboard(){
     if(lossByStage[c.id])lossEntries.push({label:c.name,count:lossByStage[c.id]});
   });
   if(lossByStage.unknown)lossEntries.push({label:'Unbekannt (vor Erfassung verloren)',count:lossByStage.unknown});
-  const lossMax=Math.max(1,...lossEntries.map(x=>x.count));
-  const lossHtml=lossEntries.length?lossEntries.map(x=>{
-    const pct=Math.max(8,Math.round(x.count/lossMax*100));
-    const ofLostPct=lostLeads.length?Math.round(x.count/lostLeads.length*100):0;
-    return `<div class="funnel-row">
-      <div class="funnel-label">${esc(x.label)}</div>
-      <div class="funnel-track"><div class="funnel-bar" style="width:${pct}%;background:var(--red)">${x.count} · ${ofLostPct}%</div></div>
-    </div>`;
-  }).join(''):'<p style="font-size:12px;color:var(--text3)">Noch keine verlorenen Leads.</p>';
+  const lossHtml=donutChartHtml(lossEntries,lostLeads.length,'verloren');
 
   // Finanzielle Auswirkung: Forecast gewonnen vs. verloren, Investition gesamt vs. in verlorene Leads, Netto-Effekt
   const forecastWon=dl.filter(l=>isWon(l)).reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
