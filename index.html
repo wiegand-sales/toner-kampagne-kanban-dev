@@ -138,18 +138,19 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .dash-agent-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
 .dash-agent-row:last-child{border-bottom:none;}
 .dash-lead-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;}
-.activity-row{display:flex;align-items:flex-start;gap:12px;padding:12px 4px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;}
-.activity-row:hover{background:rgba(32,106,114,.05);}
-.activity-row:last-child{border-bottom:none;}
-.activity-row-date{width:52px;flex-shrink:0;text-align:left;font-size:11px;color:var(--text3);line-height:1.4;padding-top:1px;}
+.activity-row{display:flex;align-items:center;gap:12px;padding:10px 14px;margin-bottom:6px;border-radius:8px;background:rgba(255,255,255,.5);cursor:pointer;transition:background .12s;}
+.activity-row:hover{background:rgba(255,255,255,.85);}
+.activity-row:last-child{margin-bottom:0;}
+.activity-row-date{width:64px;flex-shrink:0;text-align:left;font-size:11px;color:var(--text3);line-height:1.4;}
 .activity-row-date span{display:block;}
+.activity-row-avatar{width:22px;height:22px;border-radius:50%;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .activity-row-body{flex:1;min-width:0;}
-.activity-row-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px;}
-.activity-row-author{font-weight:600;font-size:13px;color:var(--text);}
-.activity-type-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.03em;background:var(--bg3);color:var(--text2);}
+.activity-row-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;line-height:1.4;}
+.activity-row-author{font-weight:600;font-size:13px;color:var(--text);flex-shrink:0;}
+.activity-type-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.03em;background:var(--green-bg);color:var(--green-dark);flex-shrink:0;}
 .activity-type-badge.activity-type-comment{background:var(--purple-bg);color:var(--purple-dark);}
-.activity-row-text{font-size:13px;color:var(--text);line-height:1.4;}
-.activity-row-sub{font-size:11px;color:var(--text3);margin-top:3px;}
+.activity-row-text{font-size:13px;color:var(--text2);}
+.activity-row-sub{font-size:11px;color:var(--text3);margin-top:2px;}
 .dash-lead-row:last-child{border-bottom:none;}
 .dash-lead-row:hover{background:var(--bg2);margin:0 -8px;padding:8px 8px;border-radius:6px;}
 .settings-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
@@ -813,7 +814,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T10:59:24.000Z';
+const BUILD_VERSION='2026-07-22T11:05:56.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3451,11 +3452,14 @@ function renderActivities(){
     const typeLabel=e.type==='comment'?'Kommentar':'Aktivität';
     return `<div class="activity-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${e.lead.id})},50)">
       <div class="activity-row-date"><span>${fmtWeekday(e.date)},</span><span>${fmtDate(e.date)}</span></div>
-      <div class="member-av" style="position:static;margin:0;width:30px;height:30px;font-size:11px;background:${ag?COLOR_BG[ag.color]:COLOR_BG.gray};color:${ag?COLOR_TEXT[ag.color]:COLOR_TEXT.gray}">${ag?ini(ag.name):'?'}</div>
+      <div class="activity-row-avatar" style="background:${ag?COLOR_BG[ag.color]:COLOR_BG.gray};color:${ag?COLOR_TEXT[ag.color]:COLOR_TEXT.gray}">${ag?ini(ag.name):'?'}</div>
       <div class="activity-row-body">
-        <div class="activity-row-head"><span class="activity-row-author">${ag?esc(ag.name):'Unbekannt'}</span><span class="activity-type-badge activity-type-${e.type}">${typeLabel}</span></div>
-        <div class="activity-row-text">${esc(e.text)}</div>
-        <div class="activity-row-sub">${esc(e.lead.company)}${e.lead.customerNumber?' · '+esc(e.lead.customerNumber):''}</div>
+        <div class="activity-row-head">
+          <span class="activity-row-author">${ag?esc(ag.name):'Unbekannt'}</span>
+          <span class="activity-type-badge activity-type-${e.type}">${typeLabel}</span>
+          <span class="activity-row-text">${esc(e.text)}</span>
+        </div>
+        <div class="activity-row-sub">${esc(e.lead.company)}${e.lead.customerNumber?' · '+esc(e.lead.customerNumber):''} · ${fmtWeekday(e.date)}, ${fmtDate(e.date)}</div>
       </div>
     </div>`;
   }).join(''):'<p style="font-size:12px;color:var(--text3)">Keine Einträge im gewählten Zeitraum/Filter gefunden.</p>';
