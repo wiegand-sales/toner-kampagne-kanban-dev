@@ -45,6 +45,12 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .nav-icon-badge i{color:#fff;font-size:19px;}
 .sidebar-nav-item:hover{background:var(--bg2);color:var(--text);}
 .sidebar-nav-item.active{background:linear-gradient(180deg,#eaf2f3,#e3eef0);color:var(--purple-dark);box-shadow:inset 0 0 0 1px rgba(32,106,114,.14),0 1px 3px rgba(32,106,114,.08);font-weight:600;}
+.settings-subnav{margin:2px 0 4px 14px;padding-left:22px;border-left:1px solid var(--border);display:flex;flex-direction:column;gap:1px;}
+.settings-subnav-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);font-size:12.5px;font-weight:500;color:var(--text2);cursor:pointer;transition:background .15s,color .15s;}
+.settings-subnav-item i{font-size:14px;flex-shrink:0;color:var(--text3);}
+.settings-subnav-item:hover{background:var(--bg2);color:var(--text);}
+.settings-subnav-item.active{background:var(--purple-bg);color:var(--purple-dark);font-weight:600;}
+.settings-subnav-item.active i{color:var(--purple-dark);}
 .sidebar-footer{margin-top:auto;padding:10px 8px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);}
 
 .main-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
@@ -592,7 +598,15 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     <div class="sidebar-nav-item" id="navCrrma" onclick="switchView('crrma')"><span class="nav-icon-badge"><i class="ti ti-report-money"></i></span> CR RMA</div>
     <div class="sidebar-nav-item" id="navTasks" onclick="switchView('tasks')"><span class="nav-icon-badge"><i class="ti ti-list-check"></i></span> Aufgaben</div>
     <div class="sidebar-nav-item" id="navActivities" onclick="switchView('activities')"><span class="nav-icon-badge"><i class="ti ti-history"></i></span> Aktivitäten</div>
-    <div class="sidebar-nav-item" id="navSettings" onclick="switchView('settings')"><span class="nav-icon-badge"><i class="ti ti-settings"></i></span> Einstellungen</div>
+    <div class="sidebar-nav-item" id="navSettings" onclick="toggleSettingsNav()"><span class="nav-icon-badge"><i class="ti ti-settings"></i></span> Einstellungen <i class="ti ti-chevron-down" id="settingsNavChevron" style="margin-left:auto;font-size:13px;color:var(--text3)"></i></div>
+    <div id="settingsSubNav" class="settings-subnav hidden">
+      <div class="settings-subnav-item" id="settingsTabBtn_team" onclick="goSettingsTab('team')"><i class="ti ti-users"></i> Team</div>
+      <div class="settings-subnav-item" id="settingsTabBtn_board" onclick="goSettingsTab('board')"><i class="ti ti-layout-kanban"></i> Board</div>
+      <div class="settings-subnav-item" id="settingsTabBtn_project" onclick="goSettingsTab('project')"><i class="ti ti-target-arrow"></i> Projekt</div>
+      <div class="settings-subnav-item" id="settingsTabBtn_system" onclick="goSettingsTab('system')"><i class="ti ti-database"></i> System</div>
+      <div class="settings-subnav-item" id="settingsTabBtn_csv" onclick="goSettingsTab('csv')"><i class="ti ti-table"></i> Import/Export</div>
+      <div class="settings-subnav-item" id="settingsTabBtn_notify" onclick="goSettingsTab('notify')"><i class="ti ti-mail"></i> Auto. Benachrichtigungen</div>
+    </div>
     <div class="sidebar-footer">Weitere Projekte folgen hier bald.<div id="buildVersionDisplay" style="margin-top:8px;font-size:10px;color:var(--text3);opacity:.7;user-select:all"></div></div>
   </div>
   <div class="main-area">
@@ -733,14 +747,6 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
           </div>
         </div>
       </div>
-      <div class="page-tabs">
-        <button class="page-tab-btn" id="settingsTabBtn_team" onclick="setSettingsTab('team')"><i class="ti ti-users"></i> Team</button>
-        <button class="page-tab-btn" id="settingsTabBtn_board" onclick="setSettingsTab('board')"><i class="ti ti-layout-kanban"></i> Board</button>
-        <button class="page-tab-btn" id="settingsTabBtn_project" onclick="setSettingsTab('project')"><i class="ti ti-target-arrow"></i> Projekt</button>
-        <button class="page-tab-btn" id="settingsTabBtn_system" onclick="setSettingsTab('system')"><i class="ti ti-database"></i> System</button>
-        <button class="page-tab-btn" id="settingsTabBtn_csv" onclick="setSettingsTab('csv')"><i class="ti ti-table"></i> Import/Export</button>
-        <button class="page-tab-btn" id="settingsTabBtn_notify" onclick="setSettingsTab('notify')"><i class="ti ti-mail"></i> Auto. Benachrichtigungen</button>
-      </div>
       <div class="view-scroll" id="settingsContent"></div>
     </div>
 
@@ -841,7 +847,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T12:30:36.000Z';
+const BUILD_VERSION='2026-07-22T12:36:22.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2495,6 +2501,8 @@ function renderUserSelect(){
 function updateNavForRole(){
   const el=document.getElementById('navSettings');
   if(el)el.style.display=isAdmin()?'':'none';
+  const sub=document.getElementById('settingsSubNav');
+  if(sub&&!isAdmin())sub.classList.add('hidden');
   if(currentView==='settings'&&!isAdmin())switchView('board');
 }
 function toggleAgentFilter(id){
@@ -3520,6 +3528,22 @@ function renderActivities(){
 }
 
 let settingsTab='team';
+let settingsNavOpen=false;
+function toggleSettingsNav(){
+  settingsNavOpen=!settingsNavOpen;
+  document.getElementById('settingsSubNav').classList.toggle('hidden',!settingsNavOpen);
+  const chev=document.getElementById('settingsNavChevron');
+  if(chev)chev.className='ti ti-chevron-'+(settingsNavOpen?'up':'down')+' ';
+  switchView('settings');
+}
+function goSettingsTab(tab){
+  settingsNavOpen=true;
+  document.getElementById('settingsSubNav').classList.remove('hidden');
+  const chev=document.getElementById('settingsNavChevron');
+  if(chev)chev.className='ti ti-chevron-up';
+  setSettingsTab(tab);
+  switchView('settings');
+}
 function setSettingsTab(tab){
   settingsTab=tab;
   renderSettings();
