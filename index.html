@@ -65,7 +65,8 @@ body{font-family:'Inter',sans-serif;background:#f6f8f8;color:var(--text);font-si
 .dash-kpi-icon{position:absolute;top:12px;right:12px;font-size:16px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:var(--purple-bg);color:var(--purple-dark);opacity:1;}
 .dash-kpi-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;}
 .dash-kpi-val{font-size:25px;font-weight:700;letter-spacing:-0.02em;}
-.dash-kpi-tall{padding:18px 18px 16px;min-height:104px;}
+.dash-kpi-tall{padding:18px 18px 16px;min-height:104px;border-left:none;}
+.dash-kpi-tall.followup-kpi-overdue,.dash-kpi-tall.followup-kpi-today,.dash-kpi-tall.followup-kpi-week,.dash-kpi-tall.followup-kpi-nextweek,.dash-kpi-tall.followup-kpi-total{border-left:none;}
 .dash-kpi-compare{font-size:11px;color:var(--text2);margin-top:8px;}
 .dash-row-2-1{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;}
 .dash-row-1-2{display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:16px;}
@@ -790,7 +791,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T10:10:04.000Z';
+const BUILD_VERSION='2026-07-22T10:19:38.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3116,7 +3117,7 @@ function renderTasksView(){
   const html=`
     <div class="dash-kpi-row" style="grid-template-columns:repeat(5,1fr)">
       ${kpiCard('Überfällig','overdue','var(--red)')}
-      ${kpiCard('Heute','today','var(--amber-dark)')}
+      ${kpiCard('Heute','today','var(--red)')}
       ${kpiCard('Diese Woche','week','var(--green-dark)')}
       ${kpiCard('Nächste Woche','nextweek','var(--purple)')}
       ${kpiCard('Gesamt','total','var(--text)')}
