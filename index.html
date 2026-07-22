@@ -528,7 +528,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
       </svg>
     </div>
     <div class="login-hero-title">SalesOS</div>
-    <div class="login-hero-tag" id="loginHeroTag">Jede Pipeline. Jedes Investment. Ein FlowBoard.</div>
+    <div class="login-hero-tag" id="loginHeroTag">Jede Pipeline. Jedes Investment.<br><strong>Ein FlowBoard.</strong></div>
     <div class="login-intro">
       <button class="login-hero-btn" onclick="openLoginPanel()">Anmelden</button>
     </div>
@@ -841,7 +841,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T12:22:12.000Z';
+const BUILD_VERSION='2026-07-22T12:23:20.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -6771,7 +6771,7 @@ function openLoginPanel(){
   const tag=document.getElementById('loginHeroTag');
   if(tag){
     tag.style.opacity='0';
-    setTimeout(()=>{tag.textContent='Vertrieb, der sich selbst erklärt.';tag.style.opacity='1';},200);
+    setTimeout(()=>{tag.innerHTML='Vertrieb, der sich selbst erklärt.';tag.style.opacity='1';},200);
   }
   document.getElementById('loginScreen').classList.add('panel-open');
   setTimeout(()=>{const el=document.getElementById('loginEmail');if(el)el.focus();},50);
@@ -6781,7 +6781,7 @@ function closeLoginPanel(){
   const tag=document.getElementById('loginHeroTag');
   if(tag){
     tag.style.opacity='0';
-    setTimeout(()=>{tag.textContent='Jede Pipeline. Jedes Investment. Ein FlowBoard.';tag.style.opacity='1';},200);
+    setTimeout(()=>{tag.innerHTML='Jede Pipeline. Jedes Investment.<br><strong>Ein FlowBoard.</strong>';tag.style.opacity='1';},200);
   }
 }
 function showLoginScreen(msg){
