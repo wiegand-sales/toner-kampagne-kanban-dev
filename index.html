@@ -875,7 +875,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T18:19:55.000Z';
+const BUILD_VERSION='2026-07-22T18:24:56.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3005,6 +3005,34 @@ function overdueTrendChartHtml(dl){
   }).join('');
   return `<div style="display:flex;align-items:flex-end;gap:4px;height:120px;margin-bottom:14px">${bars}</div>`;
 }
+// Balkendiagramm: Top-Forecast-Leads (max. 14 Balken, Variante A). Sind weniger Leads
+// vorhanden, bleiben die restlichen Slots als gestrichelte Platzhalter-Balken stehen,
+// damit die Box immer gleich breit/gefuellt aussieht statt nur ein paar Balken links.
+function topForecastChartHtml(dl){
+  const MAX_BARS=14;
+  const leadsSorted=[...dl].filter(l=>!isClosedLead(l)&&parseFloat(l.forecast)>0)
+    .sort((a,b)=>(parseFloat(b.forecast)||0)-(parseFloat(a.forecast)||0));
+  const shown=leadsSorted.slice(0,MAX_BARS);
+  const max=Math.max(1,...shown.map(l=>parseFloat(l.forecast)||0));
+  let bars='';
+  for(let i=0;i<MAX_BARS;i++){
+    const l=shown[i];
+    if(l){
+      const val=parseFloat(l.forecast)||0;
+      const h=Math.max(4,(val/max)*90);
+      bars+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%" title="${esc(l.company)}: ${fmtEur(val)}">
+        <div style="font-size:8px;font-weight:700;color:var(--text2);margin-bottom:2px;white-space:nowrap">${val>=1000?(val/1000).toFixed(1)+'k':val.toFixed(0)}</div>
+        <div style="width:100%;height:${h}px;background:var(--purple);border-radius:3px 3px 0 0;"></div>
+        <div style="font-size:7px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">${esc((l.company||'').split(' ')[0])}</div>
+      </div>`;
+    }else{
+      bars+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%">
+        <div style="width:100%;height:6px;border:1px dashed var(--border2);border-radius:3px 3px 0 0;"></div>
+      </div>`;
+    }
+  }
+  return `<div style="display:flex;align-items:flex-end;gap:4px;height:120px;margin-bottom:14px">${bars}</div>`;
+}
 function renderDashboard(){
   let dl=activeDashboardAgentFilters.length?leads.filter(l=>(l.members||[]).some(m=>activeDashboardAgentFilters.includes(m))):leads;
   const periodStart=periodStartDate(activeDashboardPeriod);
@@ -3308,6 +3336,7 @@ function renderDashboard(){
       </div>
       <div class="info-section">
         <div class="section-hdr" style="margin-top:0">Top Forecast (offen)</div>
+        ${topForecastChartHtml(dl)}
         ${topForecastHtml}
       </div>
     </div>`;
