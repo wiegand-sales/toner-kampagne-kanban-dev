@@ -623,6 +623,9 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
           <i class="ti ti-search omni-search-icon"></i>
           <input type="text" class="omni-input" id="crrmaSearch" placeholder="SKU oder Titel suchen…" oninput="renderCrRma()">
           <div class="omni-spacer"></div>
+          <input type="file" id="articleCsvImportInput" accept=".csv,text/csv" style="display:none" onchange="if(this.files[0]){importArticleCSVFile(this.files[0]);this.value='';}">
+          <button class="omnibar-btn" style="color:var(--red);border-color:var(--red)" onclick="deleteAllArticles()"><i class="ti ti-trash"></i> Alle löschen</button>
+          <button class="omnibar-btn primary" onclick="addArticle()"><i class="ti ti-plus"></i> Artikel hinzufügen</button>
           <div class="infobtn-wrap crrma-menu-wrap">
             <button class="omnibar-btn icon" onclick="toggleCrrmaMenu(event)" title="Import / Export"><i class="ti ti-dots-vertical"></i></button>
             <div class="infopop" id="crrmaOverflowMenu">
@@ -630,9 +633,6 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
               <div class="filtermenu-item" onclick="exportArticleCSV()"><i class="ti ti-download"></i> Export CSV</div>
             </div>
           </div>
-          <input type="file" id="articleCsvImportInput" accept=".csv,text/csv" style="display:none" onchange="if(this.files[0]){importArticleCSVFile(this.files[0]);this.value='';}">
-          <button class="omnibar-btn" style="color:var(--red);border-color:var(--red)" onclick="deleteAllArticles()"><i class="ti ti-trash"></i> Alle löschen</button>
-          <button class="omnibar-btn primary" onclick="addArticle()"><i class="ti ti-plus"></i> Artikel hinzufügen</button>
         </div>
       </div>
       <div class="view-scroll" id="crrmaContent"></div>
@@ -794,7 +794,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T09:32:24.000Z';
+const BUILD_VERSION='2026-07-22T09:36:31.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
