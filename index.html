@@ -875,7 +875,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T13:37:55.000Z';
+const BUILD_VERSION='2026-07-22T13:48:11.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3106,35 +3106,6 @@ function renderDashboard(){
       <div class="info-section" style="border-color:${lostLeads.length?'var(--amber)':'var(--border)'}">
         <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-message-circle-question" style="color:var(--amber-dark)"></i> Warum wir Kunden verlieren</span></div>
         <div class="funnel-wrap">${reasonHtml}</div>
-      </div>
-    </div>
-    <div class="dash-row-1-1">
-      <div class="info-section">
-        <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-coin" style="color:var(--purple)"></i> Finanzielle Auswirkung</span></div>
-        <div class="impact-row"><span>Forecast gewonnen</span><strong style="color:var(--green-dark)">${fmtEur(forecastWon)||'0 €'}</strong></div>
-        <div class="impact-row"><span>Forecast verloren</span><strong style="color:var(--red)">${fmtEur(forecastLost)||'0 €'}</strong></div>
-        <div class="impact-row"><span>Investition in verlorene Leads</span><strong style="color:var(--amber-dark)">${fmtEur(investLost)||'0 €'}</strong></div>
-        <div class="impact-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:12px"><span>Netto-Effekt (gewonnen − verlorene Investition)</span><strong style="color:${netEffect>=0?'var(--green-dark)':'var(--red)'}">${fmtEur(netEffect)||'0 €'}</strong></div>
-        <p style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">Toner-Investition in Leads, die am Ende trotzdem abgesprungen sind, gegen den Forecast-Wert der gewonnenen Leads gerechnet.</p>
-      </div>
-      <div class="info-section">
-        <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-building-store" style="color:var(--purple)"></i> B2B vs. B2C</span></div>
-        ${artHtml}
-        <p style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5">Gewinnrate bezogen auf abgeschlossene Leads (gewonnen + verloren) je Kundentyp.</p>
-      </div>
-    </div>
-    <div class="info-section">
-      <div class="section-hdr" style="margin-top:0">Forecast je Mitarbeiter</div>
-      ${agentBarHtml}
-    </div>
-    <div class="dash-row-1-1">
-      <div class="info-section">
-        <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-users-group" style="color:var(--purple)"></i> Kapazitätsübersicht</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(offene Leads je Mitarbeiter)</span></div>
-        <div class="funnel-wrap">${capHtml}</div>
-      </div>
-      <div class="info-section">
-        <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-chart-bar" style="color:var(--purple)"></i> Trend (letzte 6 Wochen)</span> <span style="font-weight:400;color:var(--text3);font-size:11px">Bewegungen · davon gewonnen</span></div>
-        <div class="funnel-wrap">${trendHtml}</div>
       </div>
     </div>
     <div class="info-section" style="border-color:${riskLeads.length?'var(--red)':'var(--border)'}">
