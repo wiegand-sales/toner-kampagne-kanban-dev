@@ -875,7 +875,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T13:59:21.000Z';
+const BUILD_VERSION='2026-07-22T14:03:20.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3198,10 +3198,6 @@ function renderDashboard(){
       ${dashboardActivityChartHtml(dl)}
     </div>
     <div class="info-section">
-      <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-map-pin" style="color:var(--purple)"></i> Kunden-Herkunft</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(stilisiert, aus Adressfeld)</span></div>
-      ${customerOriginMapHtml(dl)}
-    </div>
-    <div class="info-section">
       <div class="section-hdr" style="margin-top:0">Pipeline-Trichter <span style="font-weight:400;color:var(--text3);font-size:11px">(Anzahl · Anteil an allen Leads)</span></div>
       <div class="funnel-wrap">${funnelHtml}</div>
       <div class="movements-strip">
@@ -3214,6 +3210,10 @@ function renderDashboard(){
         <summary>Einzelne Bewegungen anzeigen</summary>
         <div style="margin-top:8px">${movementsRowsHtml}</div>
       </details>
+    </div>
+    <div class="info-section">
+      <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-map-pin" style="color:var(--purple)"></i> Kunden-Herkunft</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(stilisiert, aus Adressfeld)</span></div>
+      ${customerOriginMapHtml(dl)}
     </div>
     <div class="dash-row-1-1">
       <div class="info-section" style="border-color:${lostLeads.length?'var(--red)':'var(--border)'}">
