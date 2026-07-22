@@ -243,8 +243,15 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .topbar-unified{padding:14px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
 .tbu-left{display:flex;align-items:center;gap:12px;flex-shrink:0;}
 .tbu-left .tb-title{margin:0;line-height:1;}
-.omnibar-flex{flex:1 1 260px;display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0;min-width:200px;}
-.omnibar-flex .omni-input{background:transparent;}
+.omnibar-flex{flex:1 1 260px;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border2);border-radius:24px;padding:5px 6px 5px 16px;min-width:200px;}
+.omnibar-flex .omni-input{background:transparent;height:34px;}
+.omnibar-btn{height:34px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:500;cursor:pointer;
+  border:1px solid var(--border2);background:#fff;color:var(--text);display:inline-flex;align-items:center;gap:6px;
+  font-family:inherit;white-space:nowrap;flex-shrink:0;}
+.omnibar-btn:hover{background:var(--bg2);}
+.omnibar-btn.primary{background:linear-gradient(180deg,#27808a 0%,#206A72 100%);color:#fff;border-color:var(--purple);box-shadow:0 2px 8px rgba(32,106,114,.28);}
+.omnibar-btn.primary:hover{background:linear-gradient(180deg,#1f6d76 0%,#174C52 100%);}
+.omnibar-btn.icon{width:34px;padding:0;justify-content:center;border-radius:50%;}
 .tbu-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .tb-stat{text-align:center;}
 .tb-stat-val{font-size:16px;font-weight:700;}
@@ -571,7 +578,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
           <input type="text" class="omni-input" id="searchInput" placeholder="Firma, Kontakt, Kd-Nr." oninput="renderBoard()">
           <div id="omniTokens" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"></div>
           <div class="omni-addfilter-wrap">
-            <button class="omni-addfilter" onclick="toggleFilterMenu(event)"><i class="ti ti-plus" style="font-size:12px"></i> Filter</button>
+            <button class="omnibar-btn" onclick="toggleFilterMenu(event)"><i class="ti ti-plus" style="font-size:12px"></i> Filter</button>
             <div class="filtermenu" id="filterMenu">
               <h4>Mitarbeiter</h4>
               <div id="filterMenuAgents"></div>
@@ -580,13 +587,12 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
               <div id="filterMenuLabels"></div>
             </div>
           </div>
-        </div>
-        <div class="tbu-right">
-          <button class="btn btn-sm" id="bulkModeBtn" onclick="toggleBulkMode()"><i class="ti ti-checkbox"></i> Mehrfachauswahl</button>
-          <button class="btn btn-primary" onclick="openLeadModal(null)"><i class="ti ti-plus"></i> Neuer Lead</button>
+          <div class="omni-spacer"></div>
+          <button class="omnibar-btn" id="bulkModeBtn" onclick="toggleBulkMode()"><i class="ti ti-checkbox"></i> Mehrfachauswahl</button>
+          <button class="omnibar-btn primary" onclick="openLeadModal(null)"><i class="ti ti-plus"></i> Neuer Lead</button>
           <input type="file" id="csvImportInput" accept=".csv,text/csv" style="display:none" onchange="if(this.files[0]){importCSVFile(this.files[0]);this.value='';}">
           <div class="infobtn-wrap">
-            <div class="infobtn" id="overflowBtn" onclick="toggleOverflowMenu(event)" title="Weitere Optionen"><i class="ti ti-dots-vertical"></i></div>
+            <button class="omnibar-btn icon" id="overflowBtn" onclick="toggleOverflowMenu(event)" title="Weitere Optionen"><i class="ti ti-dots-vertical"></i></button>
             <div class="infopop" id="overflowMenu">
               <div class="filtermenu-item" onclick="triggerCSVImport()"><i class="ti ti-upload"></i> Import CSV</div>
               <div class="filtermenu-item" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</div>
@@ -783,7 +789,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T08:40:58.000Z';
+const BUILD_VERSION='2026-07-22T08:46:56.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
