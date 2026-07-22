@@ -875,7 +875,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T13:53:42.000Z';
+const BUILD_VERSION='2026-07-22T13:59:21.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2849,6 +2849,69 @@ function donutChartHtml(entries,totalCount,centerLabel){
   </div>`;
 }
 // Aktivitätsdiagramm (letzte 30 Tage) mit geglaetteter (interpolierter) Linie, analog zum Chart in Aktivitäten
+// Kunden-Herkunft: stilisierte Deutschlandkarte mit aggregierten Punkten je Stadt.
+// Stadt wird per Regex aus der Adresse extrahiert (Text nach der 5-stelligen PLZ) und
+// gegen eine Liste bekannter Grossstaedte mit ungefaehren Koordinaten abgeglichen.
+const GERMANY_CITY_COORDS={
+  'kiel':[150,20],'hamburg':[150,62],'bremen':[110,90],'rostock':[195,45],
+  'hannover':[150,120],'berlin':[232,108],'magdeburg':[190,138],'bielefeld':[115,130],
+  'dortmund':[80,158],'essen':[68,150],'duisburg':[65,155],'düsseldorf':[70,168],
+  'köln':[75,188],'bonn':[80,198],'leipzig':[212,178],'dresden':[242,188],
+  'erfurt':[172,168],'frankfurt':[112,220],'wiesbaden':[104,214],'mainz':[105,224],
+  'mannheim':[112,250],'karlsruhe':[105,268],'stuttgart':[132,270],'nürnberg':[182,248],
+  'saarbrücken':[70,240],'freiburg':[95,310],
+  'münchen':[200,320],'augsburg':[185,300],'regensburg':[202,268],
+  'ulm':[145,285],'kassel':[145,168],'münster':[95,140],'aachen':[55,185]
+};
+// Normalisiert gängige Umlaut-Schreibweisen (oe/ue/ae) auf die Umlaut-Form, damit
+// "Koeln" und "Köln" als dieselbe Stadt gezählt werden (statt als zwei getrennte Punkte).
+function normalizeGermanCity(s){
+  return s.toLowerCase().trim()
+    .replace(/oe/g,'ö').replace(/ue/g,'ü').replace(/ae/g,'ä');
+}
+function extractCityFromAddress(address){
+  if(!address)return null;
+  const m=address.match(/\b\d{5}\b\s+([A-Za-zÄÖÜäöüß\-\. ]+)/);
+  if(!m)return null;
+  return m[1].trim().split(',')[0].trim();
+}
+function customerOriginMapHtml(dl){
+  const cityCounts={};
+  let matched=0,unmatched=0;
+  dl.forEach(l=>{
+    const city=extractCityFromAddress(l.address);
+    if(!city){unmatched++;return;}
+    const norm=normalizeGermanCity(city);
+    if(GERMANY_CITY_COORDS[norm]){cityCounts[norm]=(cityCounts[norm]||0)+1;matched++;}
+    else unmatched++;
+  });
+  const entries=Object.entries(cityCounts).sort((a,b)=>b[1]-a[1]);
+  const maxCount=Math.max(1,...entries.map(x=>x[1]));
+  const outline="M150,10 C185,8 210,20 225,15 C245,10 260,30 255,50 C270,60 265,85 250,95 C260,115 250,135 235,140 C245,160 235,180 220,185 C230,205 215,225 195,220 C200,240 185,258 165,255 C170,275 155,295 140,300 C145,320 130,340 110,335 C95,355 70,350 65,330 C50,335 35,320 40,300 C25,295 20,275 30,260 C15,250 15,230 30,220 C20,205 25,185 45,180 C35,165 45,145 65,145 C55,125 65,105 85,105 C75,85 90,65 110,68 C105,48 120,28 140,32 C138,18 143,10 150,10 Z";
+  let dots='';
+  entries.forEach(([city,count])=>{
+    const [x,y]=GERMANY_CITY_COORDS[city];
+    const r=8+(count/maxCount)*16;
+    const t=count/maxCount;
+    const from=[126,210,219],to=[23,76,82];
+    const c=from.map((v,i)=>Math.round(v+(to[i]-v)*t));
+    dots+=`<circle cx="${x}" cy="${y}" r="${r.toFixed(1)}" fill="rgb(${c[0]},${c[1]},${c[2]})" fill-opacity="0.88" stroke="#fff" stroke-width="1.5"/>
+      <text x="${x}" y="${y+4}" text-anchor="middle" font-size="10" font-weight="700" fill="#fff" font-family="Inter,sans-serif">${count}</text>`;
+  });
+  const legend=entries.slice(0,8).map(([city,count])=>{
+    const label=city.charAt(0).toUpperCase()+city.slice(1);
+    return `<div class="donut-legend-item"><span class="donut-legend-dot" style="background:var(--purple-dark)"></span><span class="donut-legend-name">${esc(label)}</span><span class="donut-legend-val">${count}</span></div>`;
+  }).join('');
+  const note=unmatched>0?`<div style="font-size:11px;color:var(--text3);margin-top:8px">${unmatched} Lead${unmatched===1?'':'s'} ohne erkennbare Stadt in der Adresse nicht auf der Karte gezeigt.</div>`:'';
+  if(!entries.length)return '<p style="font-size:12px;color:var(--text3)">Keine Adressen mit erkennbarer Stadt gefunden.</p>';
+  return `<div class="donut-wrap">
+    <svg width="300" height="360" viewBox="0 0 300 360" style="flex-shrink:0">
+      <path d="${outline}" fill="var(--glass)" stroke="var(--purple)" stroke-width="1.5" stroke-opacity="0.45"/>
+      ${dots}
+    </svg>
+    <div class="donut-legend">${legend}${note}</div>
+  </div>`;
+}
 function dashboardActivityChartHtml(dl){
   const days=30;
   const buckets=[];
@@ -3133,6 +3196,10 @@ function renderDashboard(){
     ${kpiHtml}
     <div class="info-section">
       ${dashboardActivityChartHtml(dl)}
+    </div>
+    <div class="info-section">
+      <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-map-pin" style="color:var(--purple)"></i> Kunden-Herkunft</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(stilisiert, aus Adressfeld)</span></div>
+      ${customerOriginMapHtml(dl)}
     </div>
     <div class="info-section">
       <div class="section-hdr" style="margin-top:0">Pipeline-Trichter <span style="font-weight:400;color:var(--text3);font-size:11px">(Anzahl · Anteil an allen Leads)</span></div>
