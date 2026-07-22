@@ -568,11 +568,6 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 
     <div class="view" id="viewBoard">
       <div class="topbar-unified">
-        <div class="tbu-left">
-          <div style="width:36px;height:36px;border-radius:9px;background:linear-gradient(180deg,#2f8791 0%,#206A72 100%);box-shadow:0 2px 5px rgba(15,61,66,.28),inset 0 1px 0 rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Projekt: Toner">
-            <i class="ti ti-layout-kanban" style="color:#fff;font-size:19px"></i>
-          </div>
-        </div>
         <div class="omnibar-flex">
           <i class="ti ti-search omni-search-icon"></i>
           <input type="text" class="omni-input" id="searchInput" placeholder="Firma, Kontakt, Kd-Nr." oninput="renderBoard()">
@@ -616,9 +611,6 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 
     <div class="view" id="viewCrrma">
       <div class="topbar-unified">
-        <div class="tbu-left">
-          <div class="page-icon-badge" title="CR RMA"><i class="ti ti-report-money"></i></div>
-        </div>
         <div class="omnibar-flex">
           <i class="ti ti-search omni-search-icon"></i>
           <input type="text" class="omni-input" id="crrmaSearch" placeholder="SKU oder Titel suchen…" oninput="renderCrRma()">
@@ -794,7 +786,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T09:36:31.000Z';
+const BUILD_VERSION='2026-07-22T09:50:55.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
