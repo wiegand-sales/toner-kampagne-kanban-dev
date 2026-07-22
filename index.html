@@ -46,6 +46,8 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .sidebar-nav-item i{font-size:17px;flex-shrink:0;}
 .nav-icon-badge{width:36px;height:36px;border-radius:9px;background:linear-gradient(180deg,#27808a 0%,#206A72 100%);box-shadow:0 6px 16px rgba(32,106,114,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .nav-icon-badge i{color:#fff;font-size:19px;}
+.nav-icon-badge.faded{background:var(--purple-bg);box-shadow:none;}
+.nav-icon-badge.faded i{color:var(--purple);}
 .sidebar-nav-item:hover{background:var(--bg2);color:var(--text);}
 .sidebar-nav-item.active{background:linear-gradient(180deg,#eaf2f3,#e3eef0);color:var(--purple-dark);box-shadow:inset 0 0 0 1px rgba(32,106,114,.14),0 1px 3px rgba(32,106,114,.08);font-weight:600;}
 .settings-subnav{margin:2px 0 4px 14px;padding-left:22px;border-left:1px solid var(--border);display:flex;flex-direction:column;gap:1px;}
@@ -613,12 +615,12 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         <select id="currentUserSelect" class="me-select" onchange="currentUser=this.value;updateNavForRole()" style="width:100%"></select>
       </div>
     </div>
-    <div class="sidebar-nav-item" id="navDashboard" onclick="switchView('dashboard')"><span class="nav-icon-badge"><i class="ti ti-layout-dashboard"></i></span> Dashboard</div>
+    <div class="sidebar-nav-item" id="navDashboard" onclick="switchView('dashboard')"><span class="nav-icon-badge faded"><i class="ti ti-layout-dashboard"></i></span> Dashboard</div>
     <div class="sidebar-nav-item" id="navTasks" onclick="switchView('tasks')"><span class="nav-icon-badge"><i class="ti ti-list-check"></i></span> Meine Aufgaben</div>
     <div class="sidebar-nav-item" id="navBoard" onclick="switchView('board')"><span class="nav-icon-badge"><i class="ti ti-layout-kanban"></i></span> Mein Board</div>
-    <div class="sidebar-nav-item" id="navCrrma" onclick="switchView('crrma')"><span class="nav-icon-badge"><i class="ti ti-report-money"></i></span> Artikel</div>
-    <div class="sidebar-nav-item" id="navActivities" onclick="switchView('activities')"><span class="nav-icon-badge"><i class="ti ti-history"></i></span> Aktivitäten</div>
-    <div class="sidebar-nav-item" id="navSettings" onclick="toggleSettingsNav()"><span class="nav-icon-badge"><i class="ti ti-settings"></i></span> Einstellungen <i class="ti ti-chevron-down" id="settingsNavChevron" style="margin-left:auto;font-size:13px;color:var(--text3)"></i></div>
+    <div class="sidebar-nav-item" id="navCrrma" onclick="switchView('crrma')"><span class="nav-icon-badge faded"><i class="ti ti-report-money"></i></span> Artikel</div>
+    <div class="sidebar-nav-item" id="navActivities" onclick="switchView('activities')"><span class="nav-icon-badge faded"><i class="ti ti-history"></i></span> Aktivitäten</div>
+    <div class="sidebar-nav-item" id="navSettings" onclick="toggleSettingsNav()"><span class="nav-icon-badge faded"><i class="ti ti-settings"></i></span> Einstellungen <i class="ti ti-chevron-down" id="settingsNavChevron" style="margin-left:auto;font-size:13px;color:var(--text3)"></i></div>
     <div id="settingsSubNav" class="settings-subnav hidden">
       <div class="settings-subnav-item" id="settingsTabBtn_team" onclick="goSettingsTab('team')"><i class="ti ti-users"></i> Team</div>
       <div class="settings-subnav-item" id="settingsTabBtn_board" onclick="goSettingsTab('board')"><i class="ti ti-layout-kanban"></i> Board</div>
@@ -880,7 +882,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T18:40:55.000Z';
+const BUILD_VERSION='2026-07-22T18:45:40.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2513,8 +2515,8 @@ function renderUserSelect(){
   const manualEl=document.getElementById('currentUserManual');
   if(matched){
     currentUser=matched.id;
-    document.getElementById('currentUserAvatar').style.background=COLOR_BG[matched.color];
-    document.getElementById('currentUserAvatar').style.color=COLOR_TEXT[matched.color];
+    document.getElementById('currentUserAvatar').style.background='linear-gradient(180deg,#27808a 0%,#206A72 100%)';
+    document.getElementById('currentUserAvatar').style.color='#fff';
     document.getElementById('currentUserAvatar').textContent=ini(matched.name);
     document.getElementById('currentUserName').textContent=matched.name;
     document.getElementById('currentUserRole').textContent=roleLabel(matched.role);
