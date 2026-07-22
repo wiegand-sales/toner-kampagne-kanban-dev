@@ -65,6 +65,8 @@ body{font-family:'Inter',sans-serif;background:#f6f8f8;color:var(--text);font-si
 .dash-kpi-icon{position:absolute;top:12px;right:12px;font-size:16px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:var(--purple-bg);color:var(--purple-dark);opacity:1;}
 .dash-kpi-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;}
 .dash-kpi-val{font-size:25px;font-weight:700;letter-spacing:-0.02em;}
+.dash-kpi-tall{padding:18px 18px 16px;min-height:104px;}
+.dash-kpi-compare{font-size:11px;color:var(--text2);margin-top:8px;}
 .dash-row-2-1{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;}
 .dash-row-1-2{display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:16px;}
 .dash-row-1-1{display:flex;gap:16px;margin-bottom:16px;align-items:stretch;}
@@ -788,7 +790,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T10:03:09.000Z';
+const BUILD_VERSION='2026-07-22T10:10:04.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2937,6 +2939,37 @@ let editingAgentId=null;
 let newAgentColorSel=null;
 
 // ── FOLLOW-UP-ÜBERSICHT (Leads mit Follow-up-Datum, live aus dem Board) ──
+function followupBucketCountsAt(withFollowupAll,offsetDays){
+  const ref=new Date(TODAY);
+  ref.setUTCDate(ref.getUTCDate()-offsetDays);
+  const refMs=ref.getTime();
+  let overdue=0,today=0,week=0,nextweek=0;
+  withFollowupAll.forEach(l=>{
+    const diff=Math.round((new Date(l.followup)-refMs)/86400000);
+    if(diff<0)overdue++;
+    else if(diff===0)today++;
+    else if(diff<=7)week++;
+    else if(diff<=14)nextweek++;
+  });
+  return{overdue,today,week,nextweek,total:overdue+today+week+nextweek};
+}
+function miniSparklineSvg(values,color){
+  const w=64,h=26,pad=3;
+  const min=Math.min(...values),max=Math.max(...values);
+  const range=(max-min)||1;
+  const step=(w-2*pad)/((values.length-1)||1);
+  const pts=values.map((v,i)=>{
+    const x=pad+i*step;
+    const y=h-pad-((v-min)/range)*(h-2*pad);
+    return`${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return`<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="overflow:visible;flex-shrink:0"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+function kpiTrendArrow(curr,prev){
+  if(curr>prev)return'<i class="ti ti-trending-up"></i>';
+  if(curr<prev)return'<i class="ti ti-trending-down"></i>';
+  return'<i class="ti ti-arrow-right"></i>';
+}
 function followupBucket(l){
   const d=daysUntil(l.followup);
   if(d<0)return'overdue';
@@ -3064,15 +3097,29 @@ function renderTasksView(){
   const buckets={overdue:[],today:[],week:[],nextweek:[]};
   withFollowup.forEach(l=>{const b=followupBucket(l);if(b)buckets[b].push(l);});
   ['overdue','today','week','nextweek'].forEach(k=>buckets[k].sort((a,b)=>a.followup.localeCompare(b.followup)));
-  const total=withFollowup.length;
+
+  const history=[6,5,4,3,2,1,0].map(o=>followupBucketCountsAt(withFollowup,o));
+  const curr=history[6],prev=history[5];
+  function kpiCard(label,key,colorVar){
+    const series=history.map(h=>h[key]);
+    const currVal=curr[key],prevVal=prev[key];
+    return`<div class="dash-kpi dash-kpi-tall followup-kpi-${key}">
+      <div class="dash-kpi-label">${label}</div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div class="dash-kpi-val" style="color:${colorVar}">${currVal} <span style="font-size:14px;vertical-align:middle;opacity:.8">${kpiTrendArrow(currVal,prevVal)}</span></div>
+        ${miniSparklineSvg(series,colorVar)}
+      </div>
+      <div class="dash-kpi-compare">Vortag: ${prevVal}</div>
+    </div>`;
+  }
 
   const html=`
     <div class="dash-kpi-row" style="grid-template-columns:repeat(5,1fr)">
-      <div class="dash-kpi followup-kpi-overdue"><i class="ti ti-alert-triangle dash-kpi-icon" style="color:var(--red)"></i><div class="dash-kpi-label">Überfällig</div><div class="dash-kpi-val" style="color:var(--red)">${buckets.overdue.length}</div></div>
-      <div class="dash-kpi followup-kpi-today"><i class="ti ti-sun dash-kpi-icon" style="color:var(--amber-dark)"></i><div class="dash-kpi-label">Heute</div><div class="dash-kpi-val" style="color:var(--amber-dark)">${buckets.today.length}</div></div>
-      <div class="dash-kpi followup-kpi-week"><i class="ti ti-calendar-week dash-kpi-icon" style="color:var(--green-dark)"></i><div class="dash-kpi-label">Diese Woche</div><div class="dash-kpi-val" style="color:var(--green-dark)">${buckets.week.length}</div></div>
-      <div class="dash-kpi followup-kpi-nextweek"><i class="ti ti-calendar-plus dash-kpi-icon" style="color:var(--purple)"></i><div class="dash-kpi-label">Nächste Woche</div><div class="dash-kpi-val" style="color:var(--purple)">${buckets.nextweek.length}</div></div>
-      <div class="dash-kpi followup-kpi-total"><i class="ti ti-list-check dash-kpi-icon" style="color:var(--text2)"></i><div class="dash-kpi-label">Gesamt</div><div class="dash-kpi-val">${total}</div></div>
+      ${kpiCard('Überfällig','overdue','var(--red)')}
+      ${kpiCard('Heute','today','var(--amber-dark)')}
+      ${kpiCard('Diese Woche','week','var(--green-dark)')}
+      ${kpiCard('Nächste Woche','nextweek','var(--purple)')}
+      ${kpiCard('Gesamt','total','var(--text)')}
     </div>
     ${followupGroupHtml('Überfällig',buckets.overdue,'var(--red)','alert-triangle','followup-kpi-overdue')}
     ${followupGroupHtml('Heute',buckets.today,'var(--amber-dark)','sun','followup-kpi-today')}
