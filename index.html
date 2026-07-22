@@ -797,7 +797,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T10:33:17.000Z';
+const BUILD_VERSION='2026-07-22T10:38:50.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -6210,6 +6210,24 @@ function parseGermanNumber(v){
   const num=parseFloat(s);
   return isNaN(num)?'':String(num);
 }
+// Robuste Zahlen-Erkennung fuer CSV-Importe: deutsches Excel exportiert Dezimalzahlen
+// oft mit Komma statt Punkt (z.B. "12,50"). parseFloat() allein wuerde davon nur den
+// Teil VOR dem Komma lesen ("12") und den Nachkommateil stillschweigend verwerfen -
+// dadurch landeten beim Import immer nur ganze Zahlen (angezeigt als "X,00") in der
+// Tabelle, unabhaengig vom tatsaechlichen Wert in der Datei.
+function parseLocaleNumber(v){
+  if(v===undefined||v===null)return NaN;
+  let s=String(v).trim().replace(/[€\s]/g,'');
+  if(s==='')return NaN;
+  const hasComma=s.includes(','),hasDot=s.includes('.');
+  if(hasComma&&hasDot){
+    if(s.lastIndexOf(',')>s.lastIndexOf('.'))s=s.replace(/\./g,'').replace(',','.');
+    else s=s.replace(/,/g,'');
+  }else if(hasComma){
+    s=s.replace(',','.');
+  }
+  return parseFloat(s);
+}
 function parseCSV(text){
   // Trennzeichen erkennen: Semikolon (deutsches Excel) oder Komma
   const firstLine=text.split(/\r?\n/)[0]||'';
@@ -6458,10 +6476,10 @@ function importArticleCSVFile(file){
           id:genId(),
           sku,
           title:get('title'),
-          ek:parseFloat(get('ek'))||0,
-          vk:parseFloat(get('vk'))||0,
-          crRma:parseFloat(get('crRma'))||0,
-          verkaufteStk:parseFloat(get('verkaufteStk'))||0,
+          ek:parseLocaleNumber(get('ek'))||0,
+          vk:parseLocaleNumber(get('vk'))||0,
+          crRma:parseLocaleNumber(get('crRma'))||0,
+          verkaufteStk:parseLocaleNumber(get('verkaufteStk'))||0,
         });
         added++;
       });
