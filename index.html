@@ -631,18 +631,18 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     </div>
 
     <div class="view" id="viewTasks">
-      <div class="page-hdr">
-        <div class="page-hdr-left">
-          <div class="page-icon-badge"><i class="ti ti-list-check"></i></div>
-          <div>
-            <div class="page-hdr-title">Aufgaben</div>
-            <div class="page-hdr-sub">Leads mit Follow-up-Datum, gruppiert nach Fälligkeit</div>
+      <div class="topbar-unified">
+        <div class="omnibar-flex">
+          <div class="omni-addfilter-wrap">
+            <button class="omnibar-btn" onclick="toggleTasksFilterMenu(event)"><i class="ti ti-plus" style="font-size:12px"></i> Filter</button>
+            <div class="filtermenu" id="tasksFilterMenu">
+              <h4>Mitarbeiter</h4>
+              <div id="tasksFilterMenuAgents"></div>
+            </div>
           </div>
+          <div id="tasksOmniTokens" style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap;overflow-x:auto;max-width:320px;flex-shrink:1;"></div>
+          <div class="omni-spacer"></div>
         </div>
-      </div>
-      <div class="filterbar">
-        <span class="filterbar-label">Mitarbeiter</span>
-        <div id="tasksAgentChips"></div>
       </div>
       <div class="view-scroll" id="tasksViewContent"></div>
     </div>
@@ -786,7 +786,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T09:50:55.000Z';
+const BUILD_VERSION='2026-07-22T09:56:29.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2981,12 +2981,28 @@ function followupGroupHtml(title,items,colorVar,icon,accentClass){
   </div>`;
 }
 function renderTasksAgentChips(){
-  const el=document.getElementById('tasksAgentChips');
-  let html=`<span class="chip ${activeTasksAgentFilter==='all'?'active':''}" onclick="setTasksAgentFilter('all')">Alle</span>`;
+  const el=document.getElementById('tasksFilterMenuAgents');
+  if(!el)return;
+  let html=`<div class="filtermenu-item ${activeTasksAgentFilter==='all'?'active':''}" onclick="setTasksAgentFilter('all')"><span>Alle</span>${activeTasksAgentFilter==='all'?'<i class="ti ti-check"></i>':''}</div>`;
   AGENTS.forEach(a=>{
-    html+=`<span class="chip ${activeTasksAgentFilter===a.id?'active':''}" onclick="setTasksAgentFilter('${a.id}')">${esc(a.name)}</span>`;
+    const active=activeTasksAgentFilter===a.id;
+    html+=`<div class="filtermenu-item ${active?'active':''}" onclick="setTasksAgentFilter('${a.id}')"><span>${esc(a.name)}</span>${active?'<i class="ti ti-check"></i>':''}</div>`;
   });
   el.innerHTML=html;
+  renderTasksOmniTokens();
+}
+function renderTasksOmniTokens(){
+  const el=document.getElementById('tasksOmniTokens');
+  if(!el)return;
+  if(activeTasksAgentFilter==='all'){el.innerHTML='';return;}
+  const a=AGENTS.find(a=>a.id===activeTasksAgentFilter);
+  el.innerHTML=a?`<div class="omni-token"><i class="ti ti-user" style="font-size:12px"></i>${esc(a.name)}<i class="ti ti-x" onclick="setTasksAgentFilter('all')"></i></div>`:'';
+}
+let tasksFilterMenuOpen=false;
+function toggleTasksFilterMenu(e){
+  if(e)e.stopPropagation();
+  tasksFilterMenuOpen=!tasksFilterMenuOpen;
+  document.getElementById('tasksFilterMenu').classList.toggle('show',tasksFilterMenuOpen);
 }
 function setTasksAgentFilter(id){
   activeTasksAgentFilter=id;
@@ -6386,6 +6402,7 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('.omni-addfilter-wrap')&&filterMenuOpen){filterMenuOpen=false;document.getElementById('filterMenu').classList.remove('show');}
   if(!e.target.closest('.infobtn-wrap')&&overflowMenuOpen){overflowMenuOpen=false;document.getElementById('overflowMenu').classList.remove('show');}
   if(!e.target.closest('.crrma-menu-wrap')&&crrmaMenuOpen){crrmaMenuOpen=false;document.getElementById('crrmaOverflowMenu').classList.remove('show');}
+  if(!e.target.closest('.omni-addfilter-wrap')&&tasksFilterMenuOpen){tasksFilterMenuOpen=false;const m=document.getElementById('tasksFilterMenu');if(m)m.classList.remove('show');}
 });
 
 function showSyncFailureBanner(msg){
