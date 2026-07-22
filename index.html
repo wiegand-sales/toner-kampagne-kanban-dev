@@ -191,7 +191,8 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .task-group-hdr{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:8px;}
 .task-group-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block;vertical-align:middle;}
 .task-group-count{font-size:11px;font-weight:500;color:var(--text3);}
-.task-row{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;margin-bottom:6px;cursor:pointer;transition:box-shadow .12s,border-color .12s;}
+.task-row{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,0.03);border:1px solid rgba(0,0,0,0.12);border-radius:8px;padding:9px 12px;margin-bottom:6px;cursor:pointer;transition:background .12s,border-color .12s;}
+.task-row:hover{background:rgba(0,0,0,0.06);}
 .task-row:hover{border-color:var(--border2);box-shadow:0 1px 4px rgba(0,0,0,.06);}
 .task-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--teal);cursor:pointer;flex-shrink:0;}
 .task-row-text{flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -206,7 +207,9 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .crrma-legend-item{display:flex;align-items:center;gap:5px;}
 .crrma-dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
 .crrma-table{display:flex;flex-direction:column;}
-.crrma-row{display:grid;grid-template-columns:1.2fr 1.8fr 0.8fr 0.8fr 0.8fr 0.9fr 0.9fr 34px;gap:8px;align-items:center;padding:4px 0;}
+.crrma-row{display:grid;grid-template-columns:1.2fr 1.8fr 0.8fr 0.8fr 0.8fr 0.9fr 0.9fr 34px;gap:8px;align-items:center;padding:8px 12px;}
+.crrma-row:not(.crrma-hdr){background:rgba(0,0,0,0.03);border:1px solid rgba(0,0,0,0.12);border-radius:8px;margin-bottom:6px;}
+.crrma-row:not(.crrma-hdr):hover{background:rgba(0,0,0,0.06);}
 .crrma-margin-input{font-size:13px;font-weight:600;width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-family:inherit;}
 .crrma-sortable{cursor:pointer;user-select:none;}
 .crrma-sortable:hover{color:var(--purple);}
@@ -815,7 +818,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T11:14:51.000Z';
+const BUILD_VERSION='2026-07-22T11:19:19.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
