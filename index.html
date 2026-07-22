@@ -30,15 +30,18 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 /* SIDEBAR */
 .sidebar{width:212px;flex-shrink:0;background:rgba(255,255,255,0.55);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-right:1px solid rgba(255,255,255,0.5);display:flex;flex-direction:column;padding:16px 12px;}
 .sidebar-project{display:flex;align-items:center;gap:9px;padding:6px 8px 16px;border-bottom:1px solid var(--border);margin-bottom:14px;}
-.sb-status-indicator{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);padding:0 8px 14px;margin-top:-6px;}
-.sb-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;display:inline-block;vertical-align:middle;}
 .sidebar-project-name{font-size:14px;font-weight:700;}
 .sidebar-project-sub{font-size:11px;color:var(--text3);}
-.sidebar-user-row{padding:6px 8px 14px;margin-bottom:8px;border-bottom:1px solid var(--border);}
-.current-user-display{display:flex;align-items:center;gap:8px;margin-top:2px;}
-.current-user-display .member-av{width:26px;height:26px;font-size:11px;}
-.current-user-display span{font-size:13px;font-weight:600;color:var(--text);}
-.sidebar-user-row label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+.sidebar-user-row{padding:2px 4px 14px;margin-bottom:8px;border-bottom:1px solid var(--border);}
+.sidebar-profile-card{display:flex;align-items:center;gap:9px;}
+.sidebar-profile-avatar-wrap{position:relative;flex-shrink:0;}
+.member-av-sq{width:32px;height:32px;border-radius:8px;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.sb-status-dot{position:absolute;bottom:-2px;right:-2px;width:9px;height:9px;border-radius:50%;border:2px solid #fff;background:#9a9a96;}
+.sidebar-profile-info{flex:1;min-width:0;}
+.sidebar-profile-name-row{display:flex;align-items:center;gap:4px;}
+.sidebar-profile-name-row span{font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;}
+.sidebar-profile-role{font-size:10.5px;color:var(--text3);margin-top:1px;}
+.sidebar-user-row label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;display:block;}
 .sidebar-nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r-md);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;margin-bottom:2px;transition:background .15s,color .15s;}
 .sidebar-nav-item i{font-size:17px;flex-shrink:0;}
 .nav-icon-badge{width:36px;height:36px;border-radius:9px;background:linear-gradient(180deg,#27808a 0%,#206A72 100%);box-shadow:0 6px 16px rgba(32,106,114,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -591,16 +594,18 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         <div class="sidebar-project-sub">FlowBoard</div>
       </div>
     </div>
-    <div id="sbStatusIndicator" class="sb-status-indicator" title="Cloud-Sync-Status">
-      <span id="sbStatusText"></span>
-      <button class="logout-btn" onclick="sbLogout()" title="Abmelden"><i class="ti ti-logout-2"></i></button>
-    </div>
     <div class="sidebar-user-row" id="sidebarUserRow">
-      <div id="currentUserConfirmed" class="hidden">
-        <label>Angemeldet als</label>
-        <div class="current-user-display">
-          <div class="member-av" id="currentUserAvatar" style="position:static;margin:0"></div>
-          <span id="currentUserName"></span>
+      <div id="currentUserConfirmed" class="hidden sidebar-profile-card">
+        <div class="sidebar-profile-avatar-wrap">
+          <div class="member-av-sq" id="currentUserAvatar"></div>
+          <span class="sb-status-dot" id="sbStatusDot" title="Cloud-Sync-Status"></span>
+        </div>
+        <div class="sidebar-profile-info">
+          <div class="sidebar-profile-name-row">
+            <span id="currentUserName"></span>
+            <button class="logout-btn" onclick="sbLogout()" title="Abmelden"><i class="ti ti-logout-2"></i></button>
+          </div>
+          <div class="sidebar-profile-role" id="currentUserRole"></div>
         </div>
       </div>
       <div id="currentUserManual">
@@ -875,7 +880,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T18:32:04.000Z';
+const BUILD_VERSION='2026-07-22T18:40:55.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -997,17 +1002,16 @@ function applyStateData(data){
 }
 function setSbStatus(status,detail){
   sbStatus=status;sbStatusDetail=detail||'';
-  const el=document.getElementById('sbStatusText');
-  const wrap=document.getElementById('sbStatusIndicator');
-  if(!el)return;
+  const dot=document.getElementById('sbStatusDot');
+  if(!dot)return;
   const map={
     connecting:{dot:'#D9A509',text:'Verbinde mit Cloud…'},
     online:{dot:'#2E8B57',text:'Cloud verbunden'},
     offline:{dot:'#BD2D29',text:'Offline – nur lokal'}
   };
   const m=map[status]||map.offline;
-  el.innerHTML=`<span class="sb-dot" style="background:${m.dot}"></span>${m.text}`;
-  if(wrap)wrap.title=detail||m.text;
+  dot.style.background=m.dot;
+  dot.title=detail||m.text;
 }
 
 // ── ECHTES 3-WEGE-MERGE (statt "wer zuletzt speichert, gewinnt alles") ──
@@ -2513,6 +2517,7 @@ function renderUserSelect(){
     document.getElementById('currentUserAvatar').style.color=COLOR_TEXT[matched.color];
     document.getElementById('currentUserAvatar').textContent=ini(matched.name);
     document.getElementById('currentUserName').textContent=matched.name;
+    document.getElementById('currentUserRole').textContent=roleLabel(matched.role);
     confirmedEl.classList.remove('hidden');
     manualEl.classList.add('hidden');
   }else{
