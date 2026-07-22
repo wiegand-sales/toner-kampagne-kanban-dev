@@ -655,22 +655,26 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     </div>
 
     <div class="view" id="viewActivities">
-      <div class="page-hdr">
-        <div class="page-hdr-left">
-          <div class="page-icon-badge"><i class="ti ti-history"></i></div>
-          <div>
-            <div class="page-hdr-title">Aktivitäten</div>
-            <div class="page-hdr-sub">Vollständiges Protokoll aller Änderungen, durchsuchbar nach Kunde</div>
+      <div class="topbar-unified">
+        <div class="omnibar-flex">
+          <i class="ti ti-search omni-search-icon"></i>
+          <input type="text" class="omni-input" id="activitySearch" placeholder="Firma oder Kundennummer suchen…" oninput="renderActivities()">
+          <div class="omni-addfilter-wrap">
+            <button class="omnibar-btn" onclick="toggleActivityFilterMenu(event)"><i class="ti ti-plus" style="font-size:12px"></i> Filter</button>
+            <div class="filtermenu" id="activityFilterMenu">
+              <h4>Mitarbeiter</h4>
+              <div id="activityFilterMenuAgents"></div>
+              <hr>
+              <h4>Typ</h4>
+              <div id="activityFilterMenuTypes"></div>
+              <hr>
+              <h4>Status</h4>
+              <div id="activityFilterMenuStatus"></div>
+            </div>
           </div>
+          <div id="activityOmniTokens" style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap;overflow-x:auto;max-width:320px;flex-shrink:1;"></div>
+          <div class="omni-spacer"></div>
         </div>
-        <div class="search-box"><i class="ti ti-search"></i><input type="text" id="activitySearch" placeholder="Firma oder Kundennummer suchen…" oninput="renderActivities()"></div>
-      </div>
-      <div class="filterbar">
-        <div class="filter-group"><span class="filterbar-label">Mitarbeiter</span><div id="activityAgentChips"></div></div>
-        <div class="filter-divider"></div>
-        <div class="filter-group"><span class="filterbar-label">Typ</span><div id="activityTypeChips"></div></div>
-        <div class="filter-divider"></div>
-        <div class="filter-group"><span class="filterbar-label">Status</span><div id="activityStatusChips"></div></div>
       </div>
       <div class="view-scroll" id="activitiesContent"></div>
     </div>
@@ -793,7 +797,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T10:28:50.000Z';
+const BUILD_VERSION='2026-07-22T10:33:17.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3238,13 +3242,58 @@ let activityPeriod='30'; // Tage als String, oder 'all'
 let activityAgentFilter='all';
 let activityTypeFilter='all';
 let activityStatusFilter='all';
+const ACTIVITY_TYPE_OPTIONS=[['all','Alle'],['comment','Kommentare'],['activity','Aktivitäten']];
 function renderActivityFilterChips(){
-  document.getElementById('activityAgentChips').innerHTML=`<span class="chip ${activityAgentFilter==='all'?'active':''}" onclick="setActivityFilter('agent','all')">Alle</span>`+
-    AGENTS.map(a=>`<span class="chip ${activityAgentFilter===a.id?'active':''}" onclick="setActivityFilter('agent','${a.id}')">${esc(a.name)}</span>`).join('');
-  document.getElementById('activityTypeChips').innerHTML=[['all','Alle'],['comment','Kommentare'],['activity','Aktivitäten']]
-    .map(([v,l])=>`<span class="chip ${activityTypeFilter===v?'active':''}" onclick="setActivityFilter('type','${v}')">${l}</span>`).join('');
-  document.getElementById('activityStatusChips').innerHTML=`<span class="chip ${activityStatusFilter==='all'?'active':''}" onclick="setActivityFilter('status','all')">Alle</span>`+
-    COLUMNS.map(c=>`<span class="chip ${activityStatusFilter===c.id?'active':''}" onclick="setActivityFilter('status','${c.id}')">${esc(c.name)}</span>`).join('');
+  const agentEl=document.getElementById('activityFilterMenuAgents');
+  if(agentEl){
+    let html=`<div class="filtermenu-item ${activityAgentFilter==='all'?'active':''}" onclick="setActivityFilter('agent','all')"><span>Alle</span>${activityAgentFilter==='all'?'<i class="ti ti-check"></i>':''}</div>`;
+    AGENTS.forEach(a=>{
+      const active=activityAgentFilter===a.id;
+      html+=`<div class="filtermenu-item ${active?'active':''}" onclick="setActivityFilter('agent','${a.id}')"><span>${esc(a.name)}</span>${active?'<i class="ti ti-check"></i>':''}</div>`;
+    });
+    agentEl.innerHTML=html;
+  }
+  const typeEl=document.getElementById('activityFilterMenuTypes');
+  if(typeEl){
+    typeEl.innerHTML=ACTIVITY_TYPE_OPTIONS.map(([v,l])=>{
+      const active=activityTypeFilter===v;
+      return `<div class="filtermenu-item ${active?'active':''}" onclick="setActivityFilter('type','${v}')"><span>${l}</span>${active?'<i class="ti ti-check"></i>':''}</div>`;
+    }).join('');
+  }
+  const statusEl=document.getElementById('activityFilterMenuStatus');
+  if(statusEl){
+    let html=`<div class="filtermenu-item ${activityStatusFilter==='all'?'active':''}" onclick="setActivityFilter('status','all')"><span>Alle</span>${activityStatusFilter==='all'?'<i class="ti ti-check"></i>':''}</div>`;
+    COLUMNS.forEach(c=>{
+      const active=activityStatusFilter===c.id;
+      html+=`<div class="filtermenu-item ${active?'active':''}" onclick="setActivityFilter('status','${c.id}')"><span>${esc(c.name)}</span>${active?'<i class="ti ti-check"></i>':''}</div>`;
+    });
+    statusEl.innerHTML=html;
+  }
+  renderActivityOmniTokens();
+}
+function renderActivityOmniTokens(){
+  const el=document.getElementById('activityOmniTokens');
+  if(!el)return;
+  let html='';
+  if(activityAgentFilter!=='all'){
+    const a=AGENTS.find(a=>a.id===activityAgentFilter);
+    if(a)html+=`<div class="omni-token"><i class="ti ti-user" style="font-size:12px"></i>${esc(a.name)}<i class="ti ti-x" onclick="setActivityFilter('agent','all')"></i></div>`;
+  }
+  if(activityTypeFilter!=='all'){
+    const t=ACTIVITY_TYPE_OPTIONS.find(([v])=>v===activityTypeFilter);
+    if(t)html+=`<div class="omni-token"><i class="ti ti-category" style="font-size:12px"></i>${esc(t[1])}<i class="ti ti-x" onclick="setActivityFilter('type','all')"></i></div>`;
+  }
+  if(activityStatusFilter!=='all'){
+    const c=COLUMNS.find(c=>c.id===activityStatusFilter);
+    if(c)html+=`<div class="omni-token"><i class="ti ti-flag" style="font-size:12px"></i>${esc(c.name)}<i class="ti ti-x" onclick="setActivityFilter('status','all')"></i></div>`;
+  }
+  el.innerHTML=html;
+}
+let activityFilterMenuOpen=false;
+function toggleActivityFilterMenu(e){
+  if(e)e.stopPropagation();
+  activityFilterMenuOpen=!activityFilterMenuOpen;
+  document.getElementById('activityFilterMenu').classList.toggle('show',activityFilterMenuOpen);
 }
 // Wandelt eine Punktreihe in einen geglaetteten Kurvenpfad um (Catmull-Rom -> kubische Bezier)
 function smoothSvgPath(pts){
@@ -6460,6 +6509,7 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('.infobtn-wrap')&&overflowMenuOpen){overflowMenuOpen=false;document.getElementById('overflowMenu').classList.remove('show');}
   if(!e.target.closest('.crrma-menu-wrap')&&crrmaMenuOpen){crrmaMenuOpen=false;document.getElementById('crrmaOverflowMenu').classList.remove('show');}
   if(!e.target.closest('.omni-addfilter-wrap')&&tasksFilterMenuOpen){tasksFilterMenuOpen=false;const m=document.getElementById('tasksFilterMenu');if(m)m.classList.remove('show');}
+  if(!e.target.closest('.omni-addfilter-wrap')&&activityFilterMenuOpen){activityFilterMenuOpen=false;const m2=document.getElementById('activityFilterMenu');if(m2)m2.classList.remove('show');}
 });
 
 function showSyncFailureBanner(msg){
