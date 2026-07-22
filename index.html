@@ -240,6 +240,12 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .filtermenu-item.active{color:var(--purple-dark);font-weight:600;}
 .filtermenu hr{border:none;border-top:1px solid var(--border);margin:8px 0;}
 .omni-spacer{flex:1 1 auto;min-width:8px;}
+.topbar-unified{padding:14px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.tbu-left{display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.tbu-left .tb-title{margin:0;line-height:1;}
+.omnibar-flex{flex:1 1 260px;display:flex;align-items:center;gap:8px;background:transparent;border:none;padding:0;min-width:200px;}
+.omnibar-flex .omni-input{background:transparent;}
+.tbu-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .tb-stat{text-align:center;}
 .tb-stat-val{font-size:16px;font-weight:700;}
 .tb-stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;}
@@ -553,29 +559,14 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     </div>
 
     <div class="view" id="viewBoard">
-      <div class="topbar">
-        <div class="tb-left">
+      <div class="topbar-unified">
+        <div class="tbu-left">
           <div style="width:36px;height:36px;border-radius:9px;background:linear-gradient(180deg,#27808a 0%,#206A72 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0">
             <i class="ti ti-layout-kanban" style="color:#fff;font-size:19px"></i>
           </div>
-          <div>
-            <div class="tb-title">Projekt: Toner</div>
-            <div class="tb-sub">Kanban Board</div>
-          </div>
+          <div class="tb-title" style="margin:0">Projekt: Toner</div>
         </div>
-        <div class="tb-right">
-          <button class="btn" onclick="triggerCSVImport()" title="Leads aus CSV-Datei importieren (Spalte 'Firmenname' erforderlich)"><i class="ti ti-upload"></i> Import CSV</button>
-          <input type="file" id="csvImportInput" accept=".csv,text/csv" style="display:none" onchange="if(this.files[0]){importCSVFile(this.files[0]);this.value='';}">
-          <button class="btn" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</button>
-          <button class="btn btn-primary" onclick="openLeadModal(null)"><i class="ti ti-plus"></i> Neuer Lead</button>
-          <div class="infobtn-wrap">
-            <div class="infobtn" id="statsInfoBtn" onclick="toggleStatsPopover(event)" title="Kennzahlen"><i class="ti ti-chart-bar"></i></div>
-            <div class="infopop" id="statsPopover"></div>
-          </div>
-        </div>
-      </div>
-      <div class="omnibar-row">
-        <div class="omnibar">
+        <div class="omnibar-flex">
           <i class="ti ti-search omni-search-icon"></i>
           <input type="text" class="omni-input" id="searchInput" placeholder="Firma, Kontakt, Kd-Nr." oninput="renderBoard()">
           <div id="omniTokens" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"></div>
@@ -589,8 +580,20 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
               <div id="filterMenuLabels"></div>
             </div>
           </div>
-          <div class="omni-spacer"></div>
+        </div>
+        <div class="tbu-right">
           <button class="btn btn-sm" id="bulkModeBtn" onclick="toggleBulkMode()"><i class="ti ti-checkbox"></i> Mehrfachauswahl</button>
+          <button class="btn btn-primary" onclick="openLeadModal(null)"><i class="ti ti-plus"></i> Neuer Lead</button>
+          <input type="file" id="csvImportInput" accept=".csv,text/csv" style="display:none" onchange="if(this.files[0]){importCSVFile(this.files[0]);this.value='';}">
+          <div class="infobtn-wrap">
+            <div class="infobtn" id="overflowBtn" onclick="toggleOverflowMenu(event)" title="Weitere Optionen"><i class="ti ti-dots-vertical"></i></div>
+            <div class="infopop" id="overflowMenu">
+              <div class="filtermenu-item" onclick="triggerCSVImport()"><i class="ti ti-upload"></i> Import CSV</div>
+              <div class="filtermenu-item" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</div>
+              <hr>
+              <div id="statsPopover"></div>
+            </div>
+          </div>
         </div>
       </div>
       <div id="bulkActionBar" class="bulk-action-bar" style="display:none">
@@ -780,7 +783,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T08:01:46.000Z';
+const BUILD_VERSION='2026-07-22T08:40:58.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2313,12 +2316,12 @@ function renderStats(){
     <div class="infopop-row good"><span>Gewonnen</span><b>${rate}%</b></div>
     <div class="infopop-row"><span>Forecast</span><b>${fmtEur(forecastSum)}</b></div>`;
 }
-let statsPopoverOpen=false;
-function toggleStatsPopover(e){
+let overflowMenuOpen=false;
+function toggleOverflowMenu(e){
   if(e)e.stopPropagation();
-  statsPopoverOpen=!statsPopoverOpen;
-  if(statsPopoverOpen)filterMenuOpen=false;
-  document.getElementById('statsPopover').classList.toggle('show',statsPopoverOpen);
+  overflowMenuOpen=!overflowMenuOpen;
+  if(overflowMenuOpen)filterMenuOpen=false;
+  document.getElementById('overflowMenu').classList.toggle('show',overflowMenuOpen);
   document.getElementById('filterMenu').classList.remove('show');
 }
 
@@ -2360,9 +2363,9 @@ let filterMenuOpen=false;
 function toggleFilterMenu(e){
   if(e)e.stopPropagation();
   filterMenuOpen=!filterMenuOpen;
-  if(filterMenuOpen)statsPopoverOpen=false;
+  if(filterMenuOpen)overflowMenuOpen=false;
   document.getElementById('filterMenu').classList.toggle('show',filterMenuOpen);
-  document.getElementById('statsPopover').classList.remove('show');
+  document.getElementById('overflowMenu').classList.remove('show');
 }
 function renderLabelChips(){
   const el=document.getElementById('filterMenuLabels');
@@ -6349,7 +6352,7 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('.member-row-editor')&&memberPopoverOpen){memberPopoverOpen=false;renderLeadModal();}
   if(!e.target.closest('.col-hdr-wrap')&&colMenuOpenId){colMenuOpenId=null;renderBoard();}
   if(!e.target.closest('.omni-addfilter-wrap')&&filterMenuOpen){filterMenuOpen=false;document.getElementById('filterMenu').classList.remove('show');}
-  if(!e.target.closest('.infobtn-wrap')&&statsPopoverOpen){statsPopoverOpen=false;document.getElementById('statsPopover').classList.remove('show');}
+  if(!e.target.closest('.infobtn-wrap')&&overflowMenuOpen){overflowMenuOpen=false;document.getElementById('overflowMenu').classList.remove('show');}
 });
 
 function showSyncFailureBanner(msg){
