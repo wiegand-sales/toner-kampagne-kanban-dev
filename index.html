@@ -245,7 +245,7 @@ body{font-family:'Inter',sans-serif;background:#f6f8f8;color:var(--text);font-si
 .tbu-left{display:flex;align-items:center;gap:12px;flex-shrink:0;}
 .tbu-left .tb-title{margin:0;line-height:1;}
 .omnibar-flex{flex:1 1 260px;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border2);border-radius:24px;padding:5px 6px 5px 16px;min-width:200px;}
-.omnibar-flex .omni-input{background:transparent;height:34px;border:none;box-shadow:none;padding-left:4px;}
+.omnibar-flex .omni-input{background:transparent;height:34px;border:none;box-shadow:none;padding-left:4px;flex:0 0 190px;min-width:0;}
 .omnibar-btn{height:34px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:500;cursor:pointer;
   border:1px solid var(--border2);background:#fff;color:var(--text);display:inline-flex;align-items:center;gap:6px;
   font-family:inherit;white-space:nowrap;flex-shrink:0;}
@@ -569,10 +569,9 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     <div class="view" id="viewBoard">
       <div class="topbar-unified">
         <div class="tbu-left">
-          <div style="width:36px;height:36px;border-radius:9px;background:var(--purple);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <div style="width:36px;height:36px;border-radius:9px;background:var(--purple);display:flex;align-items:center;justify-content:center;flex-shrink:0" title="Projekt: Toner">
             <i class="ti ti-layout-kanban" style="color:#fff;font-size:19px"></i>
           </div>
-          <div class="tb-title" style="margin:0">Projekt: Toner</div>
         </div>
         <div class="omnibar-flex">
           <i class="ti ti-search omni-search-icon"></i>
@@ -587,7 +586,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
               <div id="filterMenuLabels"></div>
             </div>
           </div>
-          <div id="omniTokens" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"></div>
+          <div id="omniTokens" style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap;overflow-x:auto;max-width:320px;flex-shrink:1;"></div>
           <div class="omni-spacer"></div>
           <button class="omnibar-btn" id="bulkModeBtn" onclick="toggleBulkMode()"><i class="ti ti-checkbox"></i> Mehrfachauswahl</button>
           <button class="omnibar-btn primary" onclick="openLeadModal(null)"><i class="ti ti-plus"></i> Neuer Lead</button>
@@ -790,7 +789,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T08:54:39.000Z';
+const BUILD_VERSION='2026-07-22T09:02:06.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
