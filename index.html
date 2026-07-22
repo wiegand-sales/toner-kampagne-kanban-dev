@@ -875,7 +875,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T13:48:11.000Z';
+const BUILD_VERSION='2026-07-22T13:53:42.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2848,6 +2848,53 @@ function donutChartHtml(entries,totalCount,centerLabel){
     <div class="donut-legend">${legend}</div>
   </div>`;
 }
+// Aktivitätsdiagramm (letzte 30 Tage) mit geglaetteter (interpolierter) Linie, analog zum Chart in Aktivitäten
+function dashboardActivityChartHtml(dl){
+  const days=30;
+  const buckets=[];
+  for(let i=days-1;i>=0;i--){
+    const d=new Date(TODAY);d.setDate(d.getDate()-i);
+    buckets.push({date:d,key:d.toISOString().slice(0,10),count:0});
+  }
+  const bucketMap={};
+  buckets.forEach(b=>bucketMap[b.key]=b);
+  dl.forEach(l=>{
+    (l.activity||[]).forEach(a=>{
+      const key=(a.date||'').slice(0,10);
+      if(bucketMap[key])bucketMap[key].count++;
+    });
+  });
+  const w=1400,h=200,padL=10,padR=10,padT=14,padB=10;
+  const plotW=w-padL-padR,plotH=h-padT-padB;
+  const maxVal=Math.max(1,...buckets.map(b=>b.count));
+  const stepX=buckets.length>1?plotW/(buckets.length-1):0;
+  const pts=buckets.map((b,i)=>{
+    const x=padL+i*stepX;
+    const y=padT+plotH-(b.count/maxVal*plotH);
+    return [x,y];
+  });
+  const linePath=smoothSvgPath(pts);
+  const areaPath=linePath+` L${(padL+plotW).toFixed(1)},${(padT+plotH).toFixed(1)} L${padL},${(padT+plotH).toFixed(1)} Z`;
+  const total=buckets.reduce((s,b)=>s+b.count,0);
+  const avgPerDay=(total/buckets.length).toFixed(1);
+  const dotsHtml=buckets.map((b,i)=>{
+    const [x,y]=pts[i];
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="8" fill="transparent" style="cursor:pointer" onmouseenter="showActivityTooltip(this,'${fmtDate(b.key)}',${b.count})" onmouseleave="hideActivityTooltip()"/>
+      <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="var(--purple)" style="pointer-events:none"/>`;
+  }).join('');
+  return `
+    <div class="section-hdr" style="margin-top:0">Aktivitätsdiagramm <span style="font-weight:400;color:var(--text3);font-size:11px">Letzte 30 Tage · Gesamt: ${total} · Ø ${avgPerDay}/Tag</span></div>
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:180px;display:block;overflow:visible">
+      <defs><linearGradient id="dashActGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--purple)" stop-opacity="0.28"/>
+        <stop offset="100%" stop-color="var(--purple)" stop-opacity="0.02"/>
+      </linearGradient></defs>
+      <line x1="${padL}" y1="${padT+plotH}" x2="${padL+plotW}" y2="${padT+plotH}" stroke="var(--border)" stroke-width="1" vector-effect="non-scaling-stroke"/>
+      <path d="${areaPath}" fill="url(#dashActGrad)"/>
+      <path d="${linePath}" fill="none" stroke="var(--purple)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+      ${dotsHtml}
+    </svg>`;
+}
 function renderDashboard(){
   let dl=activeDashboardAgentFilters.length?leads.filter(l=>(l.members||[]).some(m=>activeDashboardAgentFilters.includes(m))):leads;
   const periodStart=periodStartDate(activeDashboardPeriod);
@@ -3084,6 +3131,9 @@ function renderDashboard(){
     </div>
     ${excludedNoDate>0?`<div class="no-date-warning"><i class="ti ti-alert-triangle"></i> ${excludedNoDate} Lead${excludedNoDate===1?'':'s'} ohne Erstkontakt-Datum ${excludedNoDate===1?'wird':'werden'} bei "${activeDashboardPeriod==='week'?'Diese Woche':activeDashboardPeriod==='month'?'Dieser Monat':'Dieses Quartal'}" nicht mitgezählt, da der Zeitraum-Filter sich auf dieses Datum bezieht. <a onclick="switchView('board')">→ Im Board nachtragen</a></div>`:''}
     ${kpiHtml}
+    <div class="info-section">
+      ${dashboardActivityChartHtml(dl)}
+    </div>
     <div class="info-section">
       <div class="section-hdr" style="margin-top:0">Pipeline-Trichter <span style="font-weight:400;color:var(--text3);font-size:11px">(Anzahl · Anteil an allen Leads)</span></div>
       <div class="funnel-wrap">${funnelHtml}</div>
