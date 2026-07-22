@@ -68,10 +68,7 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .page-hdr-sub{font-size:12px;color:var(--text2);margin-top:2px;}
 .dash-kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:22px;}
 .dash-kpi{background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-edge);border-radius:var(--r-lg);padding:14px 16px;position:relative;box-shadow:0 12px 30px rgba(15,61,66,0.08);transition:box-shadow .18s,transform .18s;}
-.dash-kpi.kpi-tint-teal{background:rgba(32,106,114,0.10);}
-.dash-kpi.kpi-tint-amber{background:rgba(217,65,9,0.08);}
-.dash-kpi.kpi-tint-green{background:rgba(126,210,219,0.20);}
-.dash-kpi.kpi-tint-red{background:rgba(189,45,41,0.08);}
+.info-section:hover,.dash-kpi:hover{box-shadow:0 16px 40px rgba(15,61,66,0.16);transform:translateY(-2px);}
 .dash-kpi:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(15,61,66,.09);}
 .dash-kpi-icon{position:absolute;top:12px;right:12px;font-size:16px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:var(--purple-bg);color:var(--purple-dark);opacity:1;}
 .dash-kpi-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;}
@@ -115,7 +112,8 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .winrate-val{font-size:28px;font-weight:700;color:var(--green-dark);}
 .winrate-label{font-size:11px;color:var(--text2);margin-top:2px;line-height:1.5;}
 .impact-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;}
-.compare-strip{display:flex;justify-content:space-between;background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-edge);border-radius:8px;padding:10px 14px;margin-bottom:22px;box-shadow:0 12px 30px rgba(15,61,66,0.08);}
+.compare-strip{display:flex;justify-content:space-between;background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-edge);border-radius:8px;padding:10px 14px;margin-bottom:22px;box-shadow:0 12px 30px rgba(15,61,66,0.08);transition:box-shadow .18s,transform .18s;}
+.compare-strip:hover{box-shadow:0 16px 40px rgba(15,61,66,0.16);transform:translateY(-2px);}
 .compare-item{display:flex;flex-direction:column;align-items:center;gap:2px;}
 .compare-col{display:flex;flex-direction:column;align-items:flex-start;gap:1px;}
 .compare-col-title{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px;}
@@ -452,7 +450,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
 .field-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
 .field{margin-bottom:10px;}
 .section-block{margin-top:18px;}
-.info-section{border:1px solid var(--glass-edge);border-radius:var(--r-lg);padding:15px 16px;margin-bottom:22px;background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 12px 30px rgba(15,61,66,0.08);}
+.info-section{border:1px solid var(--glass-edge);border-radius:var(--r-lg);padding:15px 16px;margin-bottom:22px;background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 12px 30px rgba(15,61,66,0.08);transition:box-shadow .18s,transform .18s;}
 .info-section:last-child{margin-bottom:0;}
 .info-section .section-hdr{margin-top:0;}
 .info-section input[type=text],.info-section input[type=date],.info-section input[type=datetime-local],.info-section input[type=tel],.info-section input[type=email],.info-section input[type=number],.info-section select,.info-section textarea{background:var(--bg3);}
@@ -864,7 +862,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T12:59:29.000Z';
+const BUILD_VERSION='2026-07-22T13:08:59.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -967,7 +965,7 @@ function applyStateData(data){
   if(data.ARTICLES)ARTICLES=data.ARTICLES;
   if(data.LEADLOCKS)LEADLOCKS=data.LEADLOCKS;
   pruneExpiredLocks();
-  if(data.PROJECT)PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[],csvFields:[],lastBackupDate:''},data.PROJECT);
+  if(data.PROJECT)PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[],csvFields:[],lastBackupDate:'',dashboardKpiHistory:[]},data.PROJECT);
   if(data.nextId)nextId=data.nextId;
   if(data.nextLabelId)nextLabelId=data.nextLabelId;
   if(data.nextPrinterId)nextPrinterId=data.nextPrinterId;
@@ -1668,13 +1666,13 @@ async function syncMerge(retryCount){
     if(baselineForCompare.leads)normalizeLeads(baselineForCompare.leads);
     if(baselineForCompare.COLUMNS)normalizeColumns(baselineForCompare.COLUMNS);
     if(baselineForCompare.AGENTS)normalizeAgents(baselineForCompare.AGENTS);
-    if(baselineForCompare.PROJECT)baselineForCompare.PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[],csvFields:[],lastBackupDate:''},baselineForCompare.PROJECT);
+    if(baselineForCompare.PROJECT)baselineForCompare.PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[],csvFields:[],lastBackupDate:'',dashboardKpiHistory:[]},baselineForCompare.PROJECT);
     if(!baselineForCompare.LEADLOCKS)baselineForCompare.LEADLOCKS=[];
     const remoteForCompare=JSON.parse(JSON.stringify(remoteData));
     if(remoteForCompare.leads)normalizeLeads(remoteForCompare.leads);
     if(remoteForCompare.COLUMNS)normalizeColumns(remoteForCompare.COLUMNS);
     if(remoteForCompare.AGENTS)normalizeAgents(remoteForCompare.AGENTS);
-    if(remoteForCompare.PROJECT)remoteForCompare.PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[],csvFields:[],lastBackupDate:''},remoteForCompare.PROJECT);
+    if(remoteForCompare.PROJECT)remoteForCompare.PROJECT=Object.assign({milestones:[],risks:[],notificationsEnabled:true,notificationRules:[],csvFields:[],lastBackupDate:'',dashboardKpiHistory:[]},remoteForCompare.PROJECT);
     if(!remoteForCompare.LEADLOCKS)remoteForCompare.LEADLOCKS=[];
     const baseline=baselineForCompare;
     // KRITISCH: Gibt es noch KEINE bekannte Baseline (z.B. eine ganz frische Sitzung, ein
@@ -2731,6 +2729,51 @@ function periodStartDate(p){
   else{return null;}
   return d;
 }
+// Berechnet die 5 Dashboard-Kennzahlen fuer eine beliebige Lead-Menge (genutzt sowohl
+// fuer die gefilterte Anzeige als auch fuer die unfilterte Historie/Vortag-Basis).
+function computeDashboardKpiMetrics(arr){
+  const overdue=arr.filter(l=>l.followup&&daysUntil(l.followup)<0).length;
+  const forecastSum=arr.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
+  const investSum=arr.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.priceEk)||0),0),0);
+  const shippedCount=arr.filter(l=>l.tonerSent==='Ja').length;
+  const investTotal=investSum+shippedCount*SHIPPING_COST_PER_SEND;
+  const won=arr.filter(l=>isWon(l)).length;
+  const lost=arr.filter(l=>isLost(l)).length;
+  const closedCount=won+lost;
+  const winRate=closedCount?Math.round(won/closedCount*100):0;
+  const cycleDays=arr.filter(l=>isClosedLead(l)&&l.firstContact&&l.closedAt)
+    .map(l=>Math.round((new Date(l.closedAt)-new Date(l.firstContact))/86400000)).filter(d=>d>=0);
+  const avgCycle=cycleDays.length?Math.round(cycleDays.reduce((a,b)=>a+b,0)/cycleDays.length):0;
+  return {overdue,forecastSum:Math.round(forecastSum),investTotal:Math.round(investTotal),winRate,avgCycle};
+}
+// Legt/aktualisiert den heutigen Eintrag in der (max. 7 Tage) Historie; gibt true zurueck,
+// wenn sich dadurch etwas geaendert hat (dann lohnt sich ein saveState()).
+function updateDashboardKpiHistory(vals){
+  if(!PROJECT.dashboardKpiHistory)PROJECT.dashboardKpiHistory=[];
+  const arr=PROJECT.dashboardKpiHistory;
+  const idx=arr.findIndex(e=>e.date===TODAY);
+  const entry=Object.assign({date:TODAY},vals);
+  if(idx>-1){
+    if(JSON.stringify(arr[idx])!==JSON.stringify(entry)){arr[idx]=entry;return true;}
+    return false;
+  }
+  arr.push(entry);
+  while(arr.length>7)arr.shift();
+  return true;
+}
+function dashboardKpiCard(label,key,colorVar,currVal,formatFn){
+  const hist=PROJECT.dashboardKpiHistory||[];
+  const series=hist.length?hist.map(h=>h[key]||0):[currVal,currVal];
+  const prevVal=hist.length>1?(hist[hist.length-2][key]||0):currVal;
+  return `<div class="dash-kpi dash-kpi-tall">
+    <div class="dash-kpi-label">${label}</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+      <div class="dash-kpi-val" style="color:${colorVar}">${formatFn(currVal)} <span style="font-size:14px;vertical-align:middle;opacity:.8">${kpiTrendArrow(currVal,prevVal)}</span></div>
+      ${miniSparklineSvg(series,colorVar)}
+    </div>
+    <div class="dash-kpi-compare">Vortag: ${formatFn(prevVal)}</div>
+  </div>`;
+}
 function renderDashboard(){
   let dl=activeDashboardAgentFilters.length?leads.filter(l=>(l.members||[]).some(m=>activeDashboardAgentFilters.includes(m))):leads;
   const periodStart=periodStartDate(activeDashboardPeriod);
@@ -2828,15 +2871,17 @@ function renderDashboard(){
     </div>`;
   }).join('');
 
+  const dashMetrics=computeDashboardKpiMetrics(dl);
+  const dashMetricsAll=computeDashboardKpiMetrics(leads);
+  const dashHistChanged=updateDashboardKpiHistory(dashMetricsAll);
+  if(dashHistChanged)saveState();
   const kpiHtml=`
-    <div class="dash-kpi-row" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
-      <div class="dash-kpi kpi-tint-teal"><i class="ti ti-phone-outgoing dash-kpi-icon"></i><div class="dash-kpi-label">Kontaktierte Leads</div><div class="dash-kpi-val">${contacted}<span style="font-size:13px;font-weight:500;color:var(--text3)"> / ${total}</span></div></div>
-      <div class="dash-kpi ${overdue?'kpi-tint-red':''}"><i class="ti ti-alert-triangle dash-kpi-icon" style="color:${overdue?'var(--red)':'var(--text3)'}"></i><div class="dash-kpi-label">Follow-up überfällig</div><div class="dash-kpi-val" style="color:${overdue?'var(--red)':'var(--text)'}">${overdue}</div></div>
-      <div class="dash-kpi kpi-tint-green"><i class="ti ti-trophy dash-kpi-icon" style="color:var(--green)"></i><div class="dash-kpi-label">Gewinnrate (abgeschlossen)</div><div class="dash-kpi-val" style="color:var(--green)">${winRateClosed!==null?winRateClosed+'%':'–'}</div></div>
-      <div class="dash-kpi kpi-tint-teal"><i class="ti ti-chart-line dash-kpi-icon" style="color:var(--purple)"></i><div class="dash-kpi-label">Forecast gesamt</div><div class="dash-kpi-val" style="color:var(--purple)">${fmtEur(forecastSum)||'0 €'}</div></div>
-      <div class="dash-kpi kpi-tint-amber"><i class="ti ti-truck-delivery dash-kpi-icon" style="color:var(--amber-dark)"></i><div class="dash-kpi-label">Investition (Versand)</div><div class="dash-kpi-val" style="color:var(--amber-dark)">${fmtEur(investSum)||'0 €'}</div></div>
-      <div class="dash-kpi kpi-tint-red"><i class="ti ti-package dash-kpi-icon" style="color:var(--red)"></i><div class="dash-kpi-label">Versandkosten (${shippedCount}× ${fmtEur(SHIPPING_COST_PER_SEND)})</div><div class="dash-kpi-val" style="color:var(--red)">${fmtEur(shippingCostSum)||'0 €'}</div></div>
-      <div class="dash-kpi kpi-tint-teal"><i class="ti ti-clock-hour-4 dash-kpi-icon" style="color:var(--teal-dark)"></i><div class="dash-kpi-label">Ø Vertriebszyklus</div><div class="dash-kpi-val" style="color:var(--teal-dark)">${avgCycle!==null?avgCycle+' Tage':'–'}</div></div>
+    <div class="dash-kpi-row" style="grid-template-columns:repeat(5,1fr)">
+      ${dashboardKpiCard('Follow-up überfällig','overdue','var(--red)',dashMetrics.overdue,v=>String(v))}
+      ${dashboardKpiCard('Investition (Gesamt)','investTotal','var(--amber-dark)',dashMetrics.investTotal,v=>fmtEur(v)||'0 €')}
+      ${dashboardKpiCard('Forecast gesamt','forecastSum','var(--purple)',dashMetrics.forecastSum,v=>fmtEur(v)||'0 €')}
+      ${dashboardKpiCard('Gewinnrate (abgeschlossen)','winRate','var(--green-dark)',dashMetrics.winRate,v=>v+'%')}
+      ${dashboardKpiCard('Ø Vertriebszyklus','avgCycle','var(--teal-dark)',dashMetrics.avgCycle,v=>v?v+' Tage':'–')}
     </div>`;
 
   // Funnel mit Prozentwerten und Konversionsrate zwischen den Stufen
