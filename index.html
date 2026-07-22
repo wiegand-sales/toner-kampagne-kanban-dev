@@ -235,7 +235,8 @@ body{font-family:'Inter',sans-serif;background:#f6f8f8;color:var(--text);font-si
 .filtermenu{position:absolute;top:34px;left:0;background:var(--bg);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.16);border:1px solid var(--border);padding:12px;width:230px;z-index:20;display:none;}
 .filtermenu.show{display:block;}
 .filtermenu h4{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--text3);margin:0 0 6px;}
-.filtermenu-item{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 6px;border-radius:6px;cursor:pointer;color:var(--text);}
+.filtermenu-item{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;padding:6px 6px;border-radius:6px;cursor:pointer;color:var(--text);}
+.filtermenu-item i.ti-check{color:var(--purple);flex-shrink:0;}
 .filtermenu-item:hover{background:var(--bg2);}
 .filtermenu-item.active{color:var(--purple-dark);font-weight:600;}
 .filtermenu hr{border:none;border-top:1px solid var(--border);margin:8px 0;}
@@ -244,7 +245,7 @@ body{font-family:'Inter',sans-serif;background:#f6f8f8;color:var(--text);font-si
 .tbu-left{display:flex;align-items:center;gap:12px;flex-shrink:0;}
 .tbu-left .tb-title{margin:0;line-height:1;}
 .omnibar-flex{flex:1 1 260px;display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border2);border-radius:24px;padding:5px 6px 5px 16px;min-width:200px;}
-.omnibar-flex .omni-input{background:transparent;height:34px;}
+.omnibar-flex .omni-input{background:transparent;height:34px;border:none;box-shadow:none;padding-left:4px;}
 .omnibar-btn{height:34px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:500;cursor:pointer;
   border:1px solid var(--border2);background:#fff;color:var(--text);display:inline-flex;align-items:center;gap:6px;
   font-family:inherit;white-space:nowrap;flex-shrink:0;}
@@ -576,7 +577,6 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
         <div class="omnibar-flex">
           <i class="ti ti-search omni-search-icon"></i>
           <input type="text" class="omni-input" id="searchInput" placeholder="Firma, Kontakt, Kd-Nr." oninput="renderBoard()">
-          <div id="omniTokens" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"></div>
           <div class="omni-addfilter-wrap">
             <button class="omnibar-btn" onclick="toggleFilterMenu(event)"><i class="ti ti-plus" style="font-size:12px"></i> Filter</button>
             <div class="filtermenu" id="filterMenu">
@@ -587,6 +587,7 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
               <div id="filterMenuLabels"></div>
             </div>
           </div>
+          <div id="omniTokens" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"></div>
           <div class="omni-spacer"></div>
           <button class="omnibar-btn" id="bulkModeBtn" onclick="toggleBulkMode()"><i class="ti ti-checkbox"></i> Mehrfachauswahl</button>
           <button class="omnibar-btn primary" onclick="openLeadModal(null)"><i class="ti ti-plus"></i> Neuer Lead</button>
@@ -789,7 +790,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T08:50:27.000Z';
+const BUILD_VERSION='2026-07-22T08:54:39.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2007,8 +2008,8 @@ function runDataIntegrityCheck(){
   else if(fixedIds>0||fixedSwaps>0)msg+='\n\nDie automatischen Korrekturen wurden bereits gespeichert und in die Cloud hochgeladen.';
   alert(msg);
 }
-let activeAgentFilter='all';
-let activeLabelFilter='all';
+let activeAgentFilters=[];
+let activeLabelFilters=[];
 let activeTasksAgentFilter='all';
 let dragCardId=null;
 let dragColId=null;
@@ -2296,9 +2297,14 @@ function formatBytes(b){if(b<1024)return b+' B';if(b<1024*1024)return(b/1024).to
 function getFilteredLeads(){
   const q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
   return leads.filter(l=>{
-    if(activeAgentFilter==='unassigned'&&l.members.length>0)return false;
-    else if(activeAgentFilter!=='all'&&activeAgentFilter!=='unassigned'&&!l.members.includes(activeAgentFilter))return false;
-    if(activeLabelFilter!=='all'&&!(l.labelIds||[]).includes(activeLabelFilter))return false;
+    if(activeAgentFilters.length){
+      const okAgent=activeAgentFilters.some(f=>f==='unassigned'?l.members.length===0:l.members.includes(f));
+      if(!okAgent)return false;
+    }
+    if(activeLabelFilters.length){
+      const okLabel=(l.labelIds||[]).some(id=>activeLabelFilters.includes(id));
+      if(!okLabel)return false;
+    }
     if(q&&!(l.company.toLowerCase().includes(q)||l.contact.toLowerCase().includes(q)||(l.customerNumber||'').toLowerCase().includes(q)))return false;
     return true;
   });
@@ -2336,33 +2342,40 @@ function activeAgents(){return AGENTS.filter(a=>a.active!==false);}
 function renderAgentChips(){
   const el=document.getElementById('filterMenuAgents');
   if(!el)return;
-  let html=`<div class="filtermenu-item ${activeAgentFilter==='all'?'active':''}" onclick="setAgentFilter('all')">${activeAgentFilter==='all'?'<i class="ti ti-check"></i>':''}Alle</div>`;
-  html+=`<div class="filtermenu-item ${activeAgentFilter==='unassigned'?'active':''}" onclick="setAgentFilter('unassigned')">${activeAgentFilter==='unassigned'?'<i class="ti ti-check"></i>':''}Nicht zugeordnet</div>`;
+  const noneSel=activeAgentFilters.length===0;
+  let html=`<div class="filtermenu-item ${noneSel?'active':''}" onclick="toggleAgentFilter('all')"><span>Alle</span>${noneSel?'<i class="ti ti-check"></i>':''}</div>`;
+  const unassignedActive=activeAgentFilters.includes('unassigned');
+  html+=`<div class="filtermenu-item ${unassignedActive?'active':''}" onclick="toggleAgentFilter('unassigned')"><span>Nicht zugeordnet</span>${unassignedActive?'<i class="ti ti-check"></i>':''}</div>`;
   AGENTS.forEach(a=>{
-    html+=`<div class="filtermenu-item ${activeAgentFilter===a.id?'active':''}" onclick="setAgentFilter('${a.id}')">${activeAgentFilter===a.id?'<i class="ti ti-check"></i>':''}${esc(a.name)}${a.active===false?' <span style="opacity:.6">(inaktiv)</span>':''}</div>`;
+    const active=activeAgentFilters.includes(a.id);
+    html+=`<div class="filtermenu-item ${active?'active':''}" onclick="toggleAgentFilter('${a.id}')"><span>${esc(a.name)}${a.active===false?' <span style="opacity:.6">(inaktiv)</span>':''}</span>${active?'<i class="ti ti-check"></i>':''}</div>`;
   });
   el.innerHTML=html;
   renderOmniTokens();
 }
-function agentFilterLabel(){
-  if(activeAgentFilter==='all')return null;
-  if(activeAgentFilter==='unassigned')return 'Nicht zugeordnet';
-  const a=AGENTS.find(a=>a.id===activeAgentFilter);
-  return a?a.name:null;
+function agentFilterLabels(){
+  return activeAgentFilters.map(f=>{
+    if(f==='unassigned')return{id:f,label:'Nicht zugeordnet'};
+    const a=AGENTS.find(a=>a.id===f);
+    return a?{id:f,label:a.name}:null;
+  }).filter(Boolean);
 }
-function labelFilterLabel(){
-  if(activeLabelFilter==='all')return null;
-  const lb=LABELS.find(l=>l.id===activeLabelFilter);
-  return lb?lb.name:null;
+function labelFilterLabels(){
+  return activeLabelFilters.map(f=>{
+    const lb=LABELS.find(l=>l.id===f);
+    return lb?{id:f,label:lb.name}:null;
+  }).filter(Boolean);
 }
 function renderOmniTokens(){
   const el=document.getElementById('omniTokens');
   if(!el)return;
   let html='';
-  const al=agentFilterLabel();
-  if(al)html+=`<div class="omni-token"><i class="ti ti-user" style="font-size:12px"></i>${esc(al)}<i class="ti ti-x" onclick="setAgentFilter('all')"></i></div>`;
-  const ll=labelFilterLabel();
-  if(ll)html+=`<div class="omni-token"><i class="ti ti-tag" style="font-size:12px"></i>${esc(ll)}<i class="ti ti-x" onclick="setLabelFilter('all')"></i></div>`;
+  agentFilterLabels().forEach(t=>{
+    html+=`<div class="omni-token"><i class="ti ti-user" style="font-size:12px"></i>${esc(t.label)}<i class="ti ti-x" onclick="toggleAgentFilter('${t.id}')"></i></div>`;
+  });
+  labelFilterLabels().forEach(t=>{
+    html+=`<div class="omni-token"><i class="ti ti-tag" style="font-size:12px"></i>${esc(t.label)}<i class="ti ti-x" onclick="toggleLabelFilter('${t.id}')"></i></div>`;
+  });
   el.innerHTML=html;
 }
 let filterMenuOpen=false;
@@ -2376,15 +2389,23 @@ function toggleFilterMenu(e){
 function renderLabelChips(){
   const el=document.getElementById('filterMenuLabels');
   if(!el)return;
-  let html=`<div class="filtermenu-item ${activeLabelFilter==='all'?'active':''}" onclick="setLabelFilter('all')">${activeLabelFilter==='all'?'<i class="ti ti-check"></i>':''}Alle</div>`;
+  const noneSel=activeLabelFilters.length===0;
+  let html=`<div class="filtermenu-item ${noneSel?'active':''}" onclick="toggleLabelFilter('all')"><span>Alle</span>${noneSel?'<i class="ti ti-check"></i>':''}</div>`;
   LABELS.forEach(lb=>{
-    const active=activeLabelFilter===lb.id;
-    html+=`<div class="filtermenu-item ${active?'active':''}" onclick="setLabelFilter('${lb.id}')"><span style="width:8px;height:8px;border-radius:50%;background:${lb.color};display:inline-block;flex-shrink:0"></span>${esc(lb.name)}${active?' <i class="ti ti-check" style="margin-left:auto"></i>':''}</div>`;
+    const active=activeLabelFilters.includes(lb.id);
+    html+=`<div class="filtermenu-item ${active?'active':''}" onclick="toggleLabelFilter('${lb.id}')"><span style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:${lb.color};display:inline-block;flex-shrink:0"></span>${esc(lb.name)}</span>${active?'<i class="ti ti-check"></i>':''}</div>`;
   });
   el.innerHTML=html;
   renderOmniTokens();
 }
-function setLabelFilter(id){activeLabelFilter=id;renderLabelChips();renderBoard();}
+function toggleLabelFilter(id){
+  if(id==='all'){activeLabelFilters=[];}
+  else{
+    const idx=activeLabelFilters.indexOf(id);
+    if(idx>-1)activeLabelFilters.splice(idx,1);else activeLabelFilters.push(id);
+  }
+  renderLabelChips();renderBoard();
+}
 function renderUserSelect(){
   const avail=activeAgents();
   // Automatische Erkennung: passt die angemeldete E-Mail zu einem Mitarbeiter,
@@ -2417,7 +2438,14 @@ function updateNavForRole(){
   if(el)el.style.display=isAdmin()?'':'none';
   if(currentView==='settings'&&!isAdmin())switchView('board');
 }
-function setAgentFilter(id){activeAgentFilter=id;renderAgentChips();renderBoard();}
+function toggleAgentFilter(id){
+  if(id==='all'){activeAgentFilters=[];}
+  else{
+    const idx=activeAgentFilters.indexOf(id);
+    if(idx>-1)activeAgentFilters.splice(idx,1);else activeAgentFilters.push(id);
+  }
+  renderAgentChips();renderBoard();
+}
 
 // ── RENDER: BOARD ──
 // ── NAVIGATION ──
