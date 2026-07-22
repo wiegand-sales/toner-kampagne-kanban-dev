@@ -212,6 +212,34 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .tb-stat-pill i{font-size:14px;}
 .tb-stat-pill b{font-size:13px;font-weight:700;}
 .tb-stat-pill span{font-size:11px;}
+.infobtn{width:37px;height:37px;border-radius:50%;border:1px solid var(--border2);background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2);flex-shrink:0;}
+.infobtn:hover{background:var(--bg2);}
+.infobtn-wrap{position:relative;}
+.infopop{position:absolute;top:44px;right:0;background:var(--bg);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.16);border:1px solid var(--border);padding:12px 16px;width:210px;z-index:20;display:none;font-size:12px;}
+.infopop.show{display:block;}
+.infopop-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;color:var(--text2);}
+.infopop-row b{color:var(--text);font-weight:700;}
+.infopop-row.warn b{color:var(--red-dark);}
+.infopop-row.good b{color:var(--green-dark, #2E7D32);}
+.omnibar-row{padding:0 22px 14px;}
+.omnibar{background:var(--bg);border:1px solid var(--border2);border-radius:24px;min-height:44px;display:flex;align-items:center;padding:4px 8px 4px 16px;gap:8px;flex-wrap:wrap;}
+.omnibar .search-box{border:none;padding:0;}
+.omnibar i.omni-search-icon{color:var(--text3);font-size:15px;flex-shrink:0;}
+.omni-input{border:none;outline:none;font-family:inherit;font-size:13px;flex:1 1 120px;min-width:120px;background:transparent;height:34px;}
+.omni-token{background:var(--bg2);border-radius:16px;padding:0 6px 0 10px;height:28px;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--text2);white-space:nowrap;}
+.omni-token i{cursor:pointer;font-size:13px;color:var(--text3);}
+.omni-token i:hover{color:var(--red-dark);}
+.omni-addfilter-wrap{position:relative;flex-shrink:0;}
+.omni-addfilter{height:28px;padding:0 10px;border-radius:16px;border:1px dashed var(--border2);color:var(--text3);font-size:12px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;background:transparent;font-family:inherit;}
+.omni-addfilter:hover{border-color:var(--purple);color:var(--purple-dark);}
+.filtermenu{position:absolute;top:34px;left:0;background:var(--bg);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.16);border:1px solid var(--border);padding:12px;width:230px;z-index:20;display:none;}
+.filtermenu.show{display:block;}
+.filtermenu h4{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--text3);margin:0 0 6px;}
+.filtermenu-item{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 6px;border-radius:6px;cursor:pointer;color:var(--text);}
+.filtermenu-item:hover{background:var(--bg2);}
+.filtermenu-item.active{color:var(--purple-dark);font-weight:600;}
+.filtermenu hr{border:none;border-top:1px solid var(--border);margin:8px 0;}
+.omni-spacer{flex:1 1 auto;min-width:8px;}
 .tb-stat{text-align:center;}
 .tb-stat-val{font-size:16px;font-weight:700;}
 .tb-stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;}
@@ -534,21 +562,36 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
             <div class="tb-title">Projekt: Toner</div>
             <div class="tb-sub">Kanban Board</div>
           </div>
-          <div class="tb-stats" id="statsBar"></div>
         </div>
         <div class="tb-right">
-          <div class="search-box"><i class="ti ti-search"></i><input type="text" id="searchInput" placeholder="Firma, Kontakt, Kd-Nr." oninput="renderBoard()"></div>
           <button class="btn" onclick="triggerCSVImport()" title="Leads aus CSV-Datei importieren (Spalte 'Firmenname' erforderlich)"><i class="ti ti-upload"></i> Import CSV</button>
           <input type="file" id="csvImportInput" accept=".csv,text/csv" style="display:none" onchange="if(this.files[0]){importCSVFile(this.files[0]);this.value='';}">
           <button class="btn" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</button>
           <button class="btn btn-primary" onclick="openLeadModal(null)"><i class="ti ti-plus"></i> Neuer Lead</button>
+          <div class="infobtn-wrap">
+            <div class="infobtn" id="statsInfoBtn" onclick="toggleStatsPopover(event)" title="Kennzahlen"><i class="ti ti-chart-bar"></i></div>
+            <div class="infopop" id="statsPopover"></div>
+          </div>
         </div>
       </div>
-      <div class="filterbar">
-        <div class="filter-group"><span class="filterbar-label">Mitarbeiter</span><div id="agentChips"></div></div>
-        <div class="filter-divider"></div>
-        <div class="filter-group"><span class="filterbar-label">Label</span><div id="labelChipsFilter"></div></div>
-        <button class="btn btn-sm" id="bulkModeBtn" onclick="toggleBulkMode()" style="margin-left:auto"><i class="ti ti-checkbox"></i> Mehrfachauswahl</button>
+      <div class="omnibar-row">
+        <div class="omnibar">
+          <i class="ti ti-search omni-search-icon"></i>
+          <input type="text" class="omni-input" id="searchInput" placeholder="Firma, Kontakt, Kd-Nr." oninput="renderBoard()">
+          <div id="omniTokens" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"></div>
+          <div class="omni-addfilter-wrap">
+            <button class="omni-addfilter" onclick="toggleFilterMenu(event)"><i class="ti ti-plus" style="font-size:12px"></i> Filter</button>
+            <div class="filtermenu" id="filterMenu">
+              <h4>Mitarbeiter</h4>
+              <div id="filterMenuAgents"></div>
+              <hr>
+              <h4>Label</h4>
+              <div id="filterMenuLabels"></div>
+            </div>
+          </div>
+          <div class="omni-spacer"></div>
+          <button class="btn btn-sm" id="bulkModeBtn" onclick="toggleBulkMode()"><i class="ti ti-checkbox"></i> Mehrfachauswahl</button>
+        </div>
       </div>
       <div id="bulkActionBar" class="bulk-action-bar" style="display:none">
         <span id="bulkCountLabel">0 ausgewählt</span>
@@ -2263,34 +2306,74 @@ function renderStats(){
   const forecastSum=fl.reduce((s,l)=>s+(parseFloat(l.forecast)||0),0);
   const overdueBg=overdue>0?'var(--red-bg)':'var(--purple-bg)';
   const overdueColor=overdue>0?'var(--red-dark)':'var(--purple-dark)';
-  document.getElementById('statsBar').innerHTML=`
-    <div class="tb-stat-pill" style="background:var(--purple-bg)"><i class="ti ti-users" style="color:var(--purple-dark)"></i><b style="color:var(--purple-dark)">${total}</b><span style="color:var(--purple-dark)">Leads</span></div>
-    <div class="tb-stat-pill" style="background:var(--purple-bg)"><i class="ti ti-message-2" style="color:var(--purple-dark)"></i><b style="color:var(--purple-dark)">${totalActivities}</b><span style="color:var(--purple-dark)">Aktivitäten</span></div>
-    <div class="tb-stat-pill" style="background:${overdueBg}"><i class="ti ti-alert-triangle" style="color:${overdueColor}"></i><b style="color:${overdueColor}">${overdue}</b><span style="color:${overdueColor}">überfällig</span></div>
-    <div class="tb-stat-pill" style="background:var(--green-bg)"><i class="ti ti-trophy" style="color:var(--green-dark)"></i><b style="color:var(--green-dark)">${rate}%</b><span style="color:var(--green-dark)">gewonnen</span></div>
-    <div class="tb-stat-pill" style="background:var(--purple-bg)"><i class="ti ti-chart-line" style="color:var(--purple-dark)"></i><b style="color:var(--purple-dark)">${fmtEur(forecastSum)}</b><span style="color:var(--purple-dark)">Forecast</span></div>`;
+  document.getElementById('statsPopover').innerHTML=`
+    <div class="infopop-row"><span>Leads</span><b>${total}</b></div>
+    <div class="infopop-row"><span>Aktivitäten</span><b>${totalActivities}</b></div>
+    <div class="infopop-row${overdue>0?' warn':''}"><span>Überfällig</span><b>${overdue}</b></div>
+    <div class="infopop-row good"><span>Gewonnen</span><b>${rate}%</b></div>
+    <div class="infopop-row"><span>Forecast</span><b>${fmtEur(forecastSum)}</b></div>`;
+}
+let statsPopoverOpen=false;
+function toggleStatsPopover(e){
+  if(e)e.stopPropagation();
+  statsPopoverOpen=!statsPopoverOpen;
+  if(statsPopoverOpen)filterMenuOpen=false;
+  document.getElementById('statsPopover').classList.toggle('show',statsPopoverOpen);
+  document.getElementById('filterMenu').classList.remove('show');
 }
 
 // ── RENDER: AGENT FILTER + USER SELECT ──
 function activeAgents(){return AGENTS.filter(a=>a.active!==false);}
 function renderAgentChips(){
-  const el=document.getElementById('agentChips');
-  let html=`<span class="chip ${activeAgentFilter==='all'?'active':''}" onclick="setAgentFilter('all')">Alle</span>`;
-  html+=`<span class="chip ${activeAgentFilter==='unassigned'?'active':''}" onclick="setAgentFilter('unassigned')" style="color:var(--text3)"><i class="ti ti-user-question" style="margin-right:3px"></i>Nicht zugeordnet</span>`;
+  const el=document.getElementById('filterMenuAgents');
+  if(!el)return;
+  let html=`<div class="filtermenu-item ${activeAgentFilter==='all'?'active':''}" onclick="setAgentFilter('all')">${activeAgentFilter==='all'?'<i class="ti ti-check"></i>':''}Alle</div>`;
+  html+=`<div class="filtermenu-item ${activeAgentFilter==='unassigned'?'active':''}" onclick="setAgentFilter('unassigned')">${activeAgentFilter==='unassigned'?'<i class="ti ti-check"></i>':''}Nicht zugeordnet</div>`;
   AGENTS.forEach(a=>{
-    html+=`<span class="chip ${activeAgentFilter===a.id?'active':''}" onclick="setAgentFilter('${a.id}')">${esc(a.name)}${a.active===false?' <span style="opacity:.6">(inaktiv)</span>':''}</span>`;
+    html+=`<div class="filtermenu-item ${activeAgentFilter===a.id?'active':''}" onclick="setAgentFilter('${a.id}')">${activeAgentFilter===a.id?'<i class="ti ti-check"></i>':''}${esc(a.name)}${a.active===false?' <span style="opacity:.6">(inaktiv)</span>':''}</div>`;
   });
+  el.innerHTML=html;
+  renderOmniTokens();
+}
+function agentFilterLabel(){
+  if(activeAgentFilter==='all')return null;
+  if(activeAgentFilter==='unassigned')return 'Nicht zugeordnet';
+  const a=AGENTS.find(a=>a.id===activeAgentFilter);
+  return a?a.name:null;
+}
+function labelFilterLabel(){
+  if(activeLabelFilter==='all')return null;
+  const lb=LABELS.find(l=>l.id===activeLabelFilter);
+  return lb?lb.name:null;
+}
+function renderOmniTokens(){
+  const el=document.getElementById('omniTokens');
+  if(!el)return;
+  let html='';
+  const al=agentFilterLabel();
+  if(al)html+=`<div class="omni-token"><i class="ti ti-user" style="font-size:12px"></i>${esc(al)}<i class="ti ti-x" onclick="setAgentFilter('all')"></i></div>`;
+  const ll=labelFilterLabel();
+  if(ll)html+=`<div class="omni-token"><i class="ti ti-tag" style="font-size:12px"></i>${esc(ll)}<i class="ti ti-x" onclick="setLabelFilter('all')"></i></div>`;
   el.innerHTML=html;
 }
+let filterMenuOpen=false;
+function toggleFilterMenu(e){
+  if(e)e.stopPropagation();
+  filterMenuOpen=!filterMenuOpen;
+  if(filterMenuOpen)statsPopoverOpen=false;
+  document.getElementById('filterMenu').classList.toggle('show',filterMenuOpen);
+  document.getElementById('statsPopover').classList.remove('show');
+}
 function renderLabelChips(){
-  const el=document.getElementById('labelChipsFilter');
+  const el=document.getElementById('filterMenuLabels');
   if(!el)return;
-  let html=`<span class="chip ${activeLabelFilter==='all'?'active':''}" onclick="setLabelFilter('all')">Alle</span>`;
+  let html=`<div class="filtermenu-item ${activeLabelFilter==='all'?'active':''}" onclick="setLabelFilter('all')">${activeLabelFilter==='all'?'<i class="ti ti-check"></i>':''}Alle</div>`;
   LABELS.forEach(lb=>{
     const active=activeLabelFilter===lb.id;
-    html+=`<span class="chip ${active?'active':''}" style="${active?`background:${lb.color};border-color:${lb.color}`:`border-color:${lb.color};color:${lb.color}`}" onclick="setLabelFilter('${lb.id}')">${esc(lb.name)}</span>`;
+    html+=`<div class="filtermenu-item ${active?'active':''}" onclick="setLabelFilter('${lb.id}')"><span style="width:8px;height:8px;border-radius:50%;background:${lb.color};display:inline-block;flex-shrink:0"></span>${esc(lb.name)}${active?' <i class="ti ti-check" style="margin-left:auto"></i>':''}</div>`;
   });
   el.innerHTML=html;
+  renderOmniTokens();
 }
 function setLabelFilter(id){activeLabelFilter=id;renderLabelChips();renderBoard();}
 function renderUserSelect(){
@@ -4856,7 +4939,7 @@ function recomputeForecast(){
   if(el)el.textContent=fmtEur(total)||'0 €';
   const marginEl=document.getElementById('forecastMarginValue');
   if(marginEl){marginEl.textContent=fmtEur(margin)||'0 €';marginEl.style.color=margin>=0?'var(--green-dark)':'var(--red)';}
-  const statEl=document.getElementById('statsBar');
+  const statEl=document.getElementById('statsPopover');
   if(statEl)renderStats();
 }
 
@@ -6265,6 +6348,8 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('.label-row-editor')&&labelPopoverOpen){labelPopoverOpen=false;renderLeadModal();}
   if(!e.target.closest('.member-row-editor')&&memberPopoverOpen){memberPopoverOpen=false;renderLeadModal();}
   if(!e.target.closest('.col-hdr-wrap')&&colMenuOpenId){colMenuOpenId=null;renderBoard();}
+  if(!e.target.closest('.omni-addfilter-wrap')&&filterMenuOpen){filterMenuOpen=false;document.getElementById('filterMenu').classList.remove('show');}
+  if(!e.target.closest('.infobtn-wrap')&&statsPopoverOpen){statsPopoverOpen=false;document.getElementById('statsPopover').classList.remove('show');}
 });
 
 function showSyncFailureBanner(msg){
