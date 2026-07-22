@@ -875,7 +875,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T17:58:54.000Z';
+const BUILD_VERSION='2026-07-22T18:10:01.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3127,14 +3127,35 @@ function renderDashboard(){
     const skuHit=l.shipPrinter.skus.map(s=>s.sku).filter(Boolean).map(sku=>ARTICLES.find(a=>a.sku===sku)).find(a=>a&&a.crRma>=5);
     return skuHit?{lead:l,article:skuHit}:null;
   }).filter(Boolean);
-  const riskHtml=riskLeads.length?riskLeads.map(x=>`
+  const RISK_LIST_LIMIT=5;
+  const riskLeadsSorted=[...riskLeads].sort((a,b)=>b.article.crRma-a.article.crRma);
+  const riskLeadsShown=riskLeadsSorted.slice(0,RISK_LIST_LIMIT);
+  const riskHtml=riskLeadsShown.length?riskLeadsShown.map(x=>`
     <div class="dash-lead-row" onclick="switchView('board');setTimeout(function(){openLeadModal(${x.lead.id})},50)">
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.lead.company)}</div>
         <div style="font-size:11px;color:var(--text2)">SKU ${esc(x.article.sku)} · ${esc(colById(x.lead.status).name)}</div>
       </div>
       <span class="due-badge due-overdue">${x.article.crRma}% RMA</span>
-    </div>`).join(''):'<p style="font-size:12px;color:var(--text3)">Keine aktiven Leads mit riskanter SKU. Alles im grünen Bereich.</p>';
+    </div>`).join('')+(riskLeadsSorted.length>RISK_LIST_LIMIT?`<div style="font-size:11px;color:var(--text3);margin-top:6px;text-align:center">+ ${riskLeadsSorted.length-RISK_LIST_LIMIT} weitere</div>`:''):'<p style="font-size:12px;color:var(--text3)">Keine aktiven Leads mit riskanter SKU. Alles im grünen Bereich.</p>';
+  // Risiko-SKU-Balkendiagramm (Petrol): zeigt, welche Artikel die meisten Leads ins
+  // Risiko bringen. Fest auf Top 5 begrenzt, damit die Box nicht mit der Datenmenge waechst.
+  const riskSkuCounts={};
+  riskLeads.forEach(x=>{riskSkuCounts[x.article.sku]=(riskSkuCounts[x.article.sku]||0)+1;});
+  const riskSkuTop=Object.entries(riskSkuCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const riskSkuChartHtml=riskSkuTop.length?(()=>{
+    const max=Math.max(...riskSkuTop.map(x=>x[1]));
+    const rows=riskSkuTop.map(([sku,count])=>{
+      const pct=Math.max(10,Math.round(count/max*100));
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div style="width:100px;flex-shrink:0;font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(sku)}</div>
+        <div style="flex:1;background:var(--bg3);border-radius:5px;height:18px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:var(--purple);border-radius:5px;display:flex;align-items:center;padding:0 7px;font-size:10px;font-weight:700;color:#fff;white-space:nowrap">${count}</div>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:14px">${rows}</div>`;
+  })():'';
 
   const topForecast=[...dl].filter(l=>!isClosedLead(l)&&l.forecast)
     .sort((a,b)=>(parseFloat(b.forecast)||0)-(parseFloat(a.forecast)||0)).slice(0,5);
@@ -3247,13 +3268,16 @@ function renderDashboard(){
         <div class="funnel-wrap">${reasonHtml}</div>
       </div>
     </div>
-    <div class="info-section">
-      <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-map-pin" style="color:var(--purple)"></i> Kunden-Herkunft</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(stilisiert, aus Adressfeld)</span></div>
-      ${customerOriginMapHtml(dl)}
-    </div>
-    <div class="info-section" style="border-color:${riskLeads.length?'var(--red)':'var(--border)'}">
-      <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-shield-exclamation" style="color:${riskLeads.length?'var(--red)':'var(--text2)'}"></i> RMA-Risiko-Check</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(aktive Leads mit SKU ≥5% Reklamationsquote)</span></div>
-      ${riskHtml}
+    <div class="dash-row-1-1">
+      <div class="info-section">
+        <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-map-pin" style="color:var(--purple)"></i> Kunden-Herkunft</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(stilisiert, aus Adressfeld)</span></div>
+        ${customerOriginMapHtml(dl)}
+      </div>
+      <div class="info-section" style="border-color:${riskLeads.length?'var(--red)':'var(--border)'}">
+        <div class="section-hdr" style="margin-top:0"><span style="display:flex;align-items:center;gap:6px"><i class="ti ti-shield-exclamation" style="color:${riskLeads.length?'var(--red)':'var(--text2)'}"></i> RMA-Risiko-Check</span> <span style="font-weight:400;color:var(--text3);font-size:11px">(aktive Leads mit SKU ≥5% Reklamationsquote)</span></div>
+        ${riskSkuChartHtml}
+        ${riskHtml}
+      </div>
     </div>
     <div class="dash-row-eq">
       <div class="info-section">
