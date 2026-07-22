@@ -209,10 +209,9 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .crrma-legend-item{display:flex;align-items:center;gap:5px;}
 .crrma-dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
 .crrma-table{display:flex;flex-direction:column;}
-.crrma-row{display:grid;grid-template-columns:1.2fr 1.8fr 0.8fr 0.8fr 0.8fr 0.9fr 0.9fr 34px;gap:8px;align-items:center;padding:8px 12px;}
-.crrma-row:not(.crrma-hdr){background:rgba(0,0,0,0.03);border:1px solid rgba(0,0,0,0.12);border-radius:8px;margin-bottom:6px;}
-.crrma-row:not(.crrma-hdr):hover{background:rgba(0,0,0,0.06);}
-.crrma-margin-input{font-size:13px;font-weight:600;width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-family:inherit;}
+.crrma-row{display:grid;grid-template-columns:1.2fr 1.8fr 0.8fr 0.8fr 0.8fr 0.9fr 0.9fr 34px;gap:8px;align-items:center;padding:4px 0;}
+.crrma-margin-input{font-size:13px;font-weight:600;width:100%;background:rgba(0,0,0,0.03);border:1px solid rgba(0,0,0,0.12);border-radius:6px;padding:6px 8px;font-family:inherit;}
+.crrma-num-input{background:rgba(0,0,0,0.03);border:1px solid rgba(0,0,0,0.12);}
 .crrma-sortable{cursor:pointer;user-select:none;}
 .crrma-sortable:hover{color:var(--purple);}
 .crrma-row.crrma-hdr{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.03em;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:4px;}
@@ -842,7 +841,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T12:26:08.000Z';
+const BUILD_VERSION='2026-07-22T12:30:36.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -3278,10 +3277,10 @@ function renderCrRma(){
     <div class="crrma-row">
       <input type="text" value="${esc(a.sku)}" placeholder="SKU" oninput="updateArticleField(${a.id},'sku',this.value);saveState()">
       <input type="text" value="${esc(a.title)}" placeholder="Titel" oninput="updateArticleField(${a.id},'title',this.value);saveState()">
-      <input type="number" step="0.01" value="${fmt2(a.ek)}" placeholder="0.00" onchange="updateArticleField(${a.id},'ek',this.value);saveState();renderCrRma()">
-      <input type="number" step="0.01" value="${fmt2(a.vk)}" placeholder="0.00" onchange="updateArticleField(${a.id},'vk',this.value);saveState();renderCrRma()">
+      <input type="number" step="0.01" class="crrma-num-input" value="${fmt2(a.ek)}" placeholder="0.00" onchange="updateArticleField(${a.id},'ek',this.value);saveState();renderCrRma()">
+      <input type="number" step="0.01" class="crrma-num-input" value="${fmt2(a.vk)}" placeholder="0.00" onchange="updateArticleField(${a.id},'vk',this.value);saveState();renderCrRma()">
       <input type="number" step="0.01" class="crrma-margin-input" style="color:${margin>=0?'var(--green-dark)':'var(--red)'}" value="${margin.toFixed(2)}" title="Marge ändern → VK wird automatisch neu berechnet (EK bleibt fix)" onchange="updateArticleMargin(${a.id},this.value)">
-      <input type="number" step="1" min="0" value="${a.verkaufteStk===''||a.verkaufteStk===null||a.verkaufteStk===undefined?'':a.verkaufteStk}" placeholder="0" oninput="updateArticleField(${a.id},'verkaufteStk',this.value);saveState()">
+      <input type="number" step="1" min="0" class="crrma-num-input" value="${a.verkaufteStk===''||a.verkaufteStk===null||a.verkaufteStk===undefined?'':a.verkaufteStk}" placeholder="0" oninput="updateArticleField(${a.id},'verkaufteStk',this.value);saveState()">
       <input type="number" step="0.01" class="${crRmaCellClass(a.crRma)}" value="${fmt2(a.crRma)}" placeholder="0.00" oninput="updateArticleField(${a.id},'crRma',this.value);saveState();this.className=crRmaCellClass(parseFloat(this.value))">
       <button class="check-item-del" onclick="deleteArticle(${a.id})" title="Löschen"><i class="ti ti-trash"></i></button>
     </div>`;
