@@ -862,7 +862,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T13:08:59.000Z';
+const BUILD_VERSION='2026-07-22T13:13:35.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2758,7 +2758,7 @@ function updateDashboardKpiHistory(vals){
     return false;
   }
   arr.push(entry);
-  while(arr.length>7)arr.shift();
+  while(arr.length>30)arr.shift();
   return true;
 }
 function dashboardKpiCard(label,key,colorVar,currVal,formatFn){
@@ -3319,7 +3319,7 @@ function renderTasksView(){
   withFollowup.forEach(l=>{const b=followupBucket(l);if(b)buckets[b].push(l);});
   ['overdue','today','week','nextweek'].forEach(k=>buckets[k].sort((a,b)=>a.followup.localeCompare(b.followup)));
 
-  const history=[6,5,4,3,2,1,0].map(o=>followupBucketCountsAt(withFollowup,o));
+  const history=Array.from({length:30},(_,i)=>29-i).map(o=>followupBucketCountsAt(withFollowup,o));
   const curr=history[6],prev=history[5];
   function kpiCard(label,key,colorVar){
     const series=history.map(h=>h[key]);
