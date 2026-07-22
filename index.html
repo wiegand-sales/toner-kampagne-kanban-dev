@@ -615,19 +615,17 @@ label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bot
     </div>
 
     <div class="view" id="viewCrrma">
-      <div class="page-hdr">
-        <div class="page-hdr-left">
-          <div class="page-icon-badge"><i class="ti ti-report-money"></i></div>
-          <div>
-            <div class="page-hdr-title">CR RMA</div>
-            <div class="page-hdr-sub">Artikel-Stammdaten mit Reklamationsquoten (RMA/RGA) je SKU</div>
-          </div>
+      <div class="topbar-unified">
+        <div class="tbu-left">
+          <div class="page-icon-badge" title="CR RMA"><i class="ti ti-report-money"></i></div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <div class="search-box"><i class="ti ti-search"></i><input type="text" id="crrmaSearch" placeholder="SKU oder Titel suchen…" oninput="renderCrRma()"></div>
-          <button class="btn btn-sm" onclick="triggerArticleCSVImport()" title="Artikel aus CSV-Datei importieren (Spalte 'SKU' erforderlich)"><i class="ti ti-upload"></i> Import CSV</button>
+        <div class="omnibar-flex">
+          <i class="ti ti-search omni-search-icon"></i>
+          <input type="text" class="omni-input" id="crrmaSearch" placeholder="SKU oder Titel suchen…" oninput="renderCrRma()">
+          <div class="omni-spacer"></div>
+          <button class="omnibar-btn" onclick="triggerArticleCSVImport()" title="Artikel aus CSV-Datei importieren (Spalte 'SKU' erforderlich)"><i class="ti ti-upload"></i> Import CSV</button>
           <input type="file" id="articleCsvImportInput" accept=".csv,text/csv" style="display:none" onchange="if(this.files[0]){importArticleCSVFile(this.files[0]);this.value='';}">
-          <button class="btn btn-sm" onclick="exportArticleCSV()"><i class="ti ti-download"></i> Export CSV</button>
+          <button class="omnibar-btn" onclick="exportArticleCSV()"><i class="ti ti-download"></i> Export CSV</button>
         </div>
       </div>
       <div class="view-scroll" id="crrmaContent"></div>
@@ -789,7 +787,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T09:16:30.000Z';
+const BUILD_VERSION='2026-07-22T09:20:58.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
