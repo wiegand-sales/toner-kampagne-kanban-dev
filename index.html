@@ -921,7 +921,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-23T12:32:19.000Z';
+const BUILD_VERSION='2026-07-23T12:40:24.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2156,6 +2156,7 @@ let labelPopoverOpen=false;
 let memberPopoverOpen=false;
 let editingLabelId=null;
 let rightTab='comments';
+let draftCommentText='';
 let activityFeedFilter='all';
 function setActivityFeedFilter(f){
   activityFeedFilter=f;
@@ -4928,7 +4929,7 @@ function releaseLeadLock(leadId){
 function openLeadModal(id){
   editingLeadId=id;
   draftLead=id?JSON.parse(JSON.stringify(leads.find(x=>x.id===id))):blankLead();
-  labelPopoverOpen=false;memberPopoverOpen=false;activityFeedFilter='comments';taskMentionPopoverOpen=false;pendingTaskAssigneeId=null;draftTaskText='';editingCommentId=null;rightTab='comments';openTimePickerField=null;
+  labelPopoverOpen=false;memberPopoverOpen=false;activityFeedFilter='comments';taskMentionPopoverOpen=false;pendingTaskAssigneeId=null;draftTaskText='';draftCommentText='';editingCommentId=null;rightTab='comments';openTimePickerField=null;
   clearTimeout(lockHeartbeatTimer);
   const existingLock=id?getLeadLock(id):null;
   if(existingLock&&existingLock.agentId!==currentUser){
@@ -5279,7 +5280,7 @@ function renderLeadModal(){
           <input type="date" id="commentDateInput" max="${TODAY}" title="Datum (leer lassen = jetzt; sonst Nacherfassung eines vergangenen Ereignisses)" style="width:150px;flex-shrink:0">
         </div>
         <div class="field" style="margin-bottom:10px">
-          <textarea id="commentInput" placeholder="Kommentar schreiben… (Strg+Enter zum Senden)" onkeydown="if((event.key==='Enter')&&(event.ctrlKey||event.metaKey))addComment()"></textarea>
+          <textarea id="commentInput" placeholder="Kommentar schreiben… (Strg+Enter zum Senden)" oninput="draftCommentText=this.value" onkeydown="if((event.key==='Enter')&&(event.ctrlKey||event.metaKey))addComment()">${esc(draftCommentText)}</textarea>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn" style="flex:1;justify-content:center" onclick="markNotReached()" title="Trägt automatisch einen Kommentar ein und setzt das Follow-up-Datum auf in ${PROJECT.notReachedFollowupDays!==undefined?PROJECT.notReachedFollowupDays:6} Tagen (einstellbar unter Einstellungen)"><i class="ti ti-phone-off"></i> Nicht erreicht</button>
@@ -5366,7 +5367,7 @@ function renderLeadModal(){
           ${shipPrinterHtml}
         </div>
 
-        <div class="info-section">
+        <div class="info-section" style="${(memberPopoverOpen||labelPopoverOpen)?'position:relative;z-index:50':''}">
           <div class="section-hdr">Lead-Status</div>
           <div style="margin-bottom:12px">
             <span class="small-label">Zeitstrahl</span>
@@ -6074,6 +6075,7 @@ function addComment(){
   const customDate=dateInp&&dateInp.value?dateInp.value:null;
   const date=customDate?customDate+'T'+(new Date().toTimeString().slice(0,8)):nowISO();
   draftLead.activity.unshift({id:Date.now(),type:'comment',author:currentUser,text,date,backdated:!!customDate});
+  draftCommentText='';
   autoPersistIfEditing();
   renderLeadModal();
 }
