@@ -74,6 +74,7 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(155deg,#f2f3f0 0%
 .dash-kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:22px;}
 .dash-kpi{background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-edge);border-radius:var(--r-lg);padding:14px 16px;position:relative;box-shadow:0 12px 30px rgba(15,61,66,0.08);transition:box-shadow .18s,transform .18s;}
 .info-section:hover,.dash-kpi:hover{box-shadow:0 16px 40px rgba(15,61,66,0.16);transform:translateY(-2px);}
+#leadModalInner .info-section:hover{box-shadow:0 12px 30px rgba(15,61,66,0.08);transform:none;}
 .dash-kpi:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(15,61,66,.09);}
 .dash-kpi-icon{position:absolute;top:12px;right:12px;font-size:16px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:var(--purple-bg);color:var(--purple-dark);opacity:1;}
 .dash-kpi-label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;}
@@ -920,7 +921,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-23T06:41:46.000Z';
+const BUILD_VERSION='2026-07-23T12:32:19.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
