@@ -920,7 +920,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-22T19:33:35.000Z';
+const BUILD_VERSION='2026-07-23T06:31:45.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2622,6 +2622,13 @@ function switchView(view){
 
 function renderBoard(){
   renderStats();
+  // Scrollpositionen je Spalte merken, damit eine Liste beim Neu-Rendern (z.B. nach dem
+  // Speichern eines Leads) nicht wieder nach ganz oben springt.
+  const scrollPositions={};
+  document.querySelectorAll('#board .col').forEach(colEl=>{
+    const body=colEl.querySelector('.col-body');
+    if(body)scrollPositions[colEl.dataset.col]=body.scrollTop;
+  });
   const fl=getFilteredLeads();
   const board=document.getElementById('board');
   const colsHtml=COLUMNS.map(col=>{
@@ -2675,6 +2682,12 @@ function renderBoard(){
     : `<div class="col-add-tile"><button class="col-add-btn" onclick="openAddColumnForm()"><i class="ti ti-plus"></i> Liste hinzufügen</button></div>`;
 
   board.innerHTML = colsHtml + addTileHtml;
+
+  // Gemerkte Scrollpositionen wiederherstellen
+  document.querySelectorAll('#board .col').forEach(colEl=>{
+    const body=colEl.querySelector('.col-body');
+    if(body&&scrollPositions[colEl.dataset.col]!==undefined)body.scrollTop=scrollPositions[colEl.dataset.col];
+  });
 }
 
 // ── DASHBOARD ──
