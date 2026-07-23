@@ -920,7 +920,7 @@ const STORAGE_KEY='toner_kanban_state_v1';
 // dass ein laenger offener Tab automatisch erkennt, wenn eine neuere Version online ist
 // (siehe checkForNewVersion) - damit alte Tabs nicht unbemerkt mit veraltetem Code
 // weiterlaufen und neuere Aenderungen ueberschreiben koennen.
-const BUILD_VERSION='2026-07-23T06:31:45.000Z';
+const BUILD_VERSION='2026-07-23T06:41:46.000Z';
 const SUPABASE_URL='https://uijbqmojuhemmrrcpmhi.supabase.co';
 const SUPABASE_KEY='sb_publishable_XfSGpf58REzMsnaEPBd8oA_vHs96St1';
 const SB_SESSION_KEY='sb_session_v1';
@@ -2828,7 +2828,8 @@ function computeDashboardKpiMetrics(arr){
   const cycleDays=arr.filter(l=>isClosedLead(l)&&l.firstContact&&l.closedAt)
     .map(l=>Math.round((new Date(l.closedAt)-new Date(l.firstContact))/86400000)).filter(d=>d>=0);
   const avgCycle=cycleDays.length?Math.round(cycleDays.reduce((a,b)=>a+b,0)/cycleDays.length):0;
-  return {overdue,forecastSum:Math.round(forecastSum),investTotal:Math.round(investTotal),winRate,avgCycle};
+  const fuFeedback=arr.filter(l=>l.status==='fu_feedback').length;
+  return {overdue,forecastSum:Math.round(forecastSum),investTotal:Math.round(investTotal),winRate,avgCycle,fuFeedback};
 }
 // Legt/aktualisiert den heutigen Eintrag in der (max. 7 Tage) Historie; gibt true zurueck,
 // wenn sich dadurch etwas geaendert hat (dann lohnt sich ein saveState()).
@@ -7394,11 +7395,54 @@ function wizardTopPriorityLead(){
   if(byForecast.length&&parseFloat(byForecast[0].forecast)>0)return{lead:byForecast[0],reason:'forecast'};
   return null;
 }
+// ── Admin-Wizard: alle Kennzahlen team-weit (ungefiltert ueber alle Mitarbeiter) ──
+function wizardTeamActivityCount(){
+  const cutoff=new Date(TODAY);cutoff.setDate(cutoff.getDate()-7);
+  let count=0;
+  leads.forEach(l=>(l.activity||[]).forEach(a=>{if(new Date(a.date)>=cutoff)count++;}));
+  return count;
+}
+function wizardFuFeedbackNow(){
+  return leads.filter(l=>l.status==='fu_feedback').length;
+}
+// Sucht in der bestehenden Dashboard-KPI-Historie den Eintrag, der am naechsten an
+// "vor 30 Tagen" liegt, um die Veraenderung anzuzeigen. Ist die Historie noch nicht so
+// alt (Feature gerade erst eingefuehrt), wird der aelteste vorhandene Eintrag genutzt.
+function wizardFuFeedbackDelta(){
+  const hist=PROJECT.dashboardKpiHistory||[];
+  if(!hist.length)return null;
+  const cutoff=new Date(TODAY);cutoff.setDate(cutoff.getDate()-30);
+  const cutoffStr=cutoff.toISOString().slice(0,10);
+  let refEntry=hist.find(e=>e.date>=cutoffStr)||hist[0];
+  if(refEntry.fuFeedback===undefined)return null;
+  return{from:refEntry.fuFeedback,fromDate:refEntry.date,now:wizardFuFeedbackNow()};
+}
+function wizardTeamOverdueCount(){
+  return leads.filter(l=>l.followup&&daysUntil(l.followup)<0&&!isClosedLead(l)).length;
+}
+function wizardTeamInvestTotal(){
+  const open=leads.filter(l=>!isClosedLead(l));
+  const investSum=open.reduce((s,l)=>s+l.shipPrinter.skus.reduce((ss,x)=>ss+(parseFloat(x.priceEk)||0),0),0);
+  const shippedCount=open.filter(l=>l.tonerSent==='Ja').length;
+  return Math.round(investSum+shippedCount*SHIPPING_COST_PER_SEND);
+}
+function wizardTeamRecentWins(){
+  const cutoff=new Date(TODAY);cutoff.setDate(cutoff.getDate()-7);
+  return leads.filter(l=>isWon(l)&&l.closedAt&&new Date(l.closedAt)>=cutoff)
+    .sort((a,b)=>new Date(b.closedAt)-new Date(a.closedAt)).slice(0,5);
+}
+function wizardTeamTopForecastList(){
+  return leads.filter(l=>!isClosedLead(l)&&parseFloat(l.forecast)>0)
+    .sort((a,b)=>(parseFloat(b.forecast)||0)-(parseFloat(a.forecast)||0)).slice(0,5);
+}
 let wizardPage=0;
-const WIZARD_PAGE_COUNT=7;
+function wizardPageCount(){
+  const me=agentById(currentUser);
+  return(me&&me.role==='am')?7:6;
+}
 function openLoginWizard(){
   const me=agentById(currentUser);
-  if(!me||me.role!=='am')return; // Wizard ist nur fuer Account Manager gedacht, Admins ueberspringen ihn
+  if(!me)return;
   wizardPage=0;
   renderWizardPage();
   document.getElementById('loginWizardOverlay').classList.remove('hidden');
@@ -7407,19 +7451,25 @@ function closeLoginWizard(){
   document.getElementById('loginWizardOverlay').classList.add('hidden');
 }
 function wizardNext(){
-  if(wizardPage>=WIZARD_PAGE_COUNT-1){closeLoginWizard();return;}
+  if(wizardPage>=wizardPageCount()-1){closeLoginWizard();return;}
   wizardPage++;
   renderWizardPage();
 }
 function renderWizardPage(){
+  const pageCount=wizardPageCount();
   const dotsEl=document.getElementById('wizardDots');
   if(dotsEl){
-    dotsEl.innerHTML=Array.from({length:WIZARD_PAGE_COUNT},(_,i)=>`<span class="wizard-dot ${i===wizardPage?'active':''}"></span>`).join('');
+    dotsEl.innerHTML=Array.from({length:pageCount},(_,i)=>`<span class="wizard-dot ${i===wizardPage?'active':''}"></span>`).join('');
   }
   const btn=document.getElementById('wizardNextBtn');
-  if(btn)btn.innerHTML=wizardPage===WIZARD_PAGE_COUNT-1?'Los geht\'s <i class="ti ti-check"></i>':'Weiter <i class="ti ti-arrow-right"></i>';
+  if(btn)btn.innerHTML=wizardPage===pageCount-1?'Los geht\'s <i class="ti ti-check"></i>':'Weiter <i class="ti ti-arrow-right"></i>';
   const body=document.getElementById('wizardBody');
   if(!body)return;
+  const me=agentById(currentUser);
+  if(me&&me.role==='am'){renderAmWizardPage(body);}
+  else{renderAdminWizardPage(body);}
+}
+function renderAmWizardPage(body){
   if(wizardPage===0){
     const n=wizardOverdueCount();
     body.innerHTML=`
@@ -7466,6 +7516,60 @@ function renderWizardPage(){
     body.innerHTML=`
       <div class="wizard-icon"><i class="ti ti-bulb"></i></div>
       <div class="wizard-quote">"${esc(quote)}"</div>`;
+  }
+}
+function renderAdminWizardPage(body){
+  if(wizardPage===0){
+    const n=wizardTeamActivityCount();
+    body.innerHTML=`
+      <div class="wizard-icon"><i class="ti ti-activity"></i></div>
+      <div class="wizard-stat">${n}</div>
+      <div class="wizard-title">Aktivitäten im Team</div>
+      <div class="wizard-sub">In den letzten 7 Tagen · Ø ${(n/7).toFixed(1)} pro Tag — über alle Mitarbeiter hinweg.</div>`;
+  }else if(wizardPage===1){
+    const delta=wizardFuFeedbackDelta();
+    const now=wizardFuFeedbackNow();
+    let deltaHtml='';
+    if(delta){
+      const diff=delta.now-delta.from;
+      const sign=diff>0?'+':diff<0?'−':'±';
+      deltaHtml=`<div class="wizard-delta" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;background:rgba(255,255,255,.14);margin-top:4px"><i class="ti ${diff>0?'ti-trending-up':diff<0?'ti-trending-down':'ti-minus'}"></i> ${sign}${Math.abs(diff)} in den letzten 30 Tagen</div>`;
+    }
+    body.innerHTML=`
+      <div class="wizard-icon"><i class="ti ti-arrows-shuffle"></i></div>
+      <div class="wizard-stat">${now}</div>
+      <div class="wizard-title">FollowUp: Feedback</div>
+      <div class="wizard-sub">Aktuell wartende Leads in dieser Stufe.</div>
+      ${deltaHtml}`;
+  }else if(wizardPage===2){
+    const n=wizardTeamOverdueCount();
+    body.innerHTML=`
+      <div class="wizard-icon"><i class="ti ti-alert-triangle"></i></div>
+      <div class="wizard-stat" style="color:#ffb4a8">${n}</div>
+      <div class="wizard-title">${n===1?'Überfälliger Follow-up':'Überfällige Follow-ups'}</div>
+      <div class="wizard-sub">Im gesamten Team — über alle Mitarbeiter hinweg.</div>`;
+  }else if(wizardPage===3){
+    const sum=wizardTeamInvestTotal();
+    body.innerHTML=`
+      <div class="wizard-icon"><i class="ti ti-coin"></i></div>
+      <div class="wizard-stat">${fmtEur(sum)||'0 €'}</div>
+      <div class="wizard-title">Investitionskosten (Team)</div>
+      <div class="wizard-sub">EK + Versandkosten für alle aktuell offenen Leads.</div>`;
+  }else if(wizardPage===4){
+    const wins=wizardTeamRecentWins();
+    body.innerHTML=`
+      <div class="wizard-icon"><i class="ti ti-trophy"></i></div>
+      <div class="wizard-title" style="margin-bottom:${wins.length?'10px':'0'}">Kürzlich gewonnen (Team)</div>
+      ${wins.length?wins.map(l=>`<div class="wizard-taskrow"><i class="ti ti-confetti"></i><div style="flex:1;min-width:0;text-align:left"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.company)}</div><div style="font-size:10.5px;color:rgba(255,255,255,.6)">${l.forecast?fmtEur(l.forecast)+' · ':''}${fmtDate(l.closedAt)}</div></div></div>`).join(''):'<div class="wizard-sub">Diese Woche noch kein Abschluss im Team verbucht.</div>'}`;
+  }else{
+    const top=wizardTeamTopForecastList();
+    body.innerHTML=`
+      <div class="wizard-icon"><i class="ti ti-flag-3"></i></div>
+      <div class="wizard-title" style="margin-bottom:${top.length?'10px':'0'}">Top Forecast (offen, Team)</div>
+      ${top.length?top.map(l=>{
+        const assignee=(l.members||[])[0]?agentById(l.members[0]):null;
+        return `<div class="wizard-taskrow" style="cursor:pointer" onclick="closeLoginWizard();openLeadModal(${l.id})"><i class="ti ti-arrow-right"></i><div style="flex:1;min-width:0;text-align:left"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.company)}</div><div style="font-size:10.5px;color:rgba(255,255,255,.6)">${fmtEur(l.forecast)}${assignee?' · '+esc(assignee.name):''}</div></div></div>`;
+      }).join(''):'<div class="wizard-sub">Aktuell keine offenen Leads mit Forecast-Wert.</div>'}`;
   }
 }
 let workingOfflineIntentionally=false;
